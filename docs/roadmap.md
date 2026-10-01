@@ -620,6 +620,15 @@ Therefore label invariance is currently **not established**.
 
 The previous `APP-006: execution pending` status is stale and must be corrected.
 
+#### Remediation state
+
+The current implementation candidate derives receptor-transfer geometry from
+apparatus-assigned source ordinals and hazard RNG namespaces from hazard slots,
+not evaluator-facing labels. Focused development tests now require E8 invariance
+and deterministic replay. The preregistered ten-seed campaign has **not** been
+rerun; A8 remains open until that governed run records `invariant_rate = 1.0`
+and deterministic replay.
+
 #### Identified contamination
 
 World currently allows nominal identifiers to influence physical experience.

@@ -12,7 +12,9 @@ def test_e8_label_invariance_replay():
     replay = run_label_invariance_study(seeds=(101, 127), steps=80)
     assert result == replay
     assert result.replay_deterministic
-    assert 0.0 <= result.invariant_rate <= 1.0
+    assert result.port_invariant_rate == 1.0
+    assert result.world_invariant_rate == 1.0
+    assert result.invariant_rate == 1.0
 
 
 def test_e7_heredity_leakage_replay():

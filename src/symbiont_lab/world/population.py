@@ -869,11 +869,12 @@ class PopulationGenesisRuntime:
                 )
                 hazard_hits: list[str] = []
                 if self.is_alive(organism_id):
-                    for hazard_id, exposure in self.environment.hazard_exposures_at(
-                        cell, density
-                    ).items():
+                    for hazard_ordinal, (hazard_id, exposure) in enumerate(
+                        self.environment.hazard_exposures_at(cell, density).items()
+                    ):
                         rng = derive_world_rng(
-                            self.world_seed, f"hazard.{hazard_id}:{organism_id}:{current_tick}"
+                            self.world_seed,
+                            f"hazard.slot.{hazard_ordinal}:{organism_id}:{current_tick}",
                         )
                         if rng.random() < exposure:
                             haz_evt_id = f"evt-{self.state.world_id}-{current_tick}-haz-{hazard_id}-{organism_id}"

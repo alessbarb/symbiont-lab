@@ -188,12 +188,12 @@ def _unit_interval(value: float) -> float:
     return 0.5 + 0.5 * math.tanh(value)
 
 
-def _mix_weight(receptor_index: int, source_id: str) -> float:
+def _mix_weight(receptor_index: int, source_ordinal: int) -> float:
     # Transfer geometry is constitutional and identical across founders.
     # Organism-facing receptor identities are private, but identity itself
     # must not alter the physical receptor response.
     digest = hashlib.sha256(
-        f"physical-receptor-transfer:{receptor_index}:{source_id}".encode()
+        f"physical-receptor-transfer:{receptor_index}:{source_ordinal}".encode()
     ).digest()
     integer = int.from_bytes(digest[:8], "big")
     return (integer / float((1 << 64) - 1)) * 2.0 - 1.0
@@ -217,12 +217,15 @@ def physical_receptor_signals(
     """
     sources: list[tuple[str, float]] = []
 
-    for field_id in sorted(ground_truth.fields):
+    # Mapping insertion order is the apparatus-assigned structural ordinal.
+    # Human-readable/opaque identifiers label a source but do not define its
+    # physical transfer geometry.
+    for field_id in ground_truth.fields:
         if field_id in observation.signals:
             sources.append((f"field:{field_id}", _unit_interval(observation.signals[field_id])))
 
     material_fractions: list[float] = []
-    for resource_id, law in sorted(ground_truth.resources.items()):
+    for resource_id, law in ground_truth.resources.items():
         amount = max(0.0, float(observation.signals.get(resource_id, 0.0)))
         material_fractions.append(min(1.0, amount / max(float(law.capacity), 1e-12)))
     if material_fractions:
@@ -258,7 +261,7 @@ def physical_receptor_signals(
         )
 
     if somatic_state:
-        for source_id, value in sorted(somatic_state.items()):
+        for source_id, value in somatic_state.items():
             bounded = max(0.0, min(1.0, float(value))) if math.isfinite(float(value)) else 0.5
             sources.append((f"soma:{source_id}", bounded))
 
@@ -271,8 +274,8 @@ def physical_receptor_signals(
     for receptor_index, receptor_id in enumerate(active_receptors):
         activation = (
             sum(
-                _mix_weight(receptor_index, source_id) * (2.0 * value - 1.0)
-                for source_id, value in sources
+                _mix_weight(receptor_index, source_ordinal) * (2.0 * value - 1.0)
+                for source_ordinal, (_source_id, value) in enumerate(sources)
             )
             / scale
         )
@@ -800,10 +803,12 @@ class SingleOrganismGenesisRuntime:
 
             density = observation.signals.get(_OCCUPANCY_SIGNAL, 0.0)
             if self.is_alive():
-                for hazard_id, exposure in self.environment.hazard_exposures_at(
-                    cell, density
-                ).items():
-                    rng = derive_world_rng(self.world_seed, f"hazard.{hazard_id}:{current_tick}")
+                for hazard_ordinal, (hazard_id, exposure) in enumerate(
+                    self.environment.hazard_exposures_at(cell, density).items()
+                ):
+                    rng = derive_world_rng(
+                        self.world_seed, f"hazard.slot.{hazard_ordinal}:{current_tick}"
+                    )
                     if rng.random() < exposure:
                         self.runtime.apply_environmental_damage(_HAZARD_DAMAGE_QUANTUM)
                         hazard_hits.append(hazard_id)
