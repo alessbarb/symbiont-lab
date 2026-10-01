@@ -19,8 +19,8 @@ import cProfile
 import json
 import platform
 import pstats
-import statistics
 import shutil
+import statistics
 import subprocess
 import sys
 import time
@@ -29,7 +29,6 @@ from typing import Any
 
 from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont_lab.studies.learning.agency_acquisition_body import CausalBody, build_subject
-
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -347,11 +346,26 @@ def main() -> None:
         ),
         _structured_command(
             "organism_scaling",
-            [python, "scripts/bench_organism_tick.py", "--organisms", "1", "10", "--ticks", "120" if args.quick else "500"],
+            [
+                python,
+                "scripts/bench_organism_tick.py",
+                "--organisms",
+                "1",
+                "10",
+                "--ticks",
+                "120" if args.quick else "500",
+            ],
         ),
         _structured_command(
             "sensorimotor_matching",
-            [python, "scripts/bench_sensorimotor_matching.py", "--queries", "30" if args.quick else "150", "--candidates", "128" if args.quick else "512"],
+            [
+                python,
+                "scripts/bench_sensorimotor_matching.py",
+                "--queries",
+                "30" if args.quick else "150",
+                "--candidates",
+                "128" if args.quick else "512",
+            ],
         ),
         _structured_command(
             "ridge_predictor",
@@ -364,11 +378,26 @@ def main() -> None:
         ),
         _command(
             "world_journal_age_scaling",
-            [python, "scripts/bench_world_journal_index.py", "--ages", "1000", "5000" if args.quick else "100000", "--repeats", "40" if args.quick else "200"],
+            [
+                python,
+                "scripts/bench_world_journal_index.py",
+                "--ages",
+                "1000",
+                "5000" if args.quick else "100000",
+                "--repeats",
+                "40" if args.quick else "200",
+            ],
         ),
         _structured_command(
             "sse_transport",
-            [python, "scripts/bench_sse_transport.py", "--messages", "1000" if args.quick else "10000", "--payload-bytes", "4096"],
+            [
+                python,
+                "scripts/bench_sse_transport.py",
+                "--messages",
+                "1000" if args.quick else "10000",
+                "--payload-bytes",
+                "4096",
+            ],
         ),
     ]
 

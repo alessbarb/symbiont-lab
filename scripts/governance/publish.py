@@ -24,7 +24,7 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from governance.classify import ChangeClass, Assessment, assess  # noqa: E402
+from governance.classify import Assessment, ChangeClass, assess  # noqa: E402
 from symbiont_lab.experiments.execution_workspace import pinned_worktree  # noqa: E402
 from symbiont_lab.experiments.resource_guard import ResourceRequest, assess_resources  # noqa: E402
 from symbiont_lab.physics3d.equivalence_suite import compare, load_suite, suite_status  # noqa: E402
@@ -93,7 +93,9 @@ def _active_work_conflicts(paths: list[str], base: str) -> list[str]:
         if work.get("state") != "RUNNING":
             continue
         for path in paths:
-            if any(fnmatch.fnmatchcase(path, pattern) for pattern in work.get("protected_paths", [])):
+            if any(
+                fnmatch.fnmatchcase(path, pattern) for pattern in work.get("protected_paths", [])
+            ):
                 conflicts.append(f"{work.get('id')}: {path}")
     return conflicts
 
@@ -128,7 +130,10 @@ class _EquivalenceLock:
         except FileExistsError as exc:
             raise RuntimeError("another equivalence run is already active") from exc
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            json.dump({"pid": os.getpid(), "started_at": time.time(), "kind": "causal-equivalence"}, handle)
+            json.dump(
+                {"pid": os.getpid(), "started_at": time.time(), "kind": "causal-equivalence"},
+                handle,
+            )
             handle.write("\n")
         return self
 
@@ -243,13 +248,9 @@ def _normalize_adr_ref(value: str) -> Path:
         try:
             path.relative_to(adr_root)
         except ValueError as exc:
-            raise PermissionError(
-                "CONSTITUTIONAL: ADR must live under docs/adr"
-            ) from exc
+            raise PermissionError("CONSTITUTIONAL: ADR must live under docs/adr") from exc
         if not path.name.upper().startswith("ADR-"):
-            raise PermissionError(
-                "CONSTITUTIONAL: ADR filename must start with ADR-"
-            )
+            raise PermissionError("CONSTITUTIONAL: ADR filename must start with ADR-")
         return path
 
     slug = raw
@@ -257,9 +258,7 @@ def _normalize_adr_ref(value: str) -> Path:
         slug = f"ADR-{slug}"
     matches = sorted(adr_root.glob(f"{slug}*.md"))
     if len(matches) != 1:
-        raise PermissionError(
-            f"CONSTITUTIONAL: ADR reference {value!r} did not resolve uniquely"
-        )
+        raise PermissionError(f"CONSTITUTIONAL: ADR reference {value!r} did not resolve uniquely")
     return matches[0]
 
 
@@ -269,18 +268,14 @@ def _resolve_constitutional_adr(
     adr_ref: str | None,
 ) -> str:
     changed_adrs = [
-        ROOT / path
-        for path in paths
-        if path.startswith("docs/adr/") and path.endswith(".md")
+        ROOT / path for path in paths if path.startswith("docs/adr/") and path.endswith(".md")
     ]
     accepted_changed = [path for path in changed_adrs if _accepted_adr(path)]
 
     if adr_ref:
         path = _normalize_adr_ref(adr_ref)
         if not _accepted_adr(path):
-            raise PermissionError(
-                f"CONSTITUTIONAL: ADR {path.relative_to(ROOT)} is not Accepted"
-            )
+            raise PermissionError(f"CONSTITUTIONAL: ADR {path.relative_to(ROOT)} is not Accepted")
         return path.relative_to(ROOT).as_posix()
 
     if len(accepted_changed) == 1:
@@ -344,8 +339,7 @@ def _publication_message(
         trailers.append(f"Governance-ADR: {constitutional_adr}")
     if evidence:
         trailers.append(
-            "Equivalence-Evidence: "
-            + json.dumps(evidence, sort_keys=True, separators=(",", ":"))
+            "Equivalence-Evidence: " + json.dumps(evidence, sort_keys=True, separators=(",", ":"))
         )
     return message.rstrip() + "\n\n" + "\n".join(trailers)
 

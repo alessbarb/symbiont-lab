@@ -8,8 +8,8 @@ import fnmatch
 import json
 import os
 import re
-import signal
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -24,8 +24,10 @@ for _bootstrap_path in (_BOOTSTRAP_ROOT / "scripts", _BOOTSTRAP_ROOT / "src"):
     if bootstrap not in sys.path:
         sys.path.insert(0, bootstrap)
 
-from governance.classify import ChangeClass, assess as assess_change
+from governance.classify import ChangeClass
+from governance.classify import assess as assess_change
 from governance.publish import publish as publish_changes
+
 from symbiont_lab.experiments.execution_workspace import pinned_worktree
 from symbiont_lab.experiments.resource_guard import ResourceRequest, assess_resources
 from symbiont_lab.experiments.snapshot_archive import (
@@ -35,7 +37,11 @@ from symbiont_lab.experiments.snapshot_archive import (
 )
 from symbiont_lab.physics3d.equivalence_suite import (
     load_suite as load_equivalence_suite,
+)
+from symbiont_lab.physics3d.equivalence_suite import (
     run_once as run_equivalence_once,
+)
+from symbiont_lab.physics3d.equivalence_suite import (
     suite_status as equivalence_suite_status,
 )
 
@@ -60,9 +66,20 @@ CONTROL_PLANE = (
 )
 
 ALLOWED_PROGRAMME_STATES = {
-    "running", "active", "next", "frozen", "paused", "unscheduled",
-    "p0-open", "maintenance-only", "closed-bounded", "blocked",
-    "design-data-complete", "blocked-by-P0", "blocked-by-P1", "blocked-by-P2",
+    "running",
+    "active",
+    "next",
+    "frozen",
+    "paused",
+    "unscheduled",
+    "p0-open",
+    "maintenance-only",
+    "closed-bounded",
+    "blocked",
+    "design-data-complete",
+    "blocked-by-P0",
+    "blocked-by-P1",
+    "blocked-by-P2",
 }
 SCIENTIFIC_SCOPES = {"development", "held-out", "confirmation", "replication", "mechanical"}
 
@@ -74,8 +91,12 @@ def load(name: str) -> dict[str, Any]:
 
 def git_result(*args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        ["git", *args], cwd=ROOT, check=False, text=True,
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        ["git", *args],
+        cwd=ROOT,
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
     )
 
 
@@ -133,7 +154,6 @@ def matches(path: str, pattern: str) -> bool:
 def parent_of(ref: str) -> str | None:
     result = git_result("rev-parse", f"{ref}^")
     return result.stdout.strip() if result.returncode == 0 else None
-
 
 
 def git_common_dir() -> Path:
@@ -244,8 +264,11 @@ def _verify_contract() -> list[str]:
 def _verify_toml() -> list[str]:
     errors: list[str] = []
     for name in (
-        "project-state.toml", "frozen-artifacts.toml", "active-work.toml",
-        "validation-matrix.toml", "resource-policy.toml",
+        "project-state.toml",
+        "frozen-artifacts.toml",
+        "active-work.toml",
+        "validation-matrix.toml",
+        "resource-policy.toml",
         "owner-root.toml",
         "bootstrap-exceptions.toml",
         "change-surfaces.toml",
@@ -461,7 +484,9 @@ def ci_check(base: str, head: str) -> int:
         print(f"audit base commit is unavailable: {base}", file=sys.stderr)
         return 2
     if git_result("merge-base", "--is-ancestor", base, head).returncode != 0:
-        print("audit base is not an ancestor of head; non-linear/force push rejected", file=sys.stderr)
+        print(
+            "audit base is not an ancestor of head; non-linear/force push rejected", file=sys.stderr
+        )
         return 2
 
     commits = [c for c in git("rev-list", "--reverse", f"{base}..{head}").splitlines() if c]
@@ -481,11 +506,7 @@ def ci_check(base: str, head: str) -> int:
         for error in errors:
             print(f"ERROR: {error}", file=sys.stderr)
         return 1
-    skipped = (
-        f"; {redundant_merges} redundant merge commits skipped"
-        if redundant_merges
-        else ""
-    )
+    skipped = f"; {redundant_merges} redundant merge commits skipped" if redundant_merges else ""
     print(f"commit governance audit: PASS ({audited} commits audited{skipped})")
     return 0
 
@@ -510,11 +531,7 @@ def _pid_alive(pid: int) -> bool:
 
 def _tracked_running_at(ref: str) -> list[str]:
     data = _trusted_governance_at(ref, "active-work.toml")
-    return [
-        str(work["id"])
-        for work in data.get("work", [])
-        if work.get("state") == "RUNNING"
-    ]
+    return [str(work["id"]) for work in data.get("work", []) if work.get("state") == "RUNNING"]
 
 
 def _tracked_running() -> list[str]:
@@ -551,6 +568,7 @@ def _scientific_preexec(memory_gb: float, wall_minutes: int, cpu: int):
 
     def apply_limits() -> None:
         import resource
+
         memory_bytes = int(memory_gb * 1024**3)
         resource.setrlimit(resource.RLIMIT_AS, (memory_bytes, memory_bytes))
         cpu_seconds = max(1, wall_minutes * 60)
@@ -558,6 +576,7 @@ def _scientific_preexec(memory_gb: float, wall_minutes: int, cpu: int):
         if hasattr(os, "sched_setaffinity"):
             available = sorted(os.sched_getaffinity(0))
             os.sched_setaffinity(0, set(available[: max(1, min(cpu, len(available)))]))
+
     return apply_limits
 
 
@@ -804,9 +823,9 @@ def equivalence_run_command(suite: Path, scenario_ids: list[str]) -> int:
     try:
         governance_ref = _trusted_origin_ref()
         running = _tracked_running_at(governance_ref)
-        trusted_policy = _trusted_governance_at(
-            governance_ref, "resource-policy.toml"
-        ).get("scientific_runs", {})
+        trusted_policy = _trusted_governance_at(governance_ref, "resource-policy.toml").get(
+            "scientific_runs", {}
+        )
     except RuntimeError as exc:
         print(f"BLOCKED — {exc}", file=sys.stderr)
         return 3
@@ -844,7 +863,9 @@ def equivalence_run_command(suite: Path, scenario_ids: list[str]) -> int:
         print("BLOCKED — another equivalence run is already active", file=sys.stderr)
         return 3
     with os.fdopen(fd, "w", encoding="utf-8") as handle:
-        json.dump({"pid": os.getpid(), "started_at": datetime.now(timezone.utc).isoformat()}, handle)
+        json.dump(
+            {"pid": os.getpid(), "started_at": datetime.now(timezone.utc).isoformat()}, handle
+        )
         handle.write("\n")
 
     exit_code = 0
@@ -889,7 +910,16 @@ def equivalence_run_command(suite: Path, scenario_ids: list[str]) -> int:
                 disk_path=ROOT,
             )
             if not resources.allowed:
-                print(json.dumps({"scenario": scenario_id, "status": "NOT_ASSESSABLE_RESOURCES", "reasons": list(resources.reasons)}, indent=2))
+                print(
+                    json.dumps(
+                        {
+                            "scenario": scenario_id,
+                            "status": "NOT_ASSESSABLE_RESOURCES",
+                            "reasons": list(resources.reasons),
+                        },
+                        indent=2,
+                    )
+                )
                 exit_code = 2
                 continue
             result = run_equivalence_once(scenario)
@@ -933,9 +963,13 @@ def main() -> int:
     p_equivalence = sub.add_parser("equivalence")
     equivalence_sub = p_equivalence.add_subparsers(dest="equivalence_command", required=True)
     p_eq_status = equivalence_sub.add_parser("status")
-    p_eq_status.add_argument("--suite", type=Path, default=ROOT / "experiments/equivalence/suite-v1/suite.toml")
+    p_eq_status.add_argument(
+        "--suite", type=Path, default=ROOT / "experiments/equivalence/suite-v1/suite.toml"
+    )
     p_eq_run = equivalence_sub.add_parser("run")
-    p_eq_run.add_argument("--suite", type=Path, default=ROOT / "experiments/equivalence/suite-v1/suite.toml")
+    p_eq_run.add_argument(
+        "--suite", type=Path, default=ROOT / "experiments/equivalence/suite-v1/suite.toml"
+    )
     p_eq_run.add_argument("--scenario", action="append", default=[])
 
     p_snapshot = sub.add_parser("snapshot")
