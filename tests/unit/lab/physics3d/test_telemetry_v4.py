@@ -75,6 +75,13 @@ def _write(writer) -> None:
     writer.close()
 
 
+def test_v4_async_writer_rejects_invalid_queue_before_creating_run(tmp_path):
+    root = tmp_path / "not-created"
+    with pytest.raises(ValueError, match="queue_size must be >= 1"):
+        AsyncTelemetryV4Writer(root, queue_size=0)
+    assert not root.exists()
+
+
 def test_v4_losslessly_reconstructs_every_tick_and_summary(tmp_path):
     writer = TelemetryV4Writer(
         tmp_path,

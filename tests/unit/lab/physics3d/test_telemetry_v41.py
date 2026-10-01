@@ -32,6 +32,13 @@ class DummyTick:
     signed_zero: float = 0.0
 
 
+def test_v41_async_writer_rejects_invalid_queue_before_creating_run(tmp_path):
+    root = tmp_path / "not-created"
+    with pytest.raises(ValueError, match="queue_size must be >= 1"):
+        AsyncTelemetryV41Writer(root, queue_size=0)
+    assert not root.exists()
+
+
 def _episode(sample: int):
     return {
         "primitive_id": "primitive.example",

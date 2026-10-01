@@ -9,8 +9,6 @@ from __future__ import annotations
 
 import json
 import os
-import queue
-import threading
 import uuid
 from copy import deepcopy
 from dataclasses import asdict, is_dataclass
@@ -18,6 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator, Mapping
 
+from ._async_telemetry import AsyncTelemetryWorker
 from .telemetry_compaction import (
     CompactionPolicy,
     ObjectStore,
@@ -289,103 +288,22 @@ class TelemetryV4Writer:
         _write_json(self.root / "manifest.json", self.manifest)
 
 
-class AsyncTelemetryV4Writer:
+class AsyncTelemetryV4Writer(AsyncTelemetryWorker):
     """Bounded FIFO worker around TelemetryV4Writer."""
-
-    _STOP = object()
 
     def __init__(self, *args, queue_size: int = 256, **kwargs) -> None:
         if queue_size < 1:
             raise ValueError("queue_size must be >= 1")
-        self._writer = TelemetryV4Writer(*args, **kwargs)
-        self._snapshot_interval = self._writer._snapshot_interval
-        self._queue: queue.Queue[object] = queue.Queue(maxsize=int(queue_size))
-        self._submitted = 0
-        self._closed = False
-        self._error: BaseException | None = None
-        self._thread = threading.Thread(
-            target=self._run,
-            name=f"telemetry-v4-{self._writer.run_id}",
-            daemon=False,
+        writer = TelemetryV4Writer(*args, **kwargs)
+        super().__init__(
+            writer,
+            queue_size=queue_size,
+            thread_name=f"telemetry-v4-{writer.run_id}",
         )
-        self._thread.start()
-
-    @property
-    def run_id(self) -> str:
-        return self._writer.run_id
-
-    @property
-    def root(self) -> Path:
-        return self._writer.root
-
-    @property
-    def manifest(self) -> dict[str, Any]:
-        return self._writer.manifest
-
-    def _raise_worker_error(self) -> None:
-        if self._error is not None:
-            raise RuntimeError("async telemetry worker failed") from self._error
 
     def needs_snapshot(self, tick: int) -> bool:
         self._raise_worker_error()
         return self._submitted == 0 or int(tick) % self._snapshot_interval == 0
-
-    def append(
-        self,
-        record: Any,
-        *,
-        rich_state: Mapping[str, Any],
-        full_snapshot: Mapping[str, Any] | None = None,
-    ) -> None:
-        if self._closed:
-            raise RuntimeError("async telemetry writer is closed")
-        self._raise_worker_error()
-        self._queue.put((record, rich_state, full_snapshot))
-        self._submitted += 1
-        self._raise_worker_error()
-
-    def _run(self) -> None:
-        try:
-            while True:
-                item = self._queue.get()
-                try:
-                    if item is self._STOP:
-                        return
-                    if self._error is not None:
-                        continue
-                    record, rich_state, full_snapshot = item
-                    self._writer.append(
-                        record,
-                        rich_state=rich_state,
-                        full_snapshot=full_snapshot,
-                    )
-                except BaseException as exc:
-                    self._error = exc
-                finally:
-                    self._queue.task_done()
-        finally:
-            try:
-                self._writer.close()
-            except BaseException as exc:
-                if self._error is None:
-                    self._error = exc
-
-    def flush(self) -> None:
-        if self._closed:
-            self._raise_worker_error()
-            return
-        self._queue.join()
-        self._raise_worker_error()
-
-    def close(self) -> None:
-        if self._closed:
-            self._raise_worker_error()
-            return
-        self._closed = True
-        self._queue.put(self._STOP)
-        self._queue.join()
-        self._thread.join()
-        self._raise_worker_error()
 
 
 class TelemetryV4Reader:

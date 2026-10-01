@@ -73,3 +73,34 @@ tests. Prefer a small apparatus-only seam if those facts support it. Do not
 change mechanisms, ordering, random-number consumption, checkpoint semantics,
 or authority boundaries. The proposed passive runtime trace remains unapproved
 and is not selected by this inventory.
+
+## First bounded extraction: asynchronous telemetry worker lifecycle
+
+The first selected seam is the identical bounded FIFO worker lifecycle shared
+by `AsyncTelemetryV4Writer` and `AsyncTelemetryV41Writer` in
+`src/symbiont_lab/physics3d/telemetry_v4.py` and `telemetry_v41.py`. Their
+`_run`, `append`, `flush`, `close`, and worker-error handling were duplicated;
+the V4.1 snapshot policy is distinct and remains in its versioned adapter.
+
+- **Owned responsibility:** bounded queue, worker thread lifecycle, persistence
+  delegation and worker-error propagation. The new private
+  `physics3d/_async_telemetry.py` helper owns no telemetry format or tick policy.
+- **Callers:** the Physics3D engine constructs the V4.1 adapter; V4/V4.1 async
+  behavior is exercised in `tests/unit/lab/physics3d/test_telemetry_v4.py` and
+  `test_telemetry_v41.py`. Telemetry tools consume the versioned writers and
+  readers; their interfaces are unchanged.
+- **Compatibility surface:** public class names, modules, constructor
+  signatures, delegated `run_id`/`root`/`manifest`, snapshot policy and worker
+  thread names remain version-specific and stable. Invalid queue size is
+  rejected before creating the run directory.
+- **Preserved invariants:** FIFO ordering, bounded backpressure, append
+  arguments, close/drain behavior, non-daemon worker lifecycle, exception
+  propagation and all on-disk schemas remain unchanged. The shared helper does
+  not inspect, reorder, or mutate scientific state.
+- **Focused evidence:** all in-scope Physics3D unit tests passed after the
+  extraction: **280 passed, 1 skipped**. Ruff check and format check passed.
+  The full repository suite was not run; no performance claim is made.
+
+This is one behavior-preserving apparatus slice, not a decision to merge
+telemetry formats or move their public APIs. Further extractions require their
+own source-to-test mapping and regression evidence.
