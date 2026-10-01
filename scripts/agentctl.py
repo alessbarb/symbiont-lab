@@ -86,6 +86,47 @@ ALLOWED_PROGRAMME_STATES = {
 SCIENTIFIC_SCOPES = {"development", "held-out", "confirmation", "replication", "mechanical"}
 
 
+class ScientificInput:
+    """Canonical provenance declaration for the scientific starting state."""
+
+    __slots__ = ("mode", "snapshot")
+
+    def __init__(self, mode: str, snapshot: dict[str, Any] | None = None) -> None:
+        if mode not in {"snapshot", "protocol-generated"}:
+            raise ValueError(f"unsupported scientific input mode: {mode}")
+        if (mode == "snapshot") != (snapshot is not None):
+            raise ValueError(
+                "snapshot input requires snapshot metadata; generated input forbids it"
+            )
+        object.__setattr__(self, "mode", mode)
+        object.__setattr__(self, "snapshot", snapshot)
+
+    def __setattr__(self, _name: str, _value: Any) -> None:
+        raise AttributeError("ScientificInput is immutable")
+
+    def as_dict(self) -> dict[str, Any]:
+        result: dict[str, Any] = {
+            "mode": self.mode,
+            "external_state": self.mode == "snapshot",
+        }
+        if self.snapshot is not None:
+            result["snapshot"] = self.snapshot
+        return result
+
+
+def _snapshot_input(manifest: dict[str, Any]) -> ScientificInput:
+    fields = (
+        "source_commit",
+        "schema_version",
+        "organism_sha256",
+        "body_sha256",
+        "bundle_models_tree_sha256",
+        "models_tree_sha256",
+        "body_kind",
+    )
+    return ScientificInput("snapshot", {key: manifest.get(key) for key in fields})
+
+
 def load(name: str) -> dict[str, Any]:
     with (GOV / name).open("rb") as handle:
         return tomllib.load(handle)
@@ -732,7 +773,8 @@ def run_pinned(
     commit: str,
     run_id: str,
     scope: str,
-    snapshot_source: Path,
+    input_mode: str,
+    snapshot_source: Path | None,
     snapshot_source_commit: str | None,
     command: list[str],
     experiment_id: str,
@@ -743,13 +785,27 @@ def run_pinned(
     cpu: int,
     disk_gb: float,
 ) -> int:
-    """Run one pinned scientific command from an immutable archived starting state."""
+    """Run one pinned scientific command with explicit starting-state provenance."""
 
     if scope not in SCIENTIFIC_SCOPES:
         print(f"invalid scientific scope: {scope}", file=sys.stderr)
         return 2
     if any(extra not in {"modeling", "physics3d"} for extra in extras):
         print("invalid scientific dependency extra", file=sys.stderr)
+        return 2
+    if input_mode not in {"snapshot", "protocol-generated"}:
+        print(f"invalid scientific input mode: {input_mode}", file=sys.stderr)
+        return 2
+    if (input_mode == "snapshot") != (snapshot_source is not None) or (
+        input_mode == "protocol-generated" and snapshot_source_commit is not None
+    ):
+        print(
+            "snapshot mode requires --snapshot-source; protocol-generated mode rejects it",
+            file=sys.stderr,
+        )
+        return 2
+    if input_mode == "protocol-generated" and any("{input}" in token for token in command):
+        print("protocol-generated mode does not provide a {input} artifact", file=sys.stderr)
         return 2
     try:
         _python_target(command)
@@ -809,14 +865,14 @@ def run_pinned(
         return 3
 
     existing_manifest: dict[str, Any] | None = None
-    if (snapshot_source / "manifest.json").is_file():
+    if snapshot_source is not None and (snapshot_source / "manifest.json").is_file():
         try:
             existing_manifest = verify_snapshot(snapshot_source)
         except ValueError as exc:
             print(f"BLOCKED — invalid archived snapshot: {exc}", file=sys.stderr)
             return 3
 
-    input_source_commit = snapshot_source_commit
+    input_source_commit = snapshot_source_commit if input_mode == "snapshot" else None
     if existing_manifest is not None:
         archived_commit = str(existing_manifest.get("source_commit") or "")
         if input_source_commit and input_source_commit != archived_commit:
@@ -826,15 +882,16 @@ def run_pinned(
             )
             return 3
         input_source_commit = archived_commit
-    if input_source_commit is None:
+    if input_mode == "snapshot" and input_source_commit is None:
         input_source_commit = commit
-    if not commit_exists(input_source_commit):
+    if input_source_commit is not None and not commit_exists(input_source_commit):
         print(
             f"BLOCKED — snapshot source commit is unavailable: {input_source_commit}",
             file=sys.stderr,
         )
         return 3
-    input_source_commit = git("rev-parse", f"{input_source_commit}^{{commit}}")
+    if input_source_commit is not None:
+        input_source_commit = git("rev-parse", f"{input_source_commit}^{{commit}}")
 
     run_root = runtime_dir() / "runs" / run_id
     if run_root.exists():
@@ -844,21 +901,28 @@ def run_pinned(
     run_home = run_root / "home"
     run_home.mkdir(parents=True, exist_ok=True)
     attempt_started_at = datetime.now(timezone.utc).isoformat()
-    input_dir = run_root / "input"
+    input_dir = run_root / "input" if input_mode == "snapshot" else None
     try:
-        manifest = archive_snapshot(
-            source=snapshot_source,
-            destination=input_dir,
-            source_commit=input_source_commit,
-            body_kind=(
-                str(existing_manifest.get("body_kind"))
-                if existing_manifest and existing_manifest.get("body_kind")
-                else None
-            ),
-            scenario=scope,
-        )
+        if input_mode == "snapshot":
+            assert snapshot_source is not None and input_dir is not None
+            manifest = archive_snapshot(
+                source=snapshot_source,
+                destination=input_dir,
+                source_commit=input_source_commit,
+                body_kind=(
+                    str(existing_manifest.get("body_kind"))
+                    if existing_manifest and existing_manifest.get("body_kind")
+                    else None
+                ),
+                scenario=scope,
+            )
+        else:
+            manifest = None
         work_dir = run_root / "work"
-        shutil.copytree(input_dir, work_dir, copy_function=shutil.copy2)
+        if input_dir is not None:
+            shutil.copytree(input_dir, work_dir, copy_function=shutil.copy2)
+        else:
+            work_dir.mkdir()
         for path in work_dir.rglob("*"):
             if path.is_file():
                 try:
@@ -875,7 +939,14 @@ def run_pinned(
                 "started_at": attempt_started_at,
                 "ended_at": datetime.now(timezone.utc).isoformat(),
                 "state": "SETUP_FAILED",
-                "failure_phase": "snapshot_or_worktree_copy",
+                "failure_phase": "input_or_worktree_copy",
+                "scientific_input": (
+                    _snapshot_input(existing_manifest).as_dict()
+                    if existing_manifest is not None
+                    else ScientificInput(input_mode).as_dict()
+                    if input_mode == "protocol-generated"
+                    else {"mode": "snapshot", "external_state": True}
+                ),
                 "scientific_child_started": False,
             },
         )
@@ -883,11 +954,16 @@ def run_pinned(
             shutil.rmtree(run_root / transient, ignore_errors=True)
         raise
 
+    scientific_input = (
+        _snapshot_input(manifest) if manifest is not None else ScientificInput("protocol-generated")
+    )
     payload = {
         "id": run_id,
         "scope": scope,
         "commit": commit,
-        "input_source_commit": input_source_commit,
+        "experiment_id": experiment_id,
+        "seed": seed,
+        "scientific_input": scientific_input.as_dict(),
         "governance_ref": governance_ref,
         "authorization_model": "external-operator-policy",
         "owner_pid": os.getpid(),
@@ -897,7 +973,6 @@ def run_pinned(
         "memory_gb": memory_gb,
         "cpu_threads": cpu,
         "disk_gb": disk_gb,
-        "input_manifest": manifest,
         "resource_preflight": {
             "available_memory_gb": assessment.available_memory_gb,
             "free_disk_gb": assessment.free_disk_gb,
@@ -910,7 +985,11 @@ def run_pinned(
         return 1
 
     resolved_command = [
-        str(input_dir) if token == "{input}" else str(work_dir) if token == "{work}" else token
+        str(input_dir)
+        if token == "{input}" and input_dir is not None
+        else str(work_dir)
+        if token == "{work}"
+        else token
         for token in command
     ]
     target = _python_target(resolved_command)
@@ -944,7 +1023,8 @@ def run_pinned(
             env = _scientific_environment(home=run_home)
             env["PYTHONPATH"] = str(worktree / "src")
             env["UV_PROJECT_ENVIRONMENT"] = str(environment)
-            env["SYMBIONT_RUN_INPUT"] = str(input_dir)
+            if input_dir is not None:
+                env["SYMBIONT_RUN_INPUT"] = str(input_dir)
             env["SYMBIONT_RUN_WORK"] = str(work_dir)
             env["SYMBIONT_RUN_ID"] = run_id
             for key in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS"):
@@ -956,18 +1036,7 @@ def run_pinned(
                     "argv": command,
                     "dependency_extras": sorted(set(extras)),
                     "scope": scope,
-                    "snapshot": {
-                        key: manifest.get(key)
-                        for key in (
-                            "source_commit",
-                            "schema_version",
-                            "organism_sha256",
-                            "body_sha256",
-                            "bundle_models_tree_sha256",
-                            "models_tree_sha256",
-                            "body_kind",
-                        )
-                    },
+                    "scientific_input": scientific_input.as_dict(),
                 },
                 sort_keys=True,
                 separators=(",", ":"),
@@ -1343,7 +1412,8 @@ def main() -> int:
     p_start.add_argument("--seed", type=int, required=True)
     p_start.add_argument("--extra", action="append", choices=("modeling", "physics3d"), default=[])
     p_start.add_argument("--scope", choices=sorted(SCIENTIFIC_SCOPES), required=True)
-    p_start.add_argument("--snapshot-source", type=Path, required=True)
+    p_start.add_argument("--input-mode", choices=("snapshot", "protocol-generated"), required=True)
+    p_start.add_argument("--snapshot-source", type=Path)
     p_start.add_argument(
         "--snapshot-source-commit",
         help="commit that produced the input state; archived snapshots preserve their own source_commit",
@@ -1409,10 +1479,19 @@ def main() -> int:
         if not argv:
             print("missing command after --", file=sys.stderr)
             return 2
+        if (args.input_mode == "snapshot") != (args.snapshot_source is not None) or (
+            args.input_mode == "protocol-generated" and args.snapshot_source_commit is not None
+        ):
+            print(
+                "snapshot mode requires --snapshot-source; protocol-generated mode rejects it",
+                file=sys.stderr,
+            )
+            return 2
         return run_pinned(
             commit=args.commit,
             run_id=args.id,
             scope=args.scope,
+            input_mode=args.input_mode,
             snapshot_source=args.snapshot_source,
             snapshot_source_commit=args.snapshot_source_commit,
             command=argv,
