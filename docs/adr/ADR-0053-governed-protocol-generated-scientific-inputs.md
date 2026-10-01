@@ -149,26 +149,26 @@ the launcher is not an input artifact.
 ## Acceptance criteria
 
 - [x] Project owner explicitly accepts this ADR.
-- [ ] CLI enforces the mutually exclusive snapshot and protocol-generated
+- [x] CLI enforces the mutually exclusive snapshot and protocol-generated
   forms; mode inference and generic snapshot bypasses are absent.
-- [ ] Both modes record explicit, accurate input provenance in the receipt and
+- [x] Both modes record explicit, accurate input provenance in the receipt and
   effective configuration.
-- [ ] Protocol-generated mode retains child identity/fingerprint verification,
+- [x] Protocol-generated mode retains child identity/fingerprint verification,
   resource controls, isolation and timeout behavior.
-- [ ] Tests cover protocol-generated provenance and verification, rejection of
+- [x] Tests cover protocol-generated provenance and verification, rejection of
   a supplied snapshot in that mode, and unchanged snapshot behavior.
 - [ ] Implement and integrate the control-plane change in a separate PR; do not
   modify PR #212. Merge the launcher change to `main` before starting the E8
   campaign, then pin every governed run to the same reviewed scientific
   candidate commit from #212.
-- [ ] A single-seed E8 runner uses the preregistered protocol and `steps=300`;
+- [x] A single-seed E8 runner uses the preregistered protocol and `steps=300`;
   launcher seed equals the seed consumed by the study.
 - [ ] All ten governed E8 results and receipts are preserved and aggregated;
   aggregation verifies the exact preregistered seeds, no duplicates/missing
   results, one common candidate commit, receipt/result seed equality, and
   `integrity_pass` plus replay determinism for each run; A8 closes only if all
   ten per-seed invariant rates are `1.0`.
-- [ ] Focused and governance/static checks pass; the canonical suite and
+- [x] Focused and governance/static checks pass; the canonical suite and
   campaign results are reported separately.
 
 ## Decision

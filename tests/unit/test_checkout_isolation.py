@@ -332,8 +332,9 @@ def test_verified_child_propagates_target_exit_code(monkeypatch) -> None:
 
 
 @pytest.mark.parametrize("mode", ["script", "module", "code"])
+@pytest.mark.parametrize("input_mode", ["snapshot", "protocol-generated"])
 def test_agentctl_run_start_records_verified_child_receipt(
-    tmp_path, monkeypatch, mode: str
+    tmp_path, monkeypatch, mode: str, input_mode: str
 ) -> None:
     import contextlib
     import importlib.util
@@ -352,7 +353,13 @@ def test_agentctl_run_start_records_verified_child_receipt(
         target_file = tmp_path / "study.py"
         target_file.write_text(
             "import os, sys; assert 'SYMBIONT_TEST_SECRET' not in os.environ; "
-            "assert sys.prefix == os.environ['SYMBIONT_RUN_ENVIRONMENT']; assert sys.prefix == __import__('json').loads(os.environ['SYMBIONT_EXPECTED_EXECUTION_FINGERPRINT']).get('python_prefix', sys.prefix); assert sys.base_prefix == __import__('json').loads(os.environ['SYMBIONT_EXPECTED_EXECUTION_FINGERPRINT']).get('python_base_prefix', sys.base_prefix); "
+            + (
+                "assert 'SYMBIONT_RUN_INPUT' not in os.environ; "
+                if input_mode == "protocol-generated"
+                else ""
+            )
+            + f"assert __import__('json').loads(os.environ['SYMBIONT_EFFECTIVE_CONFIG'])['scientific_input']['mode'] == '{input_mode}'; "
+            + "assert sys.prefix == os.environ['SYMBIONT_RUN_ENVIRONMENT']; assert sys.prefix == __import__('json').loads(os.environ['SYMBIONT_EXPECTED_EXECUTION_FINGERPRINT']).get('python_prefix', sys.prefix); assert sys.base_prefix == __import__('json').loads(os.environ['SYMBIONT_EXPECTED_EXECUTION_FINGERPRINT']).get('python_base_prefix', sys.base_prefix); "
             f"from pathlib import Path; Path({str(marker)!r}).write_text('ran')",
             encoding="utf-8",
         )
@@ -366,14 +373,27 @@ def test_agentctl_run_start_records_verified_child_receipt(
             "1",
             "-r",
             "1",
-            f"import os, sys; assert 'SYMBIONT_TEST_SECRET' not in os.environ; assert sys.prefix == os.environ['SYMBIONT_RUN_ENVIRONMENT']; assert sys.prefix == __import__('json').loads(os.environ['SYMBIONT_EXPECTED_EXECUTION_FINGERPRINT']).get('python_prefix', sys.prefix); assert sys.base_prefix == __import__('json').loads(os.environ['SYMBIONT_EXPECTED_EXECUTION_FINGERPRINT']).get('python_base_prefix', sys.base_prefix); open({str(marker)!r}, 'w').write('ran')",
+            "import os, sys; assert 'SYMBIONT_TEST_SECRET' not in os.environ; "
+            + (
+                "assert 'SYMBIONT_RUN_INPUT' not in os.environ; "
+                if input_mode == "protocol-generated"
+                else ""
+            )
+            + f"assert __import__('json').loads(os.environ['SYMBIONT_EFFECTIVE_CONFIG'])['scientific_input']['mode'] == '{input_mode}'; "
+            + f"assert sys.prefix == os.environ['SYMBIONT_RUN_ENVIRONMENT']; assert sys.prefix == __import__('json').loads(os.environ['SYMBIONT_EXPECTED_EXECUTION_FINGERPRINT']).get('python_prefix', sys.prefix); assert sys.base_prefix == __import__('json').loads(os.environ['SYMBIONT_EXPECTED_EXECUTION_FINGERPRINT']).get('python_base_prefix', sys.base_prefix); open({str(marker)!r}, 'w').write('ran')",
         ]
     else:
         command = [
             sys.executable,
             "-c",
             "import os, sys; assert 'SYMBIONT_TEST_SECRET' not in os.environ; "
-            "assert sys.prefix == os.environ['SYMBIONT_RUN_ENVIRONMENT']; assert sys.prefix == __import__('json').loads(os.environ['SYMBIONT_EXPECTED_EXECUTION_FINGERPRINT']).get('python_prefix', sys.prefix); assert sys.base_prefix == __import__('json').loads(os.environ['SYMBIONT_EXPECTED_EXECUTION_FINGERPRINT']).get('python_base_prefix', sys.base_prefix); "
+            + (
+                "assert 'SYMBIONT_RUN_INPUT' not in os.environ; "
+                if input_mode == "protocol-generated"
+                else ""
+            )
+            + f"assert __import__('json').loads(os.environ['SYMBIONT_EFFECTIVE_CONFIG'])['scientific_input']['mode'] == '{input_mode}'; "
+            + "assert sys.prefix == os.environ['SYMBIONT_RUN_ENVIRONMENT']; assert sys.prefix == __import__('json').loads(os.environ['SYMBIONT_EXPECTED_EXECUTION_FINGERPRINT']).get('python_prefix', sys.prefix); assert sys.base_prefix == __import__('json').loads(os.environ['SYMBIONT_EXPECTED_EXECUTION_FINGERPRINT']).get('python_base_prefix', sys.base_prefix); "
             f"from pathlib import Path; Path({str(marker)!r}).write_text('ran')",
         ]
 
@@ -446,8 +466,9 @@ def test_agentctl_run_start_records_verified_child_receipt(
         commit=commit,
         run_id=f"launcher-{mode}",
         scope="development",
-        snapshot_source=tmp_path / "input-source",
-        snapshot_source_commit=commit,
+        input_mode=input_mode,
+        snapshot_source=tmp_path / "input-source" if input_mode == "snapshot" else None,
+        snapshot_source_commit=commit if input_mode == "snapshot" else None,
         command=command,
         experiment_id=f"launcher-{mode}",
         seed=59,
@@ -467,6 +488,9 @@ def test_agentctl_run_start_records_verified_child_receipt(
     assert fingerprint["experiment_id"] == f"launcher-{mode}"
     assert len(fingerprint["effective_config_hash"]) == 64
     assert receipt["dependency_extras"] == []
+    assert receipt["scientific_input"]["mode"] == input_mode
+    assert receipt["scientific_input"]["external_state"] is (input_mode == "snapshot")
+    assert receipt["seed"] == 59
     assert Path(receipt["environment_path"]).is_dir()
     assert Path(fingerprint["python_executable"]).is_absolute()
 
@@ -516,6 +540,7 @@ def test_agentctl_run_start_rejects_invalid_command_before_preflight(
         commit="not-inspected",
         run_id="invalid-command",
         scope="development",
+        input_mode="snapshot",
         snapshot_source=tmp_path,
         snapshot_source_commit=None,
         command=command,
@@ -573,6 +598,7 @@ def test_run_setup_failure_keeps_non_execution_attempt_receipt(tmp_path, monkeyp
             commit=commit,
             run_id="setup-failure",
             scope="development",
+            input_mode="snapshot",
             snapshot_source=tmp_path / "source",
             snapshot_source_commit=commit,
             command=[sys.executable, "-c", "pass"],
@@ -750,6 +776,8 @@ def test_run_start_requires_separator_and_preserves_child_flags(monkeypatch, cap
         "1",
         "--scope",
         "development",
+        "--input-mode",
+        "snapshot",
         "--snapshot-source",
         ".",
     ]
@@ -763,3 +791,43 @@ def test_run_start_requires_separator_and_preserves_child_flags(monkeypatch, cap
     monkeypatch.setattr(sys, "argv", [*prefix, "--", sys.executable, "-c", "pass", "--cpu", "999"])
     assert agentctl.main() == 0
     assert received["command"] == [sys.executable, "-c", "pass", "--cpu", "999"]
+
+
+@pytest.mark.parametrize(
+    ("input_mode", "snapshot_source", "snapshot_source_commit"),
+    [
+        ("protocol-generated", Path("snapshot"), None),
+        ("protocol-generated", None, "abc"),
+        ("snapshot", None, None),
+    ],
+)
+def test_run_start_rejects_mixed_or_incomplete_input_provenance(
+    tmp_path, monkeypatch, capsys, input_mode, snapshot_source, snapshot_source_commit
+) -> None:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "agentctl_input_mode", REPO_ROOT / "scripts/agentctl.py"
+    )
+    assert spec and spec.loader
+    agentctl = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(agentctl)
+    monkeypatch.setattr(agentctl, "commit_exists", lambda *_args: pytest.fail("preflight reached"))
+    result = agentctl.run_pinned(
+        commit="unused",
+        run_id="invalid-input-provenance",
+        scope="development",
+        input_mode=input_mode,
+        snapshot_source=snapshot_source,
+        snapshot_source_commit=snapshot_source_commit,
+        command=[sys.executable, "-c", "pass"],
+        experiment_id="invalid-input-provenance",
+        seed=1,
+        extras=[],
+        wall_minutes=1,
+        memory_gb=1,
+        cpu=1,
+        disk_gb=1,
+    )
+    assert result == 2
+    assert "snapshot mode requires" in capsys.readouterr().err
