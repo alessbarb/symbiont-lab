@@ -12,6 +12,7 @@ import json
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 try:
@@ -201,7 +202,7 @@ class ObservatoryServer(ThreadingHTTPServer):
         self.world_state = world_state
         super().__init__((host, port), _Handler)
 
-    def handle_error(self, request: object, client_address: object) -> None:
+    def handle_error(self, request: Any, client_address: Any) -> None:
         exc_val = sys.exc_info()[1]
         if isinstance(exc_val, _CLIENT_DISCONNECT_ERRORS):
             return

@@ -13,14 +13,13 @@ import math
 from dataclasses import asdict, dataclass
 from typing import Any
 
-from symbiont.core.interactions import EcologicalResourcePool
-
 from symbiont import __version__ as symbiont_version
 from symbiont.cognition.birth import load_base_genome
 from symbiont.cognition.limits import KernelLimits
 from symbiont.core.embodiment.metabolism import MetabolicLedger
 from symbiont.core.embodiment.physiology import LivingBodyState, PhysiologyController
 from symbiont.core.social import SocialHabitat
+from symbiont.core.social.interactions import EcologicalResourcePool
 from symbiont.host.discovery import HostDiscovery
 from symbiont.host.lifecycle import HostLifecycle
 from symbiont.modeling.runtime import ModeledOrganismRuntime

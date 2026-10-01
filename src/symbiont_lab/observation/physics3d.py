@@ -183,7 +183,7 @@ class Physics3DObservationBridge:
         if self._stop.is_set():
             return
 
-        if is_dataclass(snapshot):
+        if is_dataclass(snapshot) and not isinstance(snapshot, type):
             record = asdict(snapshot)
         elif isinstance(snapshot, Mapping):
             record = dict(snapshot)

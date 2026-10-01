@@ -55,8 +55,7 @@ def build_organism_parser(parser: argparse.ArgumentParser) -> None:
         help="Enable organism-owned adaptive sensory receptors; off by default for historical equivalence",
     )
 
-    from symbiont.core.epistemic import DEFAULT_EPISTEMIC_CONVENTIONS
-
+    from symbiont.core.foundation.epistemic import DEFAULT_EPISTEMIC_CONVENTIONS
     from symbiont.core.runtime_defaults import (
         DEFAULT_CHECKPOINT_TICKS,
         DEFAULT_STATE_FILE,

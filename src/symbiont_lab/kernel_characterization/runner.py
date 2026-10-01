@@ -12,13 +12,16 @@ import tracemalloc
 from pathlib import Path
 from typing import Any
 
-from symbiont.core.consolidation import ConsolidationSignal, MemoryConsolidator, MemoryKind
-from symbiont.core.weight_stability import WeightStabilityTracker
-
 from symbiont.cognition.checkpoint import dequantize_weight, quantize_weight
 from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode, TickContext
 from symbiont.cognition.structure import StructuralPlasticity, apply_mutations
 from symbiont.cognition.types import EdgeKind, NodeKind
+from symbiont.core.cognition.consolidation import (
+    ConsolidationSignal,
+    MemoryConsolidator,
+    MemoryKind,
+)
+from symbiont.core.foundation.weight_stability import WeightStabilityTracker
 
 from .config import BASELINE_KERNEL, KernelVariant, complete_kernel
 from .metrics import summarize

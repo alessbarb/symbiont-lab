@@ -452,8 +452,10 @@ def _agency_metrics(snapshot: Mapping[str, Any], nodes: list[AtlasNode]) -> Mapp
     executive = executive if isinstance(executive, Mapping) else {}
     dimensions = [node for node in nodes if node.kind == "action_dimension"]
     affordances = snapshot.get("affordances")
-    counts = executive.get("counts") if isinstance(executive.get("counts"), Mapping) else {}
-    active = executive.get("active") if isinstance(executive.get("active"), Mapping) else None
+    counts = executive.get("counts")
+    counts = counts if isinstance(counts, Mapping) else {}
+    active = executive.get("active")
+    active = active if isinstance(active, Mapping) else None
     return {
         "physical_motor_opportunities": acquisition.get("physical_motor_opportunities"),
         "action_attempts": acquisition.get("action_attempt_count"),

@@ -979,13 +979,13 @@ def _communication_telemetry(observations: Mapping[str, Any] | None) -> dict[str
                 "delivery_status": raw.get("delivery_status")
                 if raw.get("delivery_status") in {"selected", "delivered", "rejected", "unknown"}
                 else "unknown",
-                "sender_generation": raw.get("sender_generation")
-                if isinstance(raw.get("sender_generation"), int)
-                and raw.get("sender_generation") >= 0
+                "sender_generation": sender_generation
+                if isinstance(sender_generation := raw.get("sender_generation"), int)
+                and sender_generation >= 0
                 else None,
-                "receiver_generation": raw.get("receiver_generation")
-                if isinstance(raw.get("receiver_generation"), int)
-                and raw.get("receiver_generation") >= 0
+                "receiver_generation": receiver_generation
+                if isinstance(receiver_generation := raw.get("receiver_generation"), int)
+                and receiver_generation >= 0
                 else None,
             }
         )
@@ -1684,8 +1684,8 @@ def main(argv: list[str] | None = None) -> int:
     if not 1 <= args.ticks <= MAX_TICKS:
         parser.error(f"--ticks must be between 1 and {MAX_TICKS}")
 
-    from symbiont.core.governor import GovernedOrganism
-    from symbiont.core.runtime import OrganismRuntime
+    from symbiont.core.orchestration.governor import GovernedOrganism
+    from symbiont.core.orchestration.runtime import OrganismRuntime
 
     runtime = (
         OrganismRuntime.load_or_create(args.checkpoint) if args.checkpoint else OrganismRuntime()

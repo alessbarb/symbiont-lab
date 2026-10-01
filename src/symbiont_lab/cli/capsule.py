@@ -5,13 +5,12 @@ import json
 import sys
 from pathlib import Path
 
-from symbiont.core.capsule import KnowledgeCapsule
-
 from symbiont.core import (
     CapsuleKeyPair,
     create_capsule,
     verify_capsule,
 )
+from symbiont.core.social.capsule import KnowledgeCapsule
 from symbiont.host import (
     acclimate_local_host,
     export_checkpoint,

@@ -16,7 +16,7 @@ class StudyRecord:
     source: str
     parent_record_id: str | None
     base_spec: dict[str, object]
-    study: dict[str, object]
+    study: dict[str, Any]
     interpretation: dict[str, object]
 
     def as_dict(self) -> dict[str, object]:

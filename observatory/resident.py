@@ -15,13 +15,13 @@ try:  # Package invocation: ``python -m observatory.resident``.
     from .adapter import BODY_SCHEMA_SNAPSHOT_VERSION, envelope, project_tick, project_topology
     from .manifest import create_capture_manifest, write_capture_manifest
     from .provenance import build_observer_provenance
-    from .publisher import JournalSink, SnapshotPublisher, StdoutSink
+    from .publisher import JournalSink, Sink, SnapshotPublisher, StdoutSink
     from .registry import derive_instance_id, new_run_id, write_heartbeat
 except ImportError:  # Direct script invocation remains a documented interface.
     from adapter import BODY_SCHEMA_SNAPSHOT_VERSION, envelope, project_tick, project_topology
     from manifest import create_capture_manifest, write_capture_manifest
     from provenance import build_observer_provenance
-    from publisher import JournalSink, SnapshotPublisher, StdoutSink
+    from publisher import JournalSink, Sink, SnapshotPublisher, StdoutSink
     from registry import derive_instance_id, new_run_id, write_heartbeat
 
 from symbiont.host.durable import (
@@ -42,8 +42,10 @@ def _running_version_string() -> str:
 
 
 def _running_version_tuple() -> tuple[int, int, int]:
-    parts = (_running_version_string().split(".") + ["0", "0"])[:3]
-    return tuple(int(part) for part in parts)
+    major, minor, patch = (
+        int(part) for part in (_running_version_string().split(".") + ["0", "0"])[:3]
+    )
+    return major, minor, patch
 
 
 def _write_topology(observatory_dir: Path, instance_id: str, payload: dict) -> None:
@@ -172,11 +174,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    from symbiont.core.capsule import CapsuleKeyPair
-    from symbiont.core.local_habitat import LocalHabitat
-
     from symbiont.core import OrganismRuntime, ResidentConfig, ResidentOrganism
     from symbiont.core.canonical_birth import restore_resident_with_canonical_cognition
+    from symbiont.core.host.local_habitat import LocalHabitat
+    from symbiont.core.social.capsule import CapsuleKeyPair
     from symbiont.host.checkpoint import load_checkpoint_file
 
     runtime_kwargs = {
@@ -188,12 +189,11 @@ def main(argv: list[str] | None = None) -> int:
         runtime_kwargs["sensory_plasticity"] = True
     existing_payload = load_checkpoint_file(args.state_file)
     if args.enable_slm:
-        from symbiont.core.cognition_bridge import CognitiveBridge
-
         from symbiont.cognition.birth import load_base_cognition
         from symbiont.cognition.checkpoint import export_genome_checkpoint
         from symbiont.cognition.limits import KernelLimits
-        from symbiont.core.canonical_birth import _running_version
+        from symbiont.core.cognition.bridge import CognitiveBridge
+        from symbiont.core.orchestration.canonical_birth import _running_version
         from symbiont.host.checkpoint import normalize_checkpoint
         from symbiont.modeling.private_runtime import PrivateModelOrganismRuntime
 
@@ -235,7 +235,7 @@ def main(argv: list[str] | None = None) -> int:
     run_id = new_run_id()
     started_at = datetime.now(timezone.utc).isoformat()
     journal_sink = JournalSink(args.observatory_dir, run_id=run_id)
-    sinks = [journal_sink] if args.no_stdout else [StdoutSink(), journal_sink]
+    sinks: list[Sink] = [journal_sink] if args.no_stdout else [StdoutSink(), journal_sink]
     publisher = SnapshotPublisher(sinks)
     topology_revision: int | None = None
     previous_edge_classes: dict[str, tuple[int, int]] = {}
