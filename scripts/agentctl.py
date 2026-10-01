@@ -633,9 +633,7 @@ def _scientific_python(environment: Path) -> Path:
     return executable
 
 
-def _scientific_sync_command(
-    uv: str, worktree: Path, python: str, extras: list[str]
-) -> list[str]:
+def _scientific_sync_command(uv: str, worktree: Path, python: str, extras: list[str]) -> list[str]:
     command = [
         uv,
         "sync",
@@ -684,7 +682,9 @@ _VALIDATION_COMMAND_PREFIXES: tuple[tuple[str, ...], ...] = (
 
 def _validation_argv(command: str) -> list[str]:
     argv = shlex.split(command)
-    if not argv or not any(tuple(argv[: len(prefix)]) == prefix for prefix in _VALIDATION_COMMAND_PREFIXES):
+    if not argv or not any(
+        tuple(argv[: len(prefix)]) == prefix for prefix in _VALIDATION_COMMAND_PREFIXES
+    ):
         raise ValueError(f"validation command is not allowlisted: {command}")
     return argv
 
@@ -923,7 +923,9 @@ def run_pinned(
             sync_env["UV_PROJECT_ENVIRONMENT"] = str(environment)
             uv = shutil.which("uv")
             if not uv:
-                raise RuntimeError("uv is required to synchronize the locked scientific environment")
+                raise RuntimeError(
+                    "uv is required to synchronize the locked scientific environment"
+                )
             sync_command = _scientific_sync_command(uv, worktree, sys.executable, extras)
             sync = subprocess.run(
                 sync_command,
@@ -1018,9 +1020,7 @@ def run_pinned(
                 cwd=worktree,
                 env=env,
                 start_new_session=(os.name == "posix"),
-                creationflags=(
-                    subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
-                ),
+                creationflags=(subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0),
                 preexec_fn=_scientific_preexec(memory_gb, wall_minutes, cpu),
             )
             payload["child_pid"] = proc.pid
@@ -1341,9 +1341,7 @@ def main() -> int:
     p_start.add_argument("--id", required=True)
     p_start.add_argument("--experiment-id")
     p_start.add_argument("--seed", type=int, required=True)
-    p_start.add_argument(
-        "--extra", action="append", choices=("modeling", "physics3d"), default=[]
-    )
+    p_start.add_argument("--extra", action="append", choices=("modeling", "physics3d"), default=[])
     p_start.add_argument("--scope", choices=sorted(SCIENTIFIC_SCOPES), required=True)
     p_start.add_argument("--snapshot-source", type=Path, required=True)
     p_start.add_argument(

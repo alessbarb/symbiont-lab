@@ -59,10 +59,7 @@ def main() -> None:
         predictor.observe(features, target)
         rows.append((features, target))
 
-    queries = [
-        tuple(rng.uniform(-4.0, 4.0) for _ in range(3))
-        for _ in range(args.queries)
-    ]
+    queries = [tuple(rng.uniform(-4.0, 4.0) for _ in range(3)) for _ in range(args.queries)]
 
     for query in queries[:100]:
         if predictor.predict(query) != legacy_predict(rows, predictor.regularization, query):

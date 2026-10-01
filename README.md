@@ -1,6 +1,6 @@
 # Symbiont Lab
 
-**Experimental Artificial Life & Digital Organism Research**
+## Experimental Artificial Life & Digital Organism Research
 
 > What happens if software is not told what its world means, but is instead given bounded ways to sense, act, learn, remember and revise what it believes through experience?
 

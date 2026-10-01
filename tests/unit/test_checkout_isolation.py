@@ -700,16 +700,18 @@ def test_atomic_json_write_is_complete_and_exclusive(tmp_path, monkeypatch) -> N
     assert sorted(results) == [False, True]
     assert json.loads(concurrent_lock.read_text(encoding="utf-8"))["pid"] in {10, 11}
     interrupted = tmp_path / "interrupted.json"
-    monkeypatch.setattr(agentctl.json, "dump", lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("injected write failure")))
+    monkeypatch.setattr(
+        agentctl.json,
+        "dump",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("injected write failure")),
+    )
     with pytest.raises(OSError, match="injected write failure"):
         agentctl._atomic_json_write(interrupted, {"pid": 9}, exclusive=True)
     assert not interrupted.exists()
     assert not list(tmp_path.glob(".interrupted.json.*"))
 
 
-def test_scientific_environment_ignores_inherited_symbiont_namespace(
-    tmp_path, monkeypatch
-) -> None:
+def test_scientific_environment_ignores_inherited_symbiont_namespace(tmp_path, monkeypatch) -> None:
     import importlib.util
 
     spec = importlib.util.spec_from_file_location(
@@ -758,8 +760,6 @@ def test_run_start_requires_separator_and_preserves_child_flags(monkeypatch, cap
 
     received: dict[str, object] = {}
     monkeypatch.setattr(agentctl, "run_pinned", lambda **kwargs: received.update(kwargs) or 0)
-    monkeypatch.setattr(
-        sys, "argv", [*prefix, "--", sys.executable, "-c", "pass", "--cpu", "999"]
-    )
+    monkeypatch.setattr(sys, "argv", [*prefix, "--", sys.executable, "-c", "pass", "--cpu", "999"])
     assert agentctl.main() == 0
     assert received["command"] == [sys.executable, "-c", "pass", "--cpu", "999"]

@@ -49,9 +49,7 @@ def _sequence(rng: random.Random, actuators: int, density: float):
     steps = []
     for _ in range(4):
         pattern = tuple(
-            (actuator_id, rng.randint(1, 7))
-            for actuator_id in ids
-            if rng.random() < density
+            (actuator_id, rng.randint(1, 7)) for actuator_id in ids if rng.random() < density
         )
         steps.append(pattern)
     return tuple(steps)
@@ -67,9 +65,7 @@ def main() -> None:
     args = parser.parse_args()
 
     rng = random.Random(args.seed)
-    candidates = tuple(
-        _sequence(rng, args.actuators, args.density) for _ in range(args.candidates)
-    )
+    candidates = tuple(_sequence(rng, args.actuators, args.density) for _ in range(args.candidates))
     queries = tuple(_sequence(rng, args.actuators, args.density) for _ in range(args.queries))
 
     for query in queries:

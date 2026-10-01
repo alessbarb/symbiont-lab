@@ -98,9 +98,7 @@ def _load_surfaces(repo: Path, base: str) -> dict:
         stderr=subprocess.PIPE,
     )
     if result.returncode != 0:
-        raise RuntimeError(
-            "trusted baseline is missing docs/governance/change-surfaces.toml"
-        )
+        raise RuntimeError("trusted baseline is missing docs/governance/change-surfaces.toml")
     return tomllib.loads(result.stdout)
 
 

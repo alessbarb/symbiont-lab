@@ -1324,17 +1324,14 @@ future symbolic models
 
 ```python
 class GenerativeModel(Protocol):
-
     @property
-    def model_id(self) -> str:
-        ...
+    def model_id(self) -> str: ...
 
     def supports(
         self,
         operation: GenerativeOperation,
         state: GenerativeState,
-    ) -> bool:
-        ...
+    ) -> bool: ...
 
     def generate(
         self,
@@ -1342,8 +1339,7 @@ class GenerativeModel(Protocol):
         state: GenerativeState,
         operation: GenerativeOperation,
         context: GenerativeContext,
-    ) -> tuple[GeneratedProposal, ...]:
-        ...
+    ) -> tuple[GeneratedProposal, ...]: ...
 ```
 
 A valid model may answer:

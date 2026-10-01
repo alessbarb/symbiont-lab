@@ -22,7 +22,6 @@ Ownership determines what a state means and whether it may survive a boundary ch
 
 This table expresses intended current ownership, not a licence to infer semantics. Individual serializers and migration rules remain authoritative for exact persistence behaviour.
 
-
 ## Re-embodiment preservation invariant
 
 Re-embodiment is a change of Body and Embodiment, not a rewrite of the Symbiont.

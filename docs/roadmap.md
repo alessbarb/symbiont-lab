@@ -1276,7 +1276,7 @@ inside simulation.
 
 ---
 
-#### O1 — Sensor perturbation
+### O1 — Sensor perturbation
 
 Evaluate:
 

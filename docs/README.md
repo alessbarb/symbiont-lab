@@ -21,7 +21,7 @@ No historical source has been removed simply because a canonical synthesis now e
 Use the following distinction:
 
 | Need | Source |
-|---|---|
+| --- | --- |
 | Understand how the present organism works | `docs/symbiont/` |
 | Verify the exact current implementation | `src/` and tests |
 | Understand intended or proposed design | `docs/design/` |

@@ -98,11 +98,12 @@ class MotorIntent:
     actuator_id: ActuatorId
     activation: float  # [0.0, 1.0], deseado por cognición
 
+
 @dataclass(frozen=True)
 class Actuation:
     actuator_id: ActuatorId
     requested: float
-    delivered: float   # tras health/cost — puede ser 0.0 si el actuador está degradado
+    delivered: float  # tras health/cost — puede ser 0.0 si el actuador está degradado
     cost: float
     health_at_execution: float
 ```
@@ -124,15 +125,16 @@ Absence of `MotorIntent` for a tick = absence of actuation. There is no `"stay"`
 ```python
 @dataclass(frozen=True, slots=True)
 class MotorSlot:
-    slot_id: str            # "motor_slot.0", estable, ver más abajo
+    slot_id: str  # "motor_slot.0", estable, ver más abajo
     actuator_id: ActuatorId  # f(constitution schema, slot_id) — ver más abajo
     basal_cost: float
     initial_health: float
     execution_threshold: float  # ver §9
 
+
 @dataclass(frozen=True, slots=True)
 class ActuatorConstitution:
-    slots: tuple[MotorSlot, ...]   # orden canónico por slot_id, nunca por inserción
+    slots: tuple[MotorSlot, ...]  # orden canónico por slot_id, nunca por inserción
 ```
 
 With `slots` as a tuple of immutable records (not `dict`), two constitutions with the same content are structurally equal and hashable without additional normalization — a necessary condition for `ActuationBindingConstitution` (§10) to be a reliable fingerprint.
@@ -331,13 +333,12 @@ Instead, an explicit method is added, with its own semantic boundary, reusing th
 def observe_motor_association_evidence(
     self,
     *,
-    source_id: str,          # concept/state node, truly active in the graph
-    motor_readout_id: str,   # "readout_motor:<actuator_id>", might be isolated
+    source_id: str,  # concept/state node, truly active in the graph
+    motor_readout_id: str,  # "readout_motor:<actuator_id>", might be isolated
     source_active: bool,
-    actuator_has_effect_evidence: bool,   # NOT "target_active" — it's bodily evidence, not node activation
+    actuator_has_effect_evidence: bool,  # NOT "target_active" — it's bodily evidence, not node activation
     tick: int,
-) -> None:
-    ...
+) -> None: ...
 ```
 
 Internally it shares accumulator/cooldown/`Mutation` with `observe_coactivation`, but the parameter is named and documented for what it is: evidence that an actuator with sufficient `effect_strength` coincided with an active concept, not an activation of `readout_motor:X` that cannot yet activate on its own.

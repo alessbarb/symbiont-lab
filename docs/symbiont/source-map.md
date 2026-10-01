@@ -3,7 +3,7 @@
 This ledger ensures that the existing documentation corpus is not silently discarded. Every Markdown source present in the supplied corpus is listed once and assigned to the canonical scientific area that should absorb or reference its knowledge.
 
 | Area | Existing source | Lines |
-|---|---|---:|
+| --- | --- | ---: |
 | history-development | `CHANGELOG.md` | 1830 |
 | other | `README.md` | 37 |
 | history-development | `VERSIONING.md` | 39 |

@@ -6,6 +6,8 @@ This document is the single source of truth for permanent architectural, epistem
 host-safety, lifecycle, heredity, boundedness and observability invariants. The roadmap
 may summarize these constraints but does not redefine them.
 
+<!-- markdownlint-disable MD029 -->
+
 ## Governance authority
 
 The project owner chooses scientific direction, authorises held-out and confirmation
@@ -261,9 +263,9 @@ architecture decision approved by the project owner. The Constitution is the sin
 ### 22. Golden rules for agents
 
 > **Never change the organism merely to satisfy a test, experiment, visualization, benchmark, evaluator or UI. First determine whether the failing expectation is an invariant of the organism, an apparatus contract, or an obsolete assertion.**
-
+>
 > **When in doubt, information flows from World → sensory boundary → Symbiont, and from Symbiont → passive observation → Lab. Evaluator knowledge never flows back into the subject.**
-
+>
 > **Inherited constitution belongs to the organism. Evolutionary operators acting on organisms belong to the Lab.**
 
 ### 23. Real-host and safety boundaries

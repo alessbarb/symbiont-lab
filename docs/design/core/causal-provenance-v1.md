@@ -61,22 +61,23 @@ what it needs to continue and to keep references interpretable.
 ```python
 @dataclass(frozen=True)
 class CausalRef:
-    kind: str       # "evidence", "atom_estimate", "footprint_version", "dimension",
-                    # "competence_version", "affordance", "intent", "commitment",
-                    # "controller", "actuation", "transition", "outcome", ...
-    id: str         # stable, organism-owned identity (versioned where it evolves)
+    kind: str  # "evidence", "atom_estimate", "footprint_version", "dimension",
+    # "competence_version", "affordance", "intent", "commitment",
+    # "controller", "actuation", "transition", "outcome", ...
+    id: str  # stable, organism-owned identity (versioned where it evolves)
+
 
 @dataclass(frozen=True)
 class CausalEvent:
-    event_id: str                  # hash of (tick, operation, subject, caused_by, produced)
+    event_id: str  # hash of (tick, operation, subject, caused_by, produced)
     tick: int
-    domain: str                    # "acquisition", "footprint", "competence", "intention", ...
-    operation: str                 # "enter", "exit", "version", "admit", "form", "activate",
-                                   # "commit", "actuate", "observe", "reconcile", "learn", ...
+    domain: str  # "acquisition", "footprint", "competence", "intention", ...
+    operation: str  # "enter", "exit", "version", "admit", "form", "activate",
+    # "commit", "actuate", "observe", "reconcile", "learn", ...
     subject: CausalRef
     caused_by: tuple[CausalRef, ...]
     produced: tuple[CausalRef, ...]
-    rule: str | None               # the named rule/threshold that decided it
+    rule: str | None  # the named rule/threshold that decided it
     parameters: Mapping[str, float | int | str]  # margins, thresholds, similarity...
 ```
 

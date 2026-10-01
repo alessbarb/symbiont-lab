@@ -734,15 +734,13 @@ API orientativa:
 
 ```python
 class InterventionSignatureRegistry:
-
     def signature_for_command(
         self,
         *,
         command: MotorCommand,
         controller_id: str,
         tick: int,
-    ) -> InterventionSignature:
-        ...
+    ) -> InterventionSignature: ...
 ```
 
 Para secuencias:
@@ -753,8 +751,7 @@ def signature_for_sequence(
     *,
     command_refs: tuple[str, ...],
     controller_seed_ref: str | None,
-) -> InterventionSignature:
-    ...
+) -> InterventionSignature: ...
 ```
 
 No es necesario exponer este registry como dominio público.
@@ -1196,13 +1193,10 @@ def observe_agentic_sensorimotor_evidence(
     causal_source_ref: str,
     effect_id: str,
     feature_refs: tuple[str, ...],
-
     controllability_confidence: float,
     agency_confidence: float,
-
     tick: int,
-) -> None:
-    ...
+) -> None: ...
 ```
 
 Puede ser invocada desde evidencia de dimensión/intervención.
@@ -1327,13 +1321,11 @@ Para no bloquear la evolución futura, introducir:
 
 ```python
 class EffectMatcher:
-
     def similarity(
         self,
         expected: EffectRepresentation,
         observed: EffectRepresentation,
-    ) -> float:
-        ...
+    ) -> float: ...
 ```
 
 v1 puede usar:
@@ -1418,27 +1410,24 @@ Dos APIs **obligatorias** de primera clase:
 
 ```python
 class AffordanceResolver:
-
     def for_effect(
         self,
         *,
         effect_id: str,
         context_ref: str | None,
         embodiment_id: str | None,
-    ) -> tuple[ActionAffordance, ...]:
-        ...
+    ) -> tuple[ActionAffordance, ...]: ...
 ```
 
 y:
 
 ```python
-    def current(
-        self,
-        *,
-        context_ref: str | None,
-        embodiment_id: str | None,
-    ) -> tuple[ActionAffordance, ...]:
-        ...
+def current(
+    self,
+    *,
+    context_ref: str | None,
+    embodiment_id: str | None,
+) -> tuple[ActionAffordance, ...]: ...
 ```
 
 `current()` no es opcional.

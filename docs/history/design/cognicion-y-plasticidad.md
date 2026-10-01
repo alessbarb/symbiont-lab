@@ -175,13 +175,13 @@ class PlasticEdge:
     source_id: str
     target_id: str
     kind: EdgeKind
-    weight: float             # [-2.0, 2.0]
-    plasticity: float         # [0.0, 1.0]
-    eligibility: float        # estado efímero o cuantizado
+    weight: float  # [-2.0, 2.0]
+    plasticity: float  # [0.0, 1.0]
+    eligibility: float  # estado efímero o cuantizado
     support: int
     age_ticks: int
     stable_ticks: int
-    last_use_tick: int        # tiempo relativo, no real
+    last_use_tick: int  # tiempo relativo, no real
 ```
 
 ### 5.3 Activación
@@ -401,16 +401,20 @@ class CognitiveGraph:
     def learn(self, frame: GraphFrame, evidence: LocalEvidence) -> LearningDelta: ...
     def apply(self, delta: LearningDelta, limits: PlasticityLimits) -> None: ...
 
+
 class StructuralPlasticity:
     def propose(self, state: PlasticState, summary: LearningSummary) -> tuple[Mutation, ...]: ...
     def validate(self, mutation: Mutation, limits: StructuralLimits) -> ValidationResult: ...
 
+
 class MetaPlasticity:
     def propose(self, windows: MetaWindows, genome: Genome) -> tuple[ParameterDelta, ...]: ...
+
 
 class GenomeCodec:
     def load(self, payload: Mapping[str, object]) -> Genome: ...
     def validate(self, genome: Genome, kernel_limits: KernelLimits) -> None: ...
+
 
 class PlasticCheckpointCodec:
     def export(self, state: PlasticState) -> dict[str, object]: ...
@@ -886,11 +890,11 @@ Introduce:
 ```python
 @dataclass(slots=True, frozen=True)
 class ConsolidationSignal:
-    novelty: float       # [0, 1]
-    surprise: float      # [0, 1]
-    attention: float     # [0, 1]
-    reliability: float   # [0, 1]
-    coherence: float     # [0, 1]
+    novelty: float  # [0, 1]
+    surprise: float  # [0, 1]
+    attention: float  # [0, 1]
+    reliability: float  # [0, 1]
+    coherence: float  # [0, 1]
 ```
 
 All fields are bounded and finite.
@@ -1172,11 +1176,11 @@ Bounded record:
 @dataclass(slots=True, frozen=True)
 class SalientEventTrace:
     pattern_id: str
-    novelty_class: int       # 0..15
-    surprise_class: int      # 0..15
-    reliability_class: int   # 0..15
-    context_class: int       # coarse organism-relative context, no wall clock
-    recurrence_class: int    # coarse re-encounter count/maturity
+    novelty_class: int  # 0..15
+    surprise_class: int  # 0..15
+    reliability_class: int  # 0..15
+    context_class: int  # coarse organism-relative context, no wall clock
+    recurrence_class: int  # coarse re-encounter count/maturity
 ```
 
 No raw reading, exact z-score, exact prediction error, timestamp or provider identity.
@@ -1515,11 +1519,11 @@ a coarse `RecencyClass`, never a reconstructed or fabricated tick offset.
 
 ```python
 class RecencyClass(IntEnum):
-    CURRENT    = 0  # observed this tick or very recently
+    CURRENT = 0  # observed this tick or very recently
     SHORT_IDLE = 1
-    IDLE       = 2
-    LONG_IDLE  = 3
-    DORMANT    = 4
+    IDLE = 2
+    LONG_IDLE = 3
+    DORMANT = 4
 ```
 
 Restore takes the class directly, never an exact tick to subtract from `saved_at_tick`:
