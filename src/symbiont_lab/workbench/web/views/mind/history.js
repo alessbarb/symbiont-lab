@@ -1,4 +1,5 @@
 import { el, svgEl } from '../shared/dom.js';
+import { applyEmptyState } from '../shared/observability-state.js';
 import { PAL, REGIMES } from './config.js';
 import { inspectorMetric, panelSection } from './components.js';
 import { currentMotorOutputEdges, currentPhysiologyState } from './derived.js';
@@ -12,6 +13,7 @@ import {
   selfRegionHistory,
   snap,
   tel,
+  streamState,
 } from './state.js';
 import { finiteNumber, pct } from './util.js';
 import { deriveCognitiveEpisodes } from './cognitive-temporal.js';
@@ -283,7 +285,7 @@ export function renderHistory({ onOpenHistoryTick = () => {} } = {}) {
   narrative.classList.add('mind-development-narrative');
   if (!milestones.length) {
     const empty = el('div', 'mind-live-empty');
-    empty.textContent = 'No developmental milestones have been captured for this organism yet.';
+    applyEmptyState(empty, 'No developmental milestones have been captured for this organism yet.', streamState);
     narrative.appendChild(empty);
   } else {
     const line = el('div', 'mind-development-line');
@@ -309,7 +311,7 @@ export function renderHistory({ onOpenHistoryTick = () => {} } = {}) {
   episodePanel.classList.add('mind-development-episodes');
   if (!episodes.length) {
     const empty = el('div', 'mind-live-empty');
-    empty.textContent = 'No structural episodes captured yet.';
+    applyEmptyState(empty, 'No structural episodes captured yet.', streamState);
     episodePanel.appendChild(empty);
   } else {
     for (const episode of episodes.slice(-10).reverse()) {

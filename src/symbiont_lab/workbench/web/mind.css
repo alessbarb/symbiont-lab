@@ -1990,3 +1990,17 @@
   line-height: 1.45;
   padding-top: 2px;
 }
+
+/* Observability states of a cognitive panel (views/shared/observability-state.js). */
+.mind-generative-orb.state-unavailable .mind-generative-orb-core,
+.mind-generative-orb.state-stale .mind-generative-orb-core {
+  opacity: 0.35;
+}
+.mind-generative-orb.state-error .mind-generative-orb-ring {
+  border-style: dashed;
+}
+.mind-generative-orb.state-absent,
+.mind-generative-orb.state-disabled {
+  filter: grayscale(1);
+}
+

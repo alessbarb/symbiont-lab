@@ -311,6 +311,10 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
         # bounded passive snapshot as a separate cognition sub-surface; never
         # promote it into structural Atlas topology.
         mind_cognition["generative"] = dict(cognition["generative"])
+    if "generative_status" in cognition:
+        # Passed through as reported, including a malformed value: the
+        # Workbench shows a schema error rather than an empty panel.
+        mind_cognition["generativeStatus"] = cognition["generative_status"]
     if cognition.get("topology_health") is not None:
         mind_cognition["topologyHealth"] = str(cognition["topology_health"])
     safety_state: dict[str, Any] = {}
