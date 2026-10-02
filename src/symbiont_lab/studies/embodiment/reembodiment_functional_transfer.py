@@ -25,6 +25,7 @@ from typing import Any, Sequence
 
 from symbiont.actuation.binding import BindingStatus
 from symbiont.cognition.limits import KernelLimits
+from symbiont.core.organism_profile import CANONICAL
 from symbiont.host.checkpoint import verify_checkpoint_identity
 from symbiont.host.continuity import REGISTER, LongitudinalContract, Reembodiment
 from symbiont.modeling.private_runtime import PrivateModelOrganismRuntime
@@ -105,7 +106,8 @@ def _newborn(seed: int, body: CausalBody) -> PrivateModelOrganismRuntime:
         body,
         organism_id=_organism_id(seed),
         runtime_class=PrivateModelOrganismRuntime,
-        factorized_effects=True,
+        # r6: the subject is the canonical organism (ADR-0062).
+        profile=CANONICAL,
     )
 
 
@@ -116,10 +118,7 @@ def _restore(payload: dict[str, Any], body: CausalBody) -> PrivateModelOrganismR
         host_reading_providers=(body,),
         kernel_limits=KernelLimits(),
         actuator_constitution_override=body.surface,
-        bootstrap_semantic_senses=False,
-        discover_senses=True,
         min_samples=1,
-        interoception_mode="absent",
     )
 
 
