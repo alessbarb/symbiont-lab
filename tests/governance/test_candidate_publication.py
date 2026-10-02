@@ -44,6 +44,7 @@ def test_ci_exposes_one_stable_governed_required_gate() -> None:
     assert "if: always()" in workflow
     assert 'require_success "validation-plan" "$PLAN_RESULT"' in workflow
     assert 'require_success "code-quality-and-governance" "$QUALITY_RESULT"' in workflow
+    assert "\\${{" not in workflow
 
     for job in (
         "governance-docs",
