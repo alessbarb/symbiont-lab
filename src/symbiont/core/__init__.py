@@ -24,6 +24,12 @@ from .embodiment.degradation import DegradationQueue, RetainedItem, RetentionSta
 from .embodiment.homeostasis import HomeostaticAction, HomeostaticController, HomeostaticSnapshot
 from .embodiment.lifecycle import LifeState, ViabilityController
 from .embodiment.metabolism import MetabolicLedger, MetabolicSnapshot, ResourcePressure
+from .embodiment.physiology import (
+    LivingBodyState,
+    PhysiologyController,
+    PhysiologySnapshot,
+    VitalState,
+)
 from .foundation.model import (
     FEATURES,
     Assessment,
@@ -96,6 +102,16 @@ from .social.capsule import (
     verify_capsule,
 )
 from .social.ledger import SocialClaim, SocialEvidenceLedger, SocialQuestion
+from .social.relations import (
+    InteractionOutcome,
+    RelationLedger,
+    RelationValence,
+    SocialCompetitionRequest,
+    SocialHabitat,
+    SocialInteractionEngine,
+    SocialPresence,
+    SocialRelation,
+)
 from .social.source_evidence import SourceEvidenceOutcome, SourceEvidenceSample, SourceEvidenceState
 
 _sys.modules[__name__ + ".heredity"] = _heredity
