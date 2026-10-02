@@ -23,7 +23,8 @@ recorded without changing a threshold.
 """
 notes = """
 Frozen protocol: docs/design/experimentation/reembodiment-functional-transfer-v1.md
-(r5). Development ticks D and measurement ticks H are fixed by rule on the
+(r6). The subject is the canonical organism profile v1 (ADR-0062); the r5
+development stage is superseded and kept under development-r5/. Development ticks D and measurement ticks H are fixed by rule on the
 development seeds and written to horizons.json before any confirmation seed is
 run. Scientific runs go through agentctl run start.
 """

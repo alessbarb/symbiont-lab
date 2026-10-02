@@ -15,10 +15,17 @@ language: en
 
 # Re-embodiment Functional Transfer v1 — Frozen Preregistration
 
-**Status:** **approved and frozen (r5, 2026-10-02)**. The owner approved the
-synthetic causal Body, the proposed numbers and the seed lists, with two changes
-recorded in §10.2. Regime: **confirmatory**. The apparatus, protocol record and
-contract tests exist; **no development or confirmation seed has been run**.
+**Status:** **approved and frozen (r6, 2026-10-03)**. The owner approved the
+synthetic causal Body, the proposed numbers and the seed lists (r5), and the
+subject configuration of r6 (§4.3, §10.2). Regime: **confirmatory**. The
+apparatus, protocol record and contract tests exist; the r5 development stage is
+superseded and **no r6 development or confirmation seed has been run**.
+
+**Acceptance test.** The owner requires that an organism re-embodied in a new
+Body manages it sooner than a newborn (canonical organism profile register,
+§6). This experiment is the acceptance test of that requirement. A negative
+result is recorded as a finding that the organism does not yet meet it; it never
+leads to a change of this protocol.
 Nothing in this document may change after the first confirmation run starts;
 any change before then is a new revision.
 
@@ -143,6 +150,10 @@ by a regression test: ten recorded agency-acquisition experiments use this Body.
 
 ### 4.3 Held fixed across arms
 
+- Organism configuration: the canonical organism profile `v1` (ADR-0062) in
+  every arm, so factorized effects are off. A restored organism keeps the profile
+  it was born with; the post-restore reacclimation gate holds concepts and
+  connections, not receptors (r6).
 - Runtime class, genome, kernel limits, physiology configuration.
 - Session controls: recorded in `runtime_provenance.session_controls`; every
   arm must report `changed_since_restore == []` at the end of the B phase.
@@ -418,6 +429,18 @@ identical to the source, could be built):
   outcome, and that `H = 2 × median naive M1` capped at `D` may censor arm T.
 
 ## 10.2 Revision history
+
+- **r6, 2026-10-03 — approved and frozen.** Protocol deviation found in r5 and
+  corrected before any confirmation seed: the r5 apparatus built every subject
+  with factorized effects enabled, a non-default mechanism on hold that the
+  protocol never declared, and the r5 development stage ran that way. Owner
+  decisions: the subject is the canonical organism profile `v1` (§4.3), so
+  factorized effects are off; reacclimation does not hold receptors; the
+  experiment is the acceptance test of the re-embodiment requirement (status
+  line). Consequence: the r5 development stage (`D = H = 400`) is superseded and
+  kept under `development-r5/` as history; `D` and `H` are fixed again by the
+  unchanged rule of §4.5 on the unchanged development seeds. No number,
+  threshold, seed list or decision rule changes.
 
 - **r5, 2026-10-02 — approved and frozen.** Owner decisions: apparatus is the
   synthetic causal Body; the proposed numbers stand (20% reduction, ±10%

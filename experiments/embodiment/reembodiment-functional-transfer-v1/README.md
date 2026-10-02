@@ -7,8 +7,8 @@ the functional transfer experiment.
 
 ## Belongs here
 
-`experiment.toml`, `horizons.json` (written by the development stage), and the
-results of governed runs.
+`experiment.toml`, `horizons.json` (written by the development stage), the
+results of governed runs, and superseded stages kept as history.
 
 ## Does not belong here
 
@@ -35,7 +35,18 @@ The result is bounded to the synthetic causal Body, four actuators, the listed
 seeds and the horizons fixed by rule. The protocol is
 `docs/design/experimentation/reembodiment-functional-transfer-v1.md`.
 
-## Development stage (2026-10-02)
+## Development stage under r6
+
+Not run yet. It runs through `agentctl run start` once the canonical organism
+profile (ADR-0062) is on `main`, and writes `horizons.json` here.
+
+## Superseded: development stage under r5 (2026-10-02)
+
+The r5 apparatus built every subject with factorized effects enabled, which the
+protocol never declared. Protocol r6 corrects the subject configuration, so this
+stage is superseded; its outputs are kept in `development-r5/` as history and are
+not used by any confirmation run.
+
 
 Governed run `rft-v1-development-20261002-r2` at commit `40c6801d`, scope
 `development`, protocol-generated input. Its output is `horizons.json`; its
