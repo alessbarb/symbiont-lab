@@ -73,34 +73,29 @@ require pull request: disabled
 strict/up-to-date policy: disabled
 ~~~
 
-The required status checks are the governed CI contexts produced by
-`.github/workflows/ci.yml`, excluding the explicitly informational performance
-job.
-
-At the time this decision was recorded, the ruleset requires:
+The ruleset requires one stable aggregate context produced by
+`.github/workflows/ci.yml`:
 
 ~~~text
-validation-plan
-code-quality-and-governance
-governance-and-docs-tests
-software-core (py3.12)
-physics3d-tests (py3.12)
-modeling-tests (py3.12)
-world-tests (py3.12)
-observatory-tests (py3.12)
-architecture-integrity
-runtime-contracts
-experiment-mechanics
-canonical-full (py3.12)
-python-compatibility (py3.11)
-python-compatibility (py3.13)
-host-constrained (alpine/musl)
-host-portability (macos-latest)
-host-portability (windows-latest)
-protocol-mechanics (py3.12)
+governed-ci-gate
 ~~~
 
-`performance-report (informational)` is intentionally not required.
+`governed-ci-gate` always materializes. It depends on `validation-plan`, the
+always-on quality/governance job, and every conditional validation lane. It
+checks the aggregate result of each job id against the plan outputs:
+
+- a lane selected by `validation-plan` must finish `success`;
+- an unselected lane may be `skipped` (or `success` if extra validation ran);
+- any selected `failure`, `cancelled`, or missing successful result fails the gate;
+- matrix jobs are evaluated through their aggregate job result rather than by
+  requiring dynamically expanded child contexts.
+
+This avoids a GitHub ruleset deadlock where an unselected matrix job publishes
+only a skipped parent context such as `host-portability (${{ matrix.os }})` and
+therefore never emits the concrete `macos-latest` / `windows-latest` contexts.
+
+`performance-report (informational)` is intentionally outside the aggregate gate
+because it is explicitly non-blocking.
 
 ## Why Restrict updates remains disabled
 
@@ -235,8 +230,10 @@ passed.
 It does not mean that every experiment, slow suite, equivalence scenario or
 held-out campaign ran.
 
-Conditional CI jobs remain part of the required context set; the validation plan
-decides which jobs execute for a given change surface.
+Conditional CI jobs remain part of the governed validation graph, but they are
+not individually configured as static repository-required contexts. The
+validation plan decides which jobs execute for a given change surface, and the
+stable `governed-ci-gate` certifies that the selected plan completed successfully.
 
 The ruleset must not convert the informational performance report into a hard
 publication gate.
@@ -332,7 +329,8 @@ This trade-off is explicitly accepted.
 - [x] main has an active repository ruleset.
 - [x] the ruleset targets only `refs/heads/main`.
 - [x] the ruleset has no bypass actors.
-- [x] required governed CI status contexts are configured.
+- [ ] the ruleset requires only the stable `governed-ci-gate` context after this
+      workflow change is merged.
 - [x] force pushes are blocked.
 - [x] branch deletion is blocked.
 - [x] the informational performance job is not a required check.
@@ -364,3 +362,17 @@ project owner explicitly selected the validated-commit model (option B):
 
 This refinement supersedes any earlier wording in this ADR that required
 exclusive publisher identity.
+
+### 2026-10-02 — stable aggregate required check
+
+PR #239 exposed a GitHub Actions/ruleset mismatch in the first ruleset
+configuration. When a conditional matrix job such as host portability was not
+selected, GitHub skipped the matrix before expansion and did not publish the
+concrete child contexts required by the ruleset. Those contexts remained
+permanently Expected even though the governed CI run itself completed
+successfully.
+
+The accepted remediation is one always-present `governed-ci-gate` job that
+evaluates the aggregate results of the validation-plan lanes. After this
+workflow change is merged, the repository ruleset must be manually changed from
+the individual dynamic contexts to only `governed-ci-gate`.
