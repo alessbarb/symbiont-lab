@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 import json
+import sys
 from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -13,6 +14,23 @@ from symbiont_lab.studies.common.digests import compute_world_digest
 from .manifest import ExecutionFingerprint, RunManifest, SoftwareEnvironment, get_git_info
 from .registry import get_protocol
 from .spec import ExperimentSpec
+
+
+def _declared(protocol_fn: Callable[..., Any], name: str) -> str | None:
+    """A declaration on the protocol function, else on the module defining it."""
+    module = sys.modules.get(getattr(protocol_fn, "__module__", ""))
+    declared = getattr(protocol_fn, name, getattr(module, name, None))
+    return None if declared is None else str(declared)
+
+
+def longitudinal_contract_of(protocol_fn: Callable[..., Any]) -> str | None:
+    """The contract declared by the module that implements a protocol."""
+    return _declared(protocol_fn, "LONGITUDINAL_CONTRACT")
+
+
+def subject_architecture_of(protocol_fn: Callable[..., Any]) -> str | None:
+    """The non-canonical subject architecture a protocol's module declares."""
+    return _declared(protocol_fn, "SUBJECT_ARCHITECTURE")
 
 
 class ExperimentRunner:
@@ -482,6 +500,8 @@ class ExperimentRunner:
                 experiment_id=spec.experiment_id,
                 seed=spec.seed,
             ),
+            longitudinal_contract=longitudinal_contract_of(protocol_fn),
+            subject_architecture=subject_architecture_of(protocol_fn),
             config=spec.as_dict(),
             metrics={"result": raw_metrics},
             config_digest="",

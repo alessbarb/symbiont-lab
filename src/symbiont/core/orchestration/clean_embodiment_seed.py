@@ -49,13 +49,14 @@ from ...genetics.expression import (
 )
 from ...genetics.genome import Genome
 from ...genetics.germline import GermlineState
+from ...host.continuity import LongitudinalContract
 from ..domains.action import ActionDomain
 from ..embodiment.body_schema import BodySchemaEngine
 from ..embodiment.dynamics import SensorimotorDynamicsModel
 from .continuity import SymbiontContinuityModel
 
 
-class Symbiont:
+class CleanEmbodimentSeed:
     """Minimal autonomous seed used by clean embodiment studies.
 
     In this seed, low-level dynamics, causal evidence, effect grounding,
@@ -64,7 +65,13 @@ class Symbiont:
     historical time, genotype and gene-expression continuity. Competences
     survive without their effect grounding. OrganismRuntime treats the same
     state as Symbiont-owned knowledge; see ``REDUCED_SEED_REGISTER``.
+
+    This class is not "the Symbiont": it is the reduced subject of the
+    clean-embodiment apparatus, and it is named and tagged so that no study can
+    use it while describing canonical re-embodiment.
     """
+
+    LONGITUDINAL_CONTRACT = LongitudinalContract.REDUCED_SEED_TRANSPLANT
 
     def __init__(
         self,
@@ -636,4 +643,4 @@ class Symbiont:
         return delivered_activations
 
 
-__all__ = ["Symbiont"]
+__all__ = ["CleanEmbodimentSeed"]

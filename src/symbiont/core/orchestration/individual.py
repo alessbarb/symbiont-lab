@@ -25,7 +25,7 @@ from ..embodiment.episode import (
 )
 from ..embodiment.memory import EmbodimentArchive, archive_episode_checkpoint
 from ..embodiment.session import EmbodimentSession, implant
-from .symbiont import Symbiont
+from .clean_embodiment_seed import CleanEmbodimentSeed
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,7 +49,7 @@ class Individual:
 
     def __init__(
         self,
-        symbiont: Symbiont,
+        symbiont: CleanEmbodimentSeed,
         body: Body,
         session: EmbodimentSession,
         *,
@@ -303,7 +303,7 @@ def create_individual(
         num_effectors=num_effectors,
         morphology=morphology,
     )
-    symbiont = Symbiont(symbiont_id=symbiont_id)
+    symbiont = CleanEmbodimentSeed(symbiont_id=symbiont_id)
     session = implant(
         symbiont_id=symbiont_id,
         body_id=body_id,

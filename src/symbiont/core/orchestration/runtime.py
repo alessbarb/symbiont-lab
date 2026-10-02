@@ -64,6 +64,7 @@ from ...host.checkpoint import (
     save_checkpoint_atomic,
     verify_checkpoint_identity,
 )
+from ...host.continuity import LongitudinalContract
 from ...host.contracts import DiscoveryPolicy, DiscoveryProvider, HostManifest
 from ...host.discovery import HostDiscovery
 from ...host.drift import DriftAwareBaseline, DriftObservation
@@ -254,6 +255,8 @@ class OrganismRuntime:
     after attention has been allocated for the current tick, so attention and the
     self-model can constrain plastic updates instead of merely describing them.
     """
+
+    LONGITUDINAL_CONTRACT = LongitudinalContract.CANONICAL_REEMBODIMENT
 
     # Layer of the continuity register this runtime's checkpoint must satisfy.
     _CONTINUITY_LAYER = "core"

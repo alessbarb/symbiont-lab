@@ -135,7 +135,7 @@ def test_physics3d_cognition_accepts_experiment_local_limits():
 
 
 def test_anatomical_labels_do_not_live_in_core_symbiont_surface():
-    import symbiont.core.symbiont as symbiont
+    import symbiont.core.orchestration.clean_embodiment_seed as symbiont
 
     source = inspect.getsource(symbiont).lower()
     for anatomical_term in ("knee", "elbow", "shoulder", "hip", "thigh", "shin"):
@@ -161,7 +161,7 @@ def test_physics3d_runtime_does_not_call_parallel_symbiont_step():
 
     source = inspect.getsource(runtime)
     assert "PrivateModelOrganismRuntime" in source
-    assert "Symbiont(" not in source
+    assert "CleanEmbodimentSeed(" not in source
     assert ".symbiont.step(" not in source
 
 

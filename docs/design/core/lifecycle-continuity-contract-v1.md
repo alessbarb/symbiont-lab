@@ -71,7 +71,7 @@ checkpoint field is unclassified.
 | Historical restore | `OrganismRuntime.from_checkpoint(payload)` | Reproduces the individual exactly as saved, including the absence of cognition in a cognition-less checkpoint | An upgrade |
 | Owner-facing restore | `restore_resident_with_canonical_cognition(payload, runtime_class=...)` | Historical restore plus the `canonical-cognition-adoption` transform when genome and graph are absent | A neutral restore: it can produce a different organism from the same checkpoint (§6) |
 | Canonical re-embodiment | `symbiont_lab.physics3d.reembodiment.prepare_fresh_embodiment_checkpoint` | The Symbiont moved into a fresh Body; knowledge carried, authority withdrawn | A reset of cognition |
-| Reduced-seed transplant | `Individual.transplant_to` → `Symbiont.begin_new_embodiment` | The clean-embodiment apparatus: identity, time, genotype and expression kept; embodiment-specific inference restarted from naive | Canonical re-embodiment (§7) |
+| Reduced-seed transplant | `Individual.transplant_to` → `CleanEmbodimentSeed.begin_new_embodiment` | The clean-embodiment apparatus: identity, time, genotype and expression kept; embodiment-specific inference restarted from naive | Canonical re-embodiment (§7) |
 | Temporal decontamination | `symbiont_lab.physics3d.reembodiment.migrate_temporal_domains` | Corrects a contaminated clock coordinate and records it | A reconstruction of the physiology already produced under that clock |
 
 Every operation that changes organism state without the organism living through
@@ -135,7 +135,7 @@ Tests: `tests/unit/core/test_canonical_birth.py`,
 Canonical re-embodiment and the reduced seed's transplant answer the question
 "what belongs to the organism?" differently for embodiment-specific inference.
 
-| State | Canonical re-embodiment (`OrganismRuntime`) | Reduced seed (`Symbiont`) |
+| State | Canonical re-embodiment (`OrganismRuntime`) | Reduced seed (`CleanEmbodimentSeed`) |
 | --- | --- | --- |
 | Identity, organism time, genome, expression | preserved | preserved |
 | BodySchema | preserved | reset to naive |
@@ -156,12 +156,48 @@ Rule for claims: a result obtained with the reduced seed says nothing about
 retained knowledge after canonical re-embodiment, and the reverse. A study must
 name which of the two it used.
 
+### 7.1 Decision and enforcement (owner, 2026-10-02; issue #273)
+
+The divergence is intentional and stays. The reduced seed is the subject of the
+clean-embodiment falsification apparatus; converging it would change that
+apparatus and the comparability of its recorded results. It is no longer called
+"Symbiont": the class is `CleanEmbodimentSeed`, and `symbiont.core` exports no
+`Symbiont` class.
+
+Per divergent state item:
+
+| State | Canonical owner | In the reduced seed |
+| --- | --- | --- |
+| BodySchema | Symbiont-owned knowledge | treated as embodiment-owned, restarted |
+| Sensorimotor dynamics, effects, causal evidence, controllability, agency | Symbiont-owned knowledge | treated as embodiment-owned, restarted |
+| Competence effect grounding | Symbiont-owned knowledge | cleared; the competence itself is kept |
+| Execution bindings, surface, in-flight commitment | embodiment-owned authority | embodiment-owned authority |
+
+Each contract has an identifier, `LongitudinalContract` in
+`src/symbiont/host/continuity.py`:
+
+- `canonical-reembodiment-v1` — `OrganismRuntime` and its subclasses;
+- `reduced-seed-transplant-v1` — `CleanEmbodimentSeed` / `Individual`.
+
+Both classes carry it as `LONGITUDINAL_CONTRACT`. Every module that builds a
+subject declares the same constant at module level, the experiment runner writes
+it to the run manifest (`longitudinal_contract`; `null` for protocols that build
+no longitudinal subject), and
+`tests/experimental_integrity/test_longitudinal_contract_declaration.py` fails
+when a module that imports either subject does not declare its contract or
+imports subjects of both.
+
+Users of the reduced seed at the time of the decision:
+`studies.embodiment.{causal_revision_sequence, heredity_leakage_challenge,
+integrity_gates, label_invariance}`, `studies.genetics.genome_causal_validation`
+and `symbiont_lab.world.adapter` (the `experimental_clean` World path). Users of
+canonical re-embodiment: `symbiont_lab.physics3d.{runtime, reembodiment}`.
+
 ## 8. Owner decisions
 
-1. **Convergence.** Whether the reduced seed should adopt the canonical
-   semantics, stay as a deliberately clean-slate apparatus, or be retired.
-   Changing it alters the apparatus of the embodiment falsification studies and
-   is not a mechanical change.
+1. **Convergence.** Decided 2026-10-02: no convergence; see §7.1. A later
+   decision to converge or retire the seed is a SCIENTIFIC change with its own
+   apparatus-impact record.
 2. **Legacy sunset.** Whether, and from when, checkpoints of unverified legacy
    origin stop being accepted.
 3. **Functional transfer.** Preservation is established; usefulness is not. The

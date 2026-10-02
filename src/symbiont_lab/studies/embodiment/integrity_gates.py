@@ -9,11 +9,15 @@ from __future__ import annotations
 import inspect
 from dataclasses import asdict, dataclass
 
-from symbiont.core.orchestration.symbiont import Symbiont
+from symbiont.core.orchestration.clean_embodiment_seed import CleanEmbodimentSeed
 from symbiont.genetics.genome import flatten_genes
 from symbiont.genetics.germline import GermlineState
+from symbiont.host.continuity import LongitudinalContract
 from symbiont_lab.world.adapter import _construct_organism
 from symbiont_lab.world.genesis_v1 import build_ground_truth
+
+# Longitudinal contract of the subject this module builds (issue #273).
+LONGITUDINAL_CONTRACT = LongitudinalContract.REDUCED_SEED_TRANSPLANT
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,7 +67,7 @@ def run_embodiment_integrity_gates(
     genome = individual.genome if individual is not None else None
     germline = individual.germline if individual is not None else None
 
-    step_params = tuple(inspect.signature(Symbiont.step).parameters)
+    step_params = tuple(inspect.signature(CleanEmbodimentSeed.step).parameters)
     forbidden_step_tokens = (
         "condition",
         "phase",

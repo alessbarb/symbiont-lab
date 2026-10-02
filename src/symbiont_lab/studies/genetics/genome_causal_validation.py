@@ -11,9 +11,13 @@ import json
 from dataclasses import asdict, dataclass, replace
 from importlib import resources
 
-from symbiont.core.orchestration.symbiont import Symbiont
+from symbiont.core.orchestration.clean_embodiment_seed import CleanEmbodimentSeed
 from symbiont.genetics.genome import Genome, GenomeCodec, flatten_genes
 from symbiont.genetics.germline import GermlineState
+from symbiont.host.continuity import LongitudinalContract
+
+# Longitudinal contract of the subject this module builds (issue #273).
+LONGITUDINAL_CONTRACT = LongitudinalContract.REDUCED_SEED_TRANSPLANT
 
 WORLD_LAW_ID = "opaque-linear-body-v1"
 
@@ -164,7 +168,7 @@ def _run_condition(
     seed: int,
     steps: int,
 ) -> GenomeCausalCondition:
-    symbiont = Symbiont(
+    symbiont = CleanEmbodimentSeed(
         "symbiont.genome-causal-pair",
         seed=seed,
         genome=genome,

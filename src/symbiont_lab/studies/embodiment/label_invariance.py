@@ -17,13 +17,17 @@ from typing import Sequence
 
 from symbiont.core.body import Body, BodyPhysiology, EffectorPort, ReceptorPort
 from symbiont.core.individual import Individual
-from symbiont.core.symbiont import Symbiont
 
 from symbiont.core.embodiment import implant_body
+from symbiont.core.orchestration.clean_embodiment_seed import CleanEmbodimentSeed
+from symbiont.host.continuity import LongitudinalContract
 from symbiont_lab.world.population import PopulationGenesisRuntime
 from symbiont_world.genesis import GroundTruth
 from symbiont_world.laws import HazardLaw, ResourceLaw
 from symbiont_world.topology import HexCoord, HexTopology
+
+# Longitudinal contract of the subject this module builds (issue #273).
+LONGITUDINAL_CONTRACT = LongitudinalContract.REDUCED_SEED_TRANSPLANT
 
 _STUDY_ID = "embodiment.label-invariance"
 
@@ -151,8 +155,8 @@ def _port_label_assay(seed: int, *, steps: int) -> tuple[bool, bool, bool]:
     body_a = _make_body(f"body-a-{seed}", renamed=False)
     body_b = _make_body(f"body-b-{seed}", renamed=True)
 
-    sym_a = Symbiont(f"sym-e8-{seed}", seed=seed)
-    sym_b = Symbiont(f"sym-e8-{seed}", seed=seed)
+    sym_a = CleanEmbodimentSeed(f"sym-e8-{seed}", seed=seed)
+    sym_b = CleanEmbodimentSeed(f"sym-e8-{seed}", seed=seed)
 
     ind_a = Individual(sym_a, body_a, implant_body(sym_a.symbiont_id, body_a))
     ind_b = Individual(sym_b, body_b, implant_body(sym_b.symbiont_id, body_b))

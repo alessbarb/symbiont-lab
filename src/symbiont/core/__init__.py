@@ -285,8 +285,8 @@ from .lineage.germline import (
     SymbiontGenome,
     create_standard_genome,
 )
+from .orchestration.clean_embodiment_seed import CleanEmbodimentSeed
 from .orchestration.individual import Individual, IndividualTickRecord, create_individual
-from .orchestration.symbiont import Symbiont
 
 __all__.extend(
     [
@@ -304,7 +304,7 @@ __all__.extend(
         "CompetenceEffectModel",
         "ControllabilityModel",
         "SensorimotorDynamicsModel",
-        "Symbiont",
+        "CleanEmbodimentSeed",
         "Individual",
         "IndividualTickRecord",
         "create_individual",
@@ -358,7 +358,6 @@ _legacy_module_paths = {
     "ontogeny": "embodiment.ontogeny",
     "body": "embodiment.body",
     "body_schema": "embodiment.body_schema",
-    "symbiont": "orchestration.symbiont",
     "individual": "orchestration.individual",
     "epistemic": "foundation.epistemic",
     "limits": "foundation.limits",
