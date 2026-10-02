@@ -529,8 +529,11 @@ A confirmatory or held-out experiment must not use a subject whose checkpoint
 lineage records `unverified_legacy_origin`: some ancestor checkpoint of such an
 organism was accepted without a verifiable state identity (schema 10 and
 earlier), so the state it started from cannot be shown to be the state that was
-saved. Such subjects remain valid for exploratory work, where the marker must be
-reported. A protocol that restores subjects from checkpoints states which restore
+saved. The governed launcher enforces this: `agentctl run start` refuses the
+`confirmation` and `held-out` scopes for a snapshot whose organism has an
+unverified, or undeterminable, origin. Such subjects remain valid for exploratory
+work, where the marker must be reported; the snapshot manifest and the run
+receipt record it. A protocol that restores subjects from checkpoints states which restore
 entry point it uses; `checkpoint_lineage.transforms` is reported with the
 results. See
 [Lifecycle Continuity Contract v1](../design/core/lifecycle-continuity-contract-v1.md) §6.
