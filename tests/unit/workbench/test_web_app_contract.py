@@ -188,12 +188,15 @@ def test_mind_generative_cognition_is_separate_from_atlas_topology():
     assert ".mind-cognition-right-rail" in css
     assert "source?.cognition?.generative" in controller
     assert "renderGenerativePanel(source)" in controller
-    assert "Generative resident observed" in controller
-    assert "Generative activity observed earlier" in controller
+    # The panel's wording comes from the observability-state contract, which
+    # names why a snapshot is or is not there (issue #277).
+    assert "classifyObservability(" in controller
+    assert "observability.label" in controller
+    assert "Generative resident not observed" not in controller
     assert "mind-generative-history" in controller
     assert "mind-generative-flow" in controller
-    assert "Generative resident not observed" in controller
-    assert "no generative frame captured through" in controller
+    assert '"generative_status"' in physics_runtime
+    assert 'mind_cognition["generativeStatus"]' in projection
     assert '"generative"' in physics_runtime
     assert 'mind_cognition["generative"]' in projection
     assert "completeTopology.nodes.push" not in controller

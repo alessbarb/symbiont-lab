@@ -40,6 +40,7 @@ from symbiont.host.continuity import LongitudinalContract
 from symbiont.host.discovery import HostDiscovery
 from symbiont.host.lifecycle import HostLifecycle
 from symbiont.modeling.private_runtime import PrivateModelOrganismRuntime
+from symbiont_lab.observation.subsystem_status import generative_status
 
 from .apparatus import (
     OpaqueBodyInteroception,
@@ -1260,9 +1261,16 @@ class PyBulletEmbodimentRuntime:
         return {"nodes": nodes, "edges": edges}
 
     @staticmethod
-    def _cognition_payload(cognition, *, generative=None) -> dict[str, object]:
+    def _cognition_payload(
+        cognition, *, generative=None, generative_lifecycle=None
+    ) -> dict[str, object]:
         if cognition is None and generative is None:
-            return {}
+            # No cognition frame at all: still say where the subsystem stands.
+            return (
+                {"generative_status": dict(generative_lifecycle)}
+                if generative_lifecycle is not None
+                else {}
+            )
         prediction_errors = []
         for item in tuple(getattr(cognition, "prediction_errors", ())):
             prediction_errors.append(
@@ -1338,6 +1346,9 @@ class PyBulletEmbodimentRuntime:
             # Organism-owned ephemeral generative state. This is observation
             # only; it never enters the CognitiveGraph or feeds back to runtime.
             payload["generative"] = PyBulletEmbodimentRuntime._telemetry_value(generative)
+        if generative_lifecycle is not None:
+            # Why the generative snapshot is, or is not, meaningful right now.
+            payload["generative_status"] = dict(generative_lifecycle)
         return payload
 
     def _action_payload(self) -> dict[str, object]:
@@ -2107,6 +2118,7 @@ class PyBulletEmbodimentRuntime:
                         if result.generative is not None
                         else self.organism.generative_cognition.snapshot(mode=GenerativeMode.ONLINE)
                     ),
+                    generative_lifecycle=generative_status(self.organism),
                 ),
                 "cognitive_topology": self._cognitive_topology_payload(
                     getattr(self.organism, "cognitive_bridge", None)
