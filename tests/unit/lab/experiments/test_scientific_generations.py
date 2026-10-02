@@ -109,3 +109,67 @@ def test_generation_store_rejects_unsafe_payload_paths(tmp_path: Path, path: str
 
     with pytest.raises(ValueError):
         store.commit(0, {path: "payload"})
+
+
+def _tree(root: Path, label: str) -> Path:
+    for name, value in _files(label).items():
+        target = root / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if isinstance(value, bytes):
+            target.write_bytes(value)
+        else:
+            target.write_text(value, encoding="utf-8")
+    return root
+
+
+def test_a_directory_is_committed_as_one_generation_with_extra_files(tmp_path: Path) -> None:
+    store = GenerationStore(tmp_path / "run")
+    source = _tree(tmp_path / "work", "zero")
+
+    committed = store.commit_directory(0, source, extra_files={"execution.json": "{}"})
+
+    assert set(committed.files) == set(_files("zero")) | {"execution.json"}
+    assert (committed.path / "model-artifacts/model.bin").read_bytes() == b"model-zero"
+    assert store.open_current() == committed
+    assert store.has_current()
+
+
+def test_an_extra_file_may_not_shadow_a_copied_one(tmp_path: Path) -> None:
+    store = GenerationStore(tmp_path / "run")
+    source = _tree(tmp_path / "work", "zero")
+
+    with pytest.raises(ValueError, match="collides"):
+        store.commit_directory(0, source, extra_files={"manifest": "other"})
+    assert not store.has_current()
+    assert not list(store.root.glob("generation-*"))
+
+
+@pytest.mark.parametrize(
+    "fault_point,visible",
+    [
+        ("before_generation_publish", False),
+        ("after_generation_publish", False),
+        ("current.before_replace", False),
+        ("current.after_replace", True),
+        ("after_current_publish", True),
+    ],
+)
+def test_a_crash_while_committing_a_directory_leaves_nothing_or_a_complete_generation(
+    tmp_path: Path, fault_point: str, visible: bool
+) -> None:
+    store = GenerationStore(tmp_path / "run")
+    source = _tree(tmp_path / "work", "zero")
+
+    def fault_hook(point: str) -> None:
+        if point == fault_point:
+            raise OSError(f"simulated crash at {point}")
+
+    with pytest.raises(OSError, match="simulated crash"):
+        store.commit_directory(0, source, _fault_point=fault_hook)
+
+    assert store.has_current() is visible
+    if visible:
+        assert set(store.open_current().files) == set(_files("zero"))
+    else:
+        with pytest.raises(FileNotFoundError):
+            store.open_current()

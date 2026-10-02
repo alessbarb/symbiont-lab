@@ -577,14 +577,24 @@ environment.
 
 ### A4 — Generational scientific commits
 
-**Status:** PARTIAL.
+**Status:** IMPLEMENTED for the governed run path — awaiting owner closure.
+In-run checkpoints are not covered (ADR-0061).
 
-An isolated transactional `GenerationStore` now implements immutable
-`generation-N` directories, a digest-bearing `COMPLETE` seal and atomic
-`CURRENT` publication with crash-boundary tests. It is deliberately not yet
-wired into the active scientific launcher or D1-v2. A4 closes only after the
-governed run/checkpoint path consumes this store and recovery tests cover that
-integration.
+A transactional `GenerationStore` implements immutable `generation-N`
+directories, a digest-bearing `COMPLETE` seal and atomic `CURRENT` publication
+with crash-boundary tests. The governed launcher now consumes it: when the
+scientific child has run, `agentctl run start` commits the run's work directory
+together with its receipt as one generation, removes the uncommitted copy, and
+releases the run lock only afterwards. A run whose commit fails has no visible
+result. Crash injection is tested at the launcher's commit as well as in the
+store.
+
+What remains open, by decision and not by omission: the multi-file checkpoints a
+study writes *while it runs* are not committed as generations. They are never
+published half-written, because the work directory is only committed after the
+child exits, but they are not protected step by step. One run publishes one
+generation, so the acceptance criterion below is met as "nothing or the complete
+run", not as a sequence of generations inside a run.
 
 Atomic files are insufficient when one scientific state consists of multiple
 files.

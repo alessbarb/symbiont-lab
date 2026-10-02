@@ -11,7 +11,6 @@ from typing import Callable, Mapping
 
 from symbiont.host.durable import durable_atomic_write, durable_atomic_write_json, sync_directory
 
-
 FaultHook = Callable[[str], None]
 
 
@@ -46,7 +45,11 @@ class GenerationStore:
     @staticmethod
     def _safe_relative_path(name: str) -> PurePosixPath:
         path = PurePosixPath(name)
-        if path.is_absolute() or not path.parts or any(part in {"", ".", ".."} for part in path.parts):
+        if (
+            path.is_absolute()
+            or not path.parts
+            or any(part in {"", ".", ".."} for part in path.parts)
+        ):
             raise ValueError(f"invalid generation payload path: {name!r}")
         if any(part in {GenerationStore.COMPLETE, GenerationStore.CURRENT} for part in path.parts):
             raise ValueError(f"reserved generation payload path: {name!r}")
@@ -74,10 +77,8 @@ class GenerationStore:
         if final_dir.exists():
             raise FileExistsError(f"generation already exists: {name}")
 
-        tmp_dir = Path(tempfile.mkdtemp(dir=self.root, prefix=f".{name}.", suffix=".tmp"))
-        published = False
-        digests: dict[str, str] = {}
-        try:
+        def write(tmp_dir: Path) -> dict[str, str]:
+            digests: dict[str, str] = {}
             for raw_name, value in sorted(files.items()):
                 relative = self._safe_relative_path(raw_name)
                 data = value.encode("utf-8") if isinstance(value, str) else bytes(value)
@@ -85,6 +86,72 @@ class GenerationStore:
                 target.parent.mkdir(parents=True, exist_ok=True)
                 durable_atomic_write(target, data, sync_dir=True)
                 digests[relative.as_posix()] = self._digest(data)
+            return digests
+
+        return self._publish(index, write, _fault_point)
+
+    def commit_directory(
+        self,
+        index: int,
+        source: str | Path,
+        *,
+        extra_files: Mapping[str, bytes | str] | None = None,
+        _fault_point: FaultHook | None = None,
+    ) -> CommittedGeneration:
+        """Commit every file under ``source`` as one generation.
+
+        Files are copied and hashed in streaming fashion, so a run's outputs do
+        not have to fit in memory. ``extra_files`` are added beside them and may
+        not collide with a copied path.
+        """
+        source = Path(source)
+        if not source.is_dir():
+            raise NotADirectoryError(source)
+        name = self.generation_name(index)
+        if (self.root / name).exists():
+            raise FileExistsError(f"generation already exists: {name}")
+        extras = dict(extra_files or {})
+
+        def write(tmp_dir: Path) -> dict[str, str]:
+            digests: dict[str, str] = {}
+            for path in sorted(item for item in source.rglob("*") if item.is_file()):
+                relative = self._safe_relative_path(path.relative_to(source).as_posix())
+                target = tmp_dir.joinpath(*relative.parts)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                digest = hashlib.sha256()
+                with path.open("rb") as reader, target.open("wb") as writer:
+                    for chunk in iter(lambda: reader.read(1024 * 1024), b""):
+                        digest.update(chunk)
+                        writer.write(chunk)
+                    writer.flush()
+                    os.fsync(writer.fileno())
+                sync_directory(target.parent)
+                digests[relative.as_posix()] = digest.hexdigest()
+            for raw_name, value in sorted(extras.items()):
+                relative = self._safe_relative_path(raw_name)
+                if relative.as_posix() in digests:
+                    raise ValueError(f"extra file collides with a copied path: {raw_name!r}")
+                data = value.encode("utf-8") if isinstance(value, str) else bytes(value)
+                target = tmp_dir.joinpath(*relative.parts)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                durable_atomic_write(target, data, sync_dir=True)
+                digests[relative.as_posix()] = self._digest(data)
+            return digests
+
+        return self._publish(index, write, _fault_point)
+
+    def _publish(
+        self,
+        index: int,
+        write: Callable[[Path], dict[str, str]],
+        _fault_point: FaultHook | None,
+    ) -> CommittedGeneration:
+        name = self.generation_name(index)
+        final_dir = self.root / name
+        tmp_dir = Path(tempfile.mkdtemp(dir=self.root, prefix=f".{name}.", suffix=".tmp"))
+        published = False
+        try:
+            digests = write(tmp_dir)
 
             marker = {
                 "schema_version": 1,
@@ -121,6 +188,9 @@ class GenerationStore:
                 shutil.rmtree(tmp_dir, ignore_errors=True)
             raise
 
+    def has_current(self) -> bool:
+        return (self.root / self.CURRENT).is_file()
+
     def open_current(self) -> CommittedGeneration:
         current = self.root / self.CURRENT
         if not current.is_file():
@@ -128,9 +198,13 @@ class GenerationStore:
 
         name = current.read_text(encoding="utf-8").strip()
         prefix = "generation-"
-        if not name.startswith(prefix) or len(name) != len(prefix) + 6 or not name[len(prefix):].isdigit():
+        if (
+            not name.startswith(prefix)
+            or len(name) != len(prefix) + 6
+            or not name[len(prefix) :].isdigit()
+        ):
             raise ValueError(f"invalid CURRENT generation reference: {name!r}")
-        index = int(name[len(prefix):])
+        index = int(name[len(prefix) :])
         return self.open_generation(index)
 
     def open_generation(self, index: int) -> CommittedGeneration:
