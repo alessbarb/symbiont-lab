@@ -35,6 +35,7 @@ from symbiont.core.embodiment import (
 )
 from symbiont.core.embodiment.metabolism import MetabolicLedger
 from symbiont.core.embodiment.physiology import LivingBodyState, VitalState
+from symbiont.host.checkpoint import verify_checkpoint_identity
 from symbiont.host.discovery import HostDiscovery
 from symbiont.host.lifecycle import HostLifecycle
 from symbiont.modeling.private_runtime import PrivateModelOrganismRuntime
@@ -563,6 +564,8 @@ class PyBulletEmbodimentRuntime:
             self._temporal_migration: dict[str, Any] | None = None
             self._reembodied = False
         else:
+            # Verify the saved identity before any transform re-identifies it.
+            verify_checkpoint_identity(dict(runtime_checkpoint))
             runtime_checkpoint = migrate_temporal_domains(runtime_checkpoint)
             effective = runtime_checkpoint.get("effective_config", {})
             if not isinstance(effective, Mapping) or not bool(

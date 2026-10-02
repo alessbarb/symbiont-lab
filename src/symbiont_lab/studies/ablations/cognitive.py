@@ -2,7 +2,9 @@
 
 The organism exposes configurable capabilities; deciding to switch them off
 for a controlled comparison belongs to the Lab. Apply after restoring State X
-and before the first tick of the arm. Nothing here is checkpointed.
+and before the first tick of the arm. The switches are not organism state:
+they stay out of state identity, and the runtime records their effective values
+as provenance and reapplies them if the arm is restarted.
 """
 
 from __future__ import annotations

@@ -12,11 +12,26 @@ from .consolidated_baseline import (
     consolidate_baseline,
     seed_capability_baseline,
 )
+from .continuity import APPARATUS_FIELDS, required_checkpoint_fields
 from .drift import DriftAwareBaseline
 from .durable import durable_atomic_write
 from .rhythms import CyclePhase, RhythmModel
 
-CHECKPOINT_SCHEMA_VERSION = 10
+CHECKPOINT_SCHEMA_VERSION = 11
+# v10 -> v11 (Longitudinal Integrity v1 §4-§5) changes no organism state. From
+# v11 on, checkpoint_lineage.checkpoint_id covers the complete organism payload
+# of the runtime that saved it and is verified on restore, and fields the
+# continuity register marks as required may not be absent. Older schemas keep
+# their documented migration defaults and are not identity-verified: their
+# identifier covered only the base runtime fields and was never checked.
+IDENTITY_VERIFIED_SINCE_SCHEMA = 11
+IDENTITY_SCOPE = "organism-state-v1"
+# Save-event metadata and embodiment history written around the organism
+# checkpoint by the embodiment apparatus are not organism state identity.
+_IDENTITY_EXCLUDED_FIELDS = frozenset(
+    {"checkpoint_lineage", "runtime_provenance"}
+    | {field.checkpoint_field for field in APPARATUS_FIELDS}
+)
 # v8 -> v9 removes the contaminated typed local-action-selection subsystem
 # (ActionKind/ExpectedOutcome/LocalActionModel and its scalar utility
 # function) from canonical symbiont.core.runtime.  See _migrate_v8_to_v9:
@@ -408,6 +423,108 @@ def _migrate_v9_to_v10(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 _MIGRATIONS[9] = _migrate_v9_to_v10
+
+
+def _migrate_v10_to_v11(payload: dict[str, Any]) -> dict[str, Any]:
+    """Longitudinal Integrity v1: v11 only tightens identity and required fields."""
+    migrated = dict(payload)
+    migrated["schema_version"] = 11
+    return migrated
+
+
+_MIGRATIONS[10] = _migrate_v10_to_v11
+
+
+def checkpoint_state_hash(payload: dict[str, Any]) -> str:
+    """Content hash of organism state, key order independent.
+
+    Excludes ``checkpoint_lineage`` (save events), ``runtime_provenance`` (what
+    produced the save) and apparatus-owned embodiment history. Two checkpoints
+    of the same organism state hash identically whenever they were taken.
+    """
+    state = {key: value for key, value in payload.items() if key not in _IDENTITY_EXCLUDED_FIELDS}
+    encoded = json.dumps(state, sort_keys=True, separators=(",", ":"), allow_nan=False)
+    return sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def stamp_checkpoint_identity(payload: dict[str, Any], *, transform: str) -> dict[str, Any]:
+    """Re-identify a checkpoint that an authorized transform has changed.
+
+    A transform such as re-embodiment produces a different organism state, so
+    the stored identifier no longer describes it. The new identifier chains
+    from the one it replaced and names the transform, so the change is recorded
+    instead of being indistinguishable from corruption. Returns a new payload.
+    """
+    if not transform:
+        raise ValueError("transform must name the authorized change")
+    stamped = dict(payload)
+    previous = stamped.get("checkpoint_lineage")
+    previous = previous if isinstance(previous, dict) else {}
+    transforms = previous.get("transforms", [])
+    stamped["checkpoint_lineage"] = {
+        "checkpoint_id": checkpoint_state_hash(stamped),
+        "parent_checkpoint_hash": previous.get("checkpoint_id"),
+        "identity_scope": IDENTITY_SCOPE,
+        "transforms": [*(transforms if isinstance(transforms, list) else []), transform],
+    }
+    return stamped
+
+
+def verify_checkpoint_identity(payload: dict[str, Any]) -> None:
+    """Fail closed unless a checkpoint matches the identity it recorded.
+
+    Call it on the payload as loaded. A lineage block that declares an
+    ``identity_scope`` is verifiable and must match. One without it is a legacy
+    identifier (schema 10 and earlier) that covered only base runtime fields
+    and was never checked; it is accepted only from a legacy save.
+    """
+    lineage = payload.get("checkpoint_lineage")
+    if isinstance(lineage, dict) and "identity_scope" in lineage:
+        if lineage["identity_scope"] != IDENTITY_SCOPE:
+            raise CheckpointError("checkpoint_lineage has an unsupported identity_scope")
+        try:
+            recomputed = checkpoint_state_hash(payload)
+        except (TypeError, ValueError) as exc:
+            raise CheckpointError(f"checkpoint state is not canonical JSON: {exc}") from exc
+        if lineage.get("checkpoint_id") != recomputed:
+            raise CheckpointError(
+                "checkpoint state does not match its recorded checkpoint_id; "
+                "the checkpoint was modified after it was saved"
+            )
+        return
+    if _saved_by_current_schema(payload):
+        raise CheckpointError(
+            "checkpoint saved by a current runtime carries no verifiable checkpoint_lineage"
+        )
+
+
+def _saved_by_current_schema(payload: dict[str, Any]) -> bool:
+    lineage = payload.get("checkpoint_lineage")
+    if isinstance(lineage, dict) and "identity_scope" in lineage:
+        return True
+    provenance = payload.get("runtime_provenance")
+    saved_schema = (
+        provenance.get("checkpoint_schema_version") if isinstance(provenance, dict) else None
+    )
+    return (
+        isinstance(saved_schema, int)
+        and not isinstance(saved_schema, bool)
+        and saved_schema >= IDENTITY_VERIFIED_SINCE_SCHEMA
+    )
+
+
+def require_current_schema_fields(payload: dict[str, Any], *, layer: str) -> None:
+    """Reject a current-schema checkpoint that lost acquired state.
+
+    Restore paths default an absent field to a fresh subsystem so that older
+    schemas can migrate. For a checkpoint saved by a current runtime the same
+    absence is loss, not history, and must not become a healthy empty subsystem.
+    """
+    if not _saved_by_current_schema(payload):
+        return
+    for field in sorted(required_checkpoint_fields(layer)):
+        if field not in payload:
+            raise CheckpointError(f"current-schema checkpoint is missing required field {field!r}")
 
 
 def normalize_checkpoint(payload: dict[str, Any]) -> dict[str, Any]:

@@ -12,18 +12,18 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 
 ## Resumen
 
-- Archivos analizados: **585**
+- Archivos analizados: **586**
 - Archivos con diagnósticos: **90**
-- Errores: **384**
+- Errores: **382**
 - Warnings: **10**
 - Informaciones: **0**
-- Duración reportada: **25.772 s**
+- Duración reportada: **28.977 s**
 
 ## Reglas por severidad
 
 | Severidad | Regla | Casos |
 |---|---|---:|
-| error | `reportArgumentType` | 183 |
+| error | `reportArgumentType` | 181 |
 | error | `reportAttributeAccessIssue` | 96 |
 | error | `reportOptionalMemberAccess` | 57 |
 | error | `reportOperatorIssue` | 15 |
@@ -46,8 +46,8 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 | 28 | `src/symbiont_lab/physics3d/telemetry/v41.py` |
 | 21 | `src/symbiont_lab/studies/learning/emergent_symbol_grounding.py` |
 | 18 | `src/symbiont_lab/app/physics3d/monitor/viewer.py` |
-| 17 | `src/symbiont_lab/physics3d/runtime.py` |
 | 17 | `src/symbiont_lab/studies/learning/emergent_structured_communication.py` |
+| 15 | `src/symbiont_lab/physics3d/runtime.py` |
 | 12 | `observatory/resident.py` |
 | 9 | `src/symbiont/modeling/runtime.py` |
 | 9 | `src/symbiont_lab/physics3d/engine.py` |
@@ -150,18 +150,18 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 
 ### `observatory/resident.py` (12)
 
-- `417:63` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "model_registry" for class "OrganismRuntime" Attribute "model_registry" is unknown
-- `417:78` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "models" for class "ModelRegistry" Attribute "models" is unknown
-- `418:32` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "experience_ledger" for class "OrganismRuntime" Attribute "experience_ledger" is unknown
-- `420:64` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "experience_ledger" for class "OrganismRuntime" Attribute "experience_ledger" is unknown
-- `429:46` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "model_registry" for class "OrganismRuntime" Attribute "model_registry" is unknown
-- `433:33` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "attach_private_model_bridge" for class "OrganismRuntime" Attribute "attach_private_model_bridge" is unknown
-- `456:28` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "autonomous_private_learning_plan" for class "OrganismRuntime" Attribute "autonomous_private_learning_plan" is unknown
-- `464:21` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "settle_private_model_training_compute" for class "OrganismRuntime" Attribute "settle_private_model_training_compute" is unknown
-- `468:31` · **error** · `reportArgumentType` — Argument of type "PrivateModelOrganismRuntime \| OrganismRuntime" cannot be assigned to parameter "runtime" of type "ModeledOrganismRuntime" in function "adopt" Type "PrivateModelOrganismRuntime \| OrganismRuntime" is not assignable to type "ModeledOrganismRuntime" "OrganismRuntime" is not assignable to "ModeledOrganismRuntime"
-- `469:30` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "model_registry" for class "OrganismRuntime" Attribute "model_registry" is unknown
-- `478:38` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "model_registry" for class "OrganismRuntime" Attribute "model_registry" is unknown
-- `482:25` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "attach_private_model_bridge" for class "OrganismRuntime" Attribute "attach_private_model_bridge" is unknown
+- `425:63` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "model_registry" for class "OrganismRuntime" Attribute "model_registry" is unknown
+- `425:78` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "models" for class "ModelRegistry" Attribute "models" is unknown
+- `426:32` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "experience_ledger" for class "OrganismRuntime" Attribute "experience_ledger" is unknown
+- `428:64` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "experience_ledger" for class "OrganismRuntime" Attribute "experience_ledger" is unknown
+- `437:46` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "model_registry" for class "OrganismRuntime" Attribute "model_registry" is unknown
+- `441:33` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "attach_private_model_bridge" for class "OrganismRuntime" Attribute "attach_private_model_bridge" is unknown
+- `464:28` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "autonomous_private_learning_plan" for class "OrganismRuntime" Attribute "autonomous_private_learning_plan" is unknown
+- `472:21` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "settle_private_model_training_compute" for class "OrganismRuntime" Attribute "settle_private_model_training_compute" is unknown
+- `476:31` · **error** · `reportArgumentType` — Argument of type "PrivateModelOrganismRuntime \| OrganismRuntime" cannot be assigned to parameter "runtime" of type "ModeledOrganismRuntime" in function "adopt" Type "PrivateModelOrganismRuntime \| OrganismRuntime" is not assignable to type "ModeledOrganismRuntime" "OrganismRuntime" is not assignable to "ModeledOrganismRuntime"
+- `477:30` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "model_registry" for class "OrganismRuntime" Attribute "model_registry" is unknown
+- `486:38` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "model_registry" for class "OrganismRuntime" Attribute "model_registry" is unknown
+- `490:25` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "attach_private_model_bridge" for class "OrganismRuntime" Attribute "attach_private_model_bridge" is unknown
 
 ### `observatory/server.py` (2)
 
@@ -266,7 +266,7 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 
 ### `src/symbiont/core/orchestration/runtime.py` (1)
 
-- `2248:28` · **error** · `reportOperatorIssue` — Operator "<" not supported for types "Literal['normal', 'elevated', 'severe', 'unrecoverable']" and "float" Operator "<" not supported for types "Literal['normal']" and "float" when expected type is "list[str]" Operator "<" not supported for types "Literal['elevated']" and "float" when expected type is "list[str]" Operator "<" not supported for types "Literal['severe']" and "float" when expected type is "list[str]" Operator "<" not supported for types "Literal['unrecoverable']" and "float" when expected type is "list[str]"
+- `2282:28` · **error** · `reportOperatorIssue` — Operator "<" not supported for types "Literal['normal', 'elevated', 'severe', 'unrecoverable']" and "float" Operator "<" not supported for types "Literal['normal']" and "float" when expected type is "list[str]" Operator "<" not supported for types "Literal['elevated']" and "float" when expected type is "list[str]" Operator "<" not supported for types "Literal['severe']" and "float" when expected type is "list[str]" Operator "<" not supported for types "Literal['unrecoverable']" and "float" when expected type is "list[str]"
 
 ### `src/symbiont/core/signals/knowledge.py` (8)
 
@@ -290,7 +290,7 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 
 ### `src/symbiont/host/checkpoint.py` (1)
 
-- `116:54` · **error** · `reportArgumentType` — Argument of type "DriftAwareBaseline" cannot be assigned to parameter "baseline" of type "CapabilityBaseline" in function "consolidate_baseline" "DriftAwareBaseline" is not assignable to "CapabilityBaseline"
+- `131:54` · **error** · `reportArgumentType` — Argument of type "DriftAwareBaseline" cannot be assigned to parameter "baseline" of type "CapabilityBaseline" in function "consolidate_baseline" "DriftAwareBaseline" is not assignable to "CapabilityBaseline"
 
 ### `src/symbiont/modeling/culture.py` (4)
 
@@ -305,20 +305,20 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 
 ### `src/symbiont/modeling/private_runtime.py` (2)
 
-- `905:32` · **error** · `reportOptionalMemberAccess` — "get" is not a known attribute of "None"
-- `910:32` · **error** · `reportOptionalMemberAccess` — "get" is not a known attribute of "None"
+- `908:32` · **error** · `reportOptionalMemberAccess` — "get" is not a known attribute of "None"
+- `913:32` · **error** · `reportOptionalMemberAccess` — "get" is not a known attribute of "None"
 
 ### `src/symbiont/modeling/runtime.py` (9)
 
-- `333:24` · **error** · `reportArgumentType` — Argument of type "str \| None" cannot be assigned to parameter "key" of type "str" in function "__getitem__" Type "str \| None" is not assignable to type "str" "None" is not assignable to "str"
-- `459:24` · **error** · `reportArgumentType` — Argument of type "str \| None" cannot be assigned to parameter "key" of type "str" in function "__getitem__" Type "str \| None" is not assignable to type "str" "None" is not assignable to "str"
-- `462:21` · **error** · `reportArgumentType` — Argument of type "str \| None" cannot be assigned to parameter "symbol_id" of type "str" in function "__init__" Type "str \| None" is not assignable to type "str" "None" is not assignable to "str"
-- `500:24` · **error** · `reportArgumentType` — Argument of type "str \| None" cannot be assigned to parameter "key" of type "str" in function "__getitem__" Type "str \| None" is not assignable to type "str" "None" is not assignable to "str"
-- `503:21` · **error** · `reportArgumentType` — Argument of type "str \| None" cannot be assigned to parameter "symbol_id" of type "str" in function "__init__" Type "str \| None" is not assignable to type "str" "None" is not assignable to "str"
-- `533:24` · **error** · `reportArgumentType` — Argument of type "str \| None" cannot be assigned to parameter "key" of type "str" in function "__getitem__" Type "str \| None" is not assignable to type "str" "None" is not assignable to "str"
-- `536:21` · **error** · `reportArgumentType` — Argument of type "str \| None" cannot be assigned to parameter "symbol_id" of type "str" in function "__init__" Type "str \| None" is not assignable to type "str" "None" is not assignable to "str"
-- `1695:28` · **error** · `reportOptionalMemberAccess` — "get" is not a known attribute of "None"
-- `1698:67` · **error** · `reportOptionalMemberAccess` — "get" is not a known attribute of "None"
+- `336:24` · **error** · `reportArgumentType` — Argument of type "str \| None" cannot be assigned to parameter "key" of type "str" in function "__getitem__" Type "str \| None" is not assignable to type "str" "None" is not assignable to "str"
+- `462:24` · **error** · `reportArgumentType` — Argument of type "str \| None" cannot be assigned to parameter "key" of type "str" in function "__getitem__" Type "str \| None" is not assignable to type "str" "None" is not assignable to "str"
+- `465:21` · **error** · `reportArgumentType` — Argument of type "str \| None" cannot be assigned to parameter "symbol_id" of type "str" in function "__init__" Type "str \| None" is not assignable to type "str" "None" is not assignable to "str"
+- `503:24` · **error** · `reportArgumentType` — Argument of type "str \| None" cannot be assigned to parameter "key" of type "str" in function "__getitem__" Type "str \| None" is not assignable to type "str" "None" is not assignable to "str"
+- `506:21` · **error** · `reportArgumentType` — Argument of type "str \| None" cannot be assigned to parameter "symbol_id" of type "str" in function "__init__" Type "str \| None" is not assignable to type "str" "None" is not assignable to "str"
+- `536:24` · **error** · `reportArgumentType` — Argument of type "str \| None" cannot be assigned to parameter "key" of type "str" in function "__getitem__" Type "str \| None" is not assignable to type "str" "None" is not assignable to "str"
+- `539:21` · **error** · `reportArgumentType` — Argument of type "str \| None" cannot be assigned to parameter "symbol_id" of type "str" in function "__init__" Type "str \| None" is not assignable to type "str" "None" is not assignable to "str"
+- `1700:28` · **error** · `reportOptionalMemberAccess` — "get" is not a known attribute of "None"
+- `1703:67` · **error** · `reportOptionalMemberAccess` — "get" is not a known attribute of "None"
 
 ### `src/symbiont/sensory/predictive_credit.py` (2)
 
@@ -441,9 +441,9 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 
 ### `src/symbiont_lab/physics3d/reembodiment.py` (3)
 
-- `656:13` · **error** · `reportOptionalMemberAccess` — "append" is not a known attribute of "None"
-- `672:15` · **error** · `reportOptionalSubscript` — Object of type "None" is not subscriptable
-- `800:20` · **error** · `reportOptionalSubscript` — Object of type "None" is not subscriptable
+- `636:13` · **error** · `reportOptionalMemberAccess` — "append" is not a known attribute of "None"
+- `652:15` · **error** · `reportOptionalSubscript` — Object of type "None" is not subscriptable
+- `782:20` · **error** · `reportOptionalSubscript` — Object of type "None" is not subscriptable
 
 ### `src/symbiont_lab/physics3d/resource.py` (6)
 
@@ -454,25 +454,23 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 - `55:31` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "createMultiBody" for class "object" Attribute "createMultiBody" is unknown
 - `86:27` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "getContactPoints" for class "object" Attribute "getContactPoints" is unknown
 
-### `src/symbiont_lab/physics3d/runtime.py` (17)
+### `src/symbiont_lab/physics3d/runtime.py` (15)
 
-- `387:54` · **error** · `reportArgumentType` — Argument of type "tuple[float, ...]" cannot be assigned to parameter "point" of type "tuple[float, float, float]" in function "distance_to" "tuple[float, ...]" is not assignable to "tuple[float, float, float]" Tuple size mismatch; expected 3 but received indeterminate
-- `730:32` · **error** · `reportOptionalMemberAccess` — "get" is not a known attribute of "None"
-- `734:48` · **error** · `reportOptionalMemberAccess` — "get" is not a known attribute of "None"
-- `764:17` · **error** · `reportArgumentType` — Argument of type "Any \| Mapping[Unknown, Unknown] \| None" cannot be assigned to parameter "payload" of type "Mapping[str, Any]" in function "restore" Type "Any \| Mapping[Unknown, Unknown] \| None" is not assignable to type "Mapping[str, Any]" "None" is not assignable to "Mapping[str, Any]"
-- `1091:35` · **error** · `reportArgumentType` — Argument of type "object \| None" cannot be assigned to parameter "body_schema_prior" of type "Mapping[str, Any] \| None" in function "archive_episode_checkpoint" Type "object \| None" is not assignable to type "Mapping[str, Any] \| None" Type "object" is not assignable to type "Mapping[str, Any] \| None" "object" is not assignable to "Mapping[str, Any]" "object" is not assignable to "None"
-- `1094:29` · **error** · `reportArgumentType` — Argument of type "object \| None" cannot be assigned to parameter "living_body" of type "Mapping[str, Any] \| None" in function "archive_episode_checkpoint" Type "object \| None" is not assignable to type "Mapping[str, Any] \| None" Type "object" is not assignable to type "Mapping[str, Any] \| None" "object" is not assignable to "Mapping[str, Any]" "object" is not assignable to "None"
-- `1523:49` · **error** · `reportArgumentType` — Argument of type "tuple[float, ...]" cannot be assigned to parameter "point" of type "tuple[float, float, float]" in function "field_at" "tuple[float, ...]" is not assignable to "tuple[float, float, float]" Tuple size mismatch; expected 3 but received indeterminate
-- `1744:55` · **error** · `reportArgumentType` — Argument of type "tuple[float, ...]" cannot be assigned to parameter "point" of type "tuple[float, float, float]" in function "distance_to" "tuple[float, ...]" is not assignable to "tuple[float, float, float]" Tuple size mismatch; expected 3 but received indeterminate
-- `1863:76` · **error** · `reportOptionalMemberAccess` — "surface_fingerprint" is not a known attribute of "None"
-- `1905:15` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "value" for class "str" Attribute "value" is unknown
-- `1991:82` · **error** · `reportOptionalMemberAccess` — "items" is not a known attribute of "None"
-- `2000:77` · **error** · `reportOptionalMemberAccess` — "checkpoint" is not a known attribute of "None"
-- `2202:21` · **error** · `reportGeneralTypeIssues` — Expected mapping for dictionary unpack operator
-- `2273:27` · **error** · `reportArgumentType` — Argument of type "tuple[float, ...]" cannot be assigned to parameter "base_position" of type "tuple[float, float, float]" in function "__init__" "tuple[float, ...]" is not assignable to "tuple[float, float, float]" Tuple size mismatch; expected 3 but received indeterminate
-- `2274:30` · **error** · `reportArgumentType` — Argument of type "tuple[float, ...]" cannot be assigned to parameter "base_orientation" of type "tuple[float, float, float, float]" in function "__init__" "tuple[float, ...]" is not assignable to "tuple[float, float, float, float]" Tuple size mismatch; expected 4 but received indeterminate
-- `2459:26` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
-- `2462:49` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
+- `388:54` · **error** · `reportArgumentType` — Argument of type "tuple[float, ...]" cannot be assigned to parameter "point" of type "tuple[float, float, float]" in function "distance_to" "tuple[float, ...]" is not assignable to "tuple[float, float, float]" Tuple size mismatch; expected 3 but received indeterminate
+- `733:32` · **error** · `reportOptionalMemberAccess` — "get" is not a known attribute of "None"
+- `737:48` · **error** · `reportOptionalMemberAccess` — "get" is not a known attribute of "None"
+- `767:17` · **error** · `reportArgumentType` — Argument of type "Any \| Mapping[Unknown, Unknown] \| None" cannot be assigned to parameter "payload" of type "Mapping[str, Any]" in function "restore" Type "Any \| Mapping[Unknown, Unknown] \| None" is not assignable to type "Mapping[str, Any]" "None" is not assignable to "Mapping[str, Any]"
+- `1526:49` · **error** · `reportArgumentType` — Argument of type "tuple[float, ...]" cannot be assigned to parameter "point" of type "tuple[float, float, float]" in function "field_at" "tuple[float, ...]" is not assignable to "tuple[float, float, float]" Tuple size mismatch; expected 3 but received indeterminate
+- `1747:55` · **error** · `reportArgumentType` — Argument of type "tuple[float, ...]" cannot be assigned to parameter "point" of type "tuple[float, float, float]" in function "distance_to" "tuple[float, ...]" is not assignable to "tuple[float, float, float]" Tuple size mismatch; expected 3 but received indeterminate
+- `1866:76` · **error** · `reportOptionalMemberAccess` — "surface_fingerprint" is not a known attribute of "None"
+- `1908:15` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "value" for class "str" Attribute "value" is unknown
+- `1994:82` · **error** · `reportOptionalMemberAccess` — "items" is not a known attribute of "None"
+- `2003:77` · **error** · `reportOptionalMemberAccess` — "checkpoint" is not a known attribute of "None"
+- `2205:21` · **error** · `reportGeneralTypeIssues` — Expected mapping for dictionary unpack operator
+- `2276:27` · **error** · `reportArgumentType` — Argument of type "tuple[float, ...]" cannot be assigned to parameter "base_position" of type "tuple[float, float, float]" in function "__init__" "tuple[float, ...]" is not assignable to "tuple[float, float, float]" Tuple size mismatch; expected 3 but received indeterminate
+- `2277:30` · **error** · `reportArgumentType` — Argument of type "tuple[float, ...]" cannot be assigned to parameter "base_orientation" of type "tuple[float, float, float, float]" in function "__init__" "tuple[float, ...]" is not assignable to "tuple[float, float, float, float]" Tuple size mismatch; expected 4 but received indeterminate
+- `2462:26` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
+- `2465:49` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
 
 ### `src/symbiont_lab/physics3d/telemetry/binary.py` (6)
 

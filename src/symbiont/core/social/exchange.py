@@ -51,5 +51,19 @@ class ExchangeReplayGuard:
     def checkpoint(self) -> dict[str, int]:
         return dict(self._seen)
 
+    @classmethod
+    def restore(cls, payload: object) -> "ExchangeReplayGuard":
+        """Rebuild the highest accepted sequence per sender from a checkpoint."""
+        if not isinstance(payload, dict):
+            raise ValueError("exchange guard checkpoint must be an object")
+        guard = cls()
+        for sender, sequence in payload.items():
+            if not isinstance(sender, str) or not sender:
+                raise ValueError("exchange guard sender must be a non-empty string")
+            if isinstance(sequence, bool) or not isinstance(sequence, int) or sequence < 0:
+                raise ValueError("exchange guard sequence must be a non-negative integer")
+            guard._seen[sender] = sequence
+        return guard
+
 
 __all__ = ["MAX_EXCHANGE_BYTES", "ExchangeEnvelope", "ExchangeReplayGuard"]

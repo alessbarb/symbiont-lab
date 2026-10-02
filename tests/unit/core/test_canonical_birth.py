@@ -7,6 +7,7 @@ from symbiont.cognition.graph import CognitiveGraph, PlasticNode
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.types import NodeKind
 from symbiont.core.canonical_birth import restore_resident_with_canonical_cognition
+from tests.checkpoints import as_legacy
 
 
 def test_legacy_checkpoint_adopts_canonical_cognition_without_resetting_tick():
@@ -16,7 +17,7 @@ def test_legacy_checkpoint_adopts_canonical_cognition_without_resetting_tick():
     assert legacy["cognitive_bridge"] is None
 
     restored = restore_resident_with_canonical_cognition(
-        legacy,
+        as_legacy(legacy),
         bootstrap_semantic_senses=False,
     )
 

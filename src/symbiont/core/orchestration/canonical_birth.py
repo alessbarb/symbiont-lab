@@ -15,7 +15,11 @@ from ... import __version__ as _symbiont_version
 from ...cognition.birth import load_base_cognition
 from ...cognition.checkpoint import export_genome_checkpoint
 from ...cognition.limits import KernelLimits
-from ...host.checkpoint import normalize_checkpoint
+from ...host.checkpoint import (
+    normalize_checkpoint,
+    stamp_checkpoint_identity,
+    verify_checkpoint_identity,
+)
 from ..cognition.bridge import CognitiveBridge
 from .runtime import OrganismRuntime
 
@@ -37,6 +41,7 @@ def restore_resident_with_canonical_cognition(
     individual exactly. The main live CLI and Observatory resident opt in
     because their product contract is now "every resident has cognition".
     """
+    verify_checkpoint_identity(payload)
     normalized = normalize_checkpoint(payload)
     if normalized.get("genome") is not None:
         return OrganismRuntime.from_checkpoint(normalized, **runtime_kwargs)
@@ -55,6 +60,7 @@ def restore_resident_with_canonical_cognition(
     adopted = dict(normalized)
     adopted["genome"] = export_genome_checkpoint(genome)
     adopted["cognitive_bridge"] = bridge.export_checkpoint()
+    adopted = stamp_checkpoint_identity(adopted, transform="canonical-cognition-adoption")
 
     kwargs = dict(runtime_kwargs)
     kwargs["kernel_limits"] = kernel_limits

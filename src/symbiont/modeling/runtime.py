@@ -133,6 +133,9 @@ class ModeledOrganismRuntime(OrganismRuntime):
     serialized into the organism checkpoint.
     """
 
+    # Layer of the continuity register this runtime's checkpoint must satisfy.
+    _CONTINUITY_LAYER = "modeled"
+
     def measurement_snapshot(self) -> dict[str, Any]:
         """Wave 0: adds private-model lineage (Cross-Domain Revision Coherence v1 §2.1)."""
         snapshot = super().measurement_snapshot()
@@ -1639,8 +1642,10 @@ class ModeledOrganismRuntime(OrganismRuntime):
         self.record_experience(validated)
         return validated
 
-    def checkpoint(self, *, advance_lineage: bool = True) -> dict[str, Any]:
-        payload = super().checkpoint(advance_lineage=advance_lineage)
+    def _build_checkpoint_payload(self) -> dict[str, Any]:
+        # Extending the payload builder, not checkpoint(), keeps modeled state
+        # inside checkpoint_lineage.checkpoint_id (Longitudinal Integrity v1 §4).
+        payload = super()._build_checkpoint_payload()
         payload["private_model_registry"] = self._model_registry.checkpoint()
         payload["experience_ledger"] = self._experience_ledger.checkpoint()
         payload["experience_archive"] = self._experience_archive.checkpoint()

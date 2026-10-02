@@ -49,7 +49,9 @@ record is
 
 ### LI-1 — Longitudinal integrity
 
-**Status:** OPEN — design proposed.
+**Status:** OPEN — phases LI-P0 to LI-P6 implemented; awaiting owner review and
+the ARCH-1 decision. The design's acceptance gate is closed by its owner, not by
+this index.
 
 **Priority:** P0 remediation.
 
@@ -70,7 +72,9 @@ This workstream covers:
 - bounded treatment of historically contaminated temporal state.
 
 Dependencies and execution order live in the governing design. The roadmap does
-not restate its acceptance gate.
+not restate its acceptance gate. Implementation evidence per gate item is
+listed in the design's implementation record. Social epistemic state is
+persisted as an interim measure until ARCH-1 is decided.
 
 ### ARCH-1 — Canonical social epistemology ownership
 
@@ -111,7 +115,9 @@ candidate promotion.
 
 ### DOC-1 — Persistence terminology and legacy cleanup
 
-**Status:** BLOCKED by LI-1 ownership inventory.
+**Status:** IMPLEMENTED with LI-P6 — terminology recorded in the glossary and
+the persistence chapter; one superseded helper removed after a consumer search.
+Removal of the interim social ledger field depends on ARCH-1.
 
 After continuity ownership is proven, documentation and APIs should use
 unambiguous terms for:

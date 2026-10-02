@@ -13,6 +13,7 @@ from symbiont.core.signal_knowledge_types import SignalObservation, SignalObserv
 
 from symbiont.host.checkpoint import CheckpointError
 from symbiont.host.percepts import DEFAULT_PERCEPT_NAMES
+from tests.checkpoints import as_legacy
 
 
 def test_rejects_non_positive_attention_budget():
@@ -49,7 +50,7 @@ def test_pre_l5_checkpoint_without_living_body_fails_closed() -> None:
 
     with pytest.raises(CheckpointError, match="Living Body L5"):
         OrganismRuntime.from_checkpoint(
-            payload,
+            as_legacy(payload),
             bootstrap_semantic_senses=False,
             discover_senses=False,
         )

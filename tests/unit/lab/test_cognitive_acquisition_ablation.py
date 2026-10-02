@@ -1,7 +1,10 @@
 """Lab-owned cognitive acquisition ablation (Visual Acquisition v1 arm B).
 
-The ablation stops cognitive acquisition without touching sensor admission,
-uses only neutral runtime switches, and is never persisted.
+The ablation stops cognitive acquisition without touching sensor admission and
+uses only neutral runtime switches. The switches are apparatus configuration,
+not organism state: they never enter state identity, but their effective values
+are recorded as provenance and reapplied on restart (Longitudinal Integrity v1
+§9), so an ablated arm stays ablated across a process boundary.
 """
 
 from __future__ import annotations
@@ -40,10 +43,33 @@ def test_ablation_keeps_sensor_admission_but_stops_learned_structure() -> None:
     assert _learned(normal) != (0, 0)
 
 
-def test_ablation_is_not_persisted_and_restores_as_enabled() -> None:
+def test_ablation_is_configuration_not_organism_state() -> None:
+    runtime = _run(None, ticks=4)
+    identity = runtime.state_hash()
+
+    CognitiveAcquisitionAblation().apply(runtime)
+
+    assert runtime.state_hash() == identity
+    assert "predictor_promotion" not in repr(runtime.checkpoint()["effective_config"])
+
+
+def test_ablated_arm_stays_ablated_across_a_restart() -> None:
     ablated = _run(CognitiveAcquisitionAblation(), ticks=4)
     payload = ablated.checkpoint()
-    assert "predictor_promotion" not in repr(payload)
+    controls = payload["runtime_provenance"]["session_controls"]
+    assert controls["cognitive_plasticity_enabled"] is False
+    assert controls["predictor_promotion_enabled"] is False
+
     restored = type(ablated).from_checkpoint(payload)
+
+    assert restored._cognitive_plasticity_enabled is False
+    assert restored._predictor_promotion_enabled is False
+
+
+def test_unablated_state_restores_enabled_so_an_arm_can_be_applied_after_restore() -> None:
+    normal = _run(None, ticks=4)
+
+    restored = type(normal).from_checkpoint(normal.checkpoint())
+
     assert restored._cognitive_plasticity_enabled is True
     assert restored._predictor_promotion_enabled is True
