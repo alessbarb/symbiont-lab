@@ -62,11 +62,25 @@ def test_candidate_pr_gets_its_computed_governance_label(monkeypatch) -> None:
         return Result()
 
     monkeypatch.setattr(publish_mod.subprocess, "run", fake_run)
-    url = publish_mod._create_candidate_pr("agentctl/123-abcd", ChangeClass.ORDINARY)
+    monkeypatch.setattr(
+        publish_mod,
+        "_git",
+        lambda *args: {
+            ("show", "-s", "--format=%s", "commit-sha"): "Fix candidate PR creation",
+            ("show", "-s", "--format=%b", "commit-sha"): "Explicit commit body",
+        }[args],
+    )
+    url = publish_mod._create_candidate_pr(
+        "agentctl/123-abcd", "commit-sha", ChangeClass.ORDINARY
+    )
 
     assert url == "https://github.com/example/repo/pull/1"
     assert calls[0] == ["gh", "label", "list", "--json", "name"]
     assert calls[1][:3] == ["gh", "pr", "create"]
+    assert calls[1][calls[1].index("--head") + 1] == "agentctl/123-abcd"
+    assert calls[1][calls[1].index("--title") + 1] == "Fix candidate PR creation"
+    assert calls[1][calls[1].index("--body") + 1] == "Explicit commit body"
+    assert "--fill" not in calls[1]
     assert calls[1][-2:] == ["--label", "ORDINARY"]
 
 
@@ -90,11 +104,24 @@ def test_candidate_pr_creates_missing_class_label(monkeypatch) -> None:
         return Result()
 
     monkeypatch.setattr(publish_mod.subprocess, "run", fake_run)
-    publish_mod._create_candidate_pr("agentctl/456-efgh", ChangeClass.SCIENTIFIC)
+    monkeypatch.setattr(
+        publish_mod,
+        "_git",
+        lambda *args: {
+            ("show", "-s", "--format=%s", "commit-sha"): "Scientific candidate",
+            ("show", "-s", "--format=%b", "commit-sha"): "",
+        }[args],
+    )
+    publish_mod._create_candidate_pr(
+        "agentctl/456-efgh", "commit-sha", ChangeClass.SCIENTIFIC
+    )
 
     assert calls[1][:3] == ["gh", "label", "create"]
     assert calls[1][3] == "SCIENTIFIC"
     assert calls[-1][-2:] == ["--label", "SCIENTIFIC"]
+    assert calls[-1][calls[-1].index("--body") + 1] == (
+        "Governed candidate `agentctl/456-efgh` created by agentctl."
+    )
 
 
 def test_ci_exposes_one_stable_governed_required_gate() -> None:
