@@ -178,4 +178,4 @@ Costs:
 
 ## Decision
 
-Pending explicit project-owner acceptance.
+Accepted by explicit project-owner decision on 2026-10-02.
