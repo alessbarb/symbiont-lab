@@ -69,8 +69,6 @@ class WorldRuntimeState:
                 topology=self.topology,
                 start_cells=cells,
                 movement_enabled=True,
-                sensory_plasticity=True,
-                discover_senses=True,
                 experimental_clean=True,
             )
 

@@ -1,11 +1,7 @@
 from __future__ import annotations
 
-import time
-from types import SimpleNamespace
-
 import pytest
 from symbiont.core.cognition_bridge import CognitiveBridge
-from symbiont.core.runtime import OrganismRuntime
 
 from symbiont.cognition.genome import GenomeCodec
 from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode
@@ -14,8 +10,6 @@ from symbiont.cognition.structure import StructuralPlasticity
 from symbiont.cognition.types import EdgeKind, NodeKind
 from symbiont.host.adaptive import AdaptiveSenseModel
 from symbiont.host.checkpoint import normalize_checkpoint
-from symbiont.host.contracts import Capability, CapabilityKind, HostManifest
-from symbiont.host.lifecycle import LifecycleSnapshot
 from symbiont.host.readings import ReadingPrivacyClass, ReadingQuality, SensorReading, Unit
 
 _GENOME_PAYLOAD = {
@@ -96,78 +90,6 @@ def _reading(capability_id: str, value: float, tick: int = 1) -> SensorReading:
         quality=ReadingQuality.NOMINAL,
         privacy_class=ReadingPrivacyClass.AGGREGATE,
     )
-
-
-def test_mature_opaque_sense_keeps_semantic_graph_alias_without_double_counting() -> None:
-    adaptive = AdaptiveSenseModel(
-        min_samples=2,
-        active_limit=1,
-        max_candidates=8,
-        relation_window=4,
-        exploration_limit=4,
-        probe_limit=1,
-    )
-    adaptive.observe(
-        (
-            _reading("compute.logical_cpu", 4.0, 1),
-            _reading("candidate.variable", 1.0, 1),
-        )
-    )
-    adaptive.observe(
-        (
-            _reading("compute.logical_cpu", 4.0, 2),
-            _reading("candidate.variable", 10.0, 2),
-        )
-    )
-    learned_name = adaptive.developed_percept_names()["compute.logical_cpu"]
-    assert "compute.logical_cpu" not in adaptive.percept_names()
-
-    limits = KernelLimits()
-    graph = CognitiveGraph(
-        nodes=(
-            PlasticNode(node_id="system_load", kind=NodeKind.SENSE),
-            PlasticNode(node_id="readout_pressure", kind=NodeKind.READOUT),
-        ),
-        edges=(
-            PlasticEdge(
-                source_id="system_load",
-                target_id="readout_pressure",
-                kind=EdgeKind.EXCITATORY,
-                weight=0.5,
-                plasticity=0.5,
-                delay_ticks=0,
-            ),
-        ),
-        kernel_limits=limits,
-    )
-    runtime = OrganismRuntime(
-        discover_senses=True,
-        bootstrap_semantic_senses=True,
-        adaptive_senses=adaptive,
-        genome=_genome(),
-        kernel_limits=limits,
-        cognitive_graph=graph,
-        min_samples=1,
-        investigate_ticks=0,
-    )
-    capability = Capability("compute.logical_cpu", CapabilityKind.SIGNAL, "fixture")
-    snapshot = LifecycleSnapshot(
-        1,
-        HostManifest(1, (capability,), ()),
-        (_reading("compute.logical_cpu", 8.0, 3),),
-        (),
-        (),
-        ("compute.logical_cpu",),
-    )
-    runtime._lifecycle = SimpleNamespace(tick=lambda **kwargs: snapshot, clock=time.perf_counter)
-
-    result = runtime.tick()
-
-    assert [percept.name for percept in result.percepts] == [learned_name]
-    assert set(result.drift_observations) == {learned_name}
-    assert result.cognition is not None
-    assert abs(result.cognition.activations["system_load"]) > 0.1
-    assert abs(result.cognition.readouts["readout_pressure"]) > 0.01
 
 
 def test_under_sampled_seen_surface_stays_dormant_after_restore_without_stats() -> None:

@@ -699,7 +699,7 @@ class SensorySystem:
             "sensors": [
                 sensor.checkpoint(include_replay=include_replay) for sensor in self.sensors
             ],
-            "selection": self._selection.checkpoint(),
+            "selection": self._selection.checkpoint(include_replay=include_replay),
             "mutations": [asdict(item) | {"kind": item.kind.value} for item in self._mutations],
         }
         encoded = json.dumps(

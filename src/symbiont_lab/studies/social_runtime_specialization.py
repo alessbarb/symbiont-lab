@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 
 from symbiont.core.orchestration.runtime import OrganismRuntime
+from symbiont.core.organism_profile import HISTORICAL_V0
 from symbiont.core.social import SocialHabitat
 from symbiont.core.social.interactions import EcologicalResourcePool
 
@@ -41,10 +42,16 @@ def run_social_runtime_specialization_study(*, ticks: int = 12) -> SocialRuntime
     habitat.admit("member-b")
     runtimes = [
         OrganismRuntime(
-            organism_id="member-a", social_habitat=habitat, social_exchange_quantum=0.5
+            profile=HISTORICAL_V0,
+            organism_id="member-a",
+            social_habitat=habitat,
+            social_exchange_quantum=0.5,
         ),
         OrganismRuntime(
-            organism_id="member-b", social_habitat=habitat, social_exchange_quantum=0.5
+            profile=HISTORICAL_V0,
+            organism_id="member-b",
+            social_habitat=habitat,
+            social_exchange_quantum=0.5,
         ),
     ]
     sequences: dict[str, list[str]] = {runtime.organism_id: [] for runtime in runtimes}

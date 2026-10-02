@@ -57,8 +57,6 @@ def run_embodiment_integrity_gates(
         organism_seed=world_seed + 1,
         ground_truth=truth,
         policy="cognitive",
-        sensory_plasticity=True,
-        discover_senses=True,
         actuation_enabled=True,
         experimental_clean=True,
     )

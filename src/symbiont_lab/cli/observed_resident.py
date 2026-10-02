@@ -128,22 +128,6 @@ def main(argv: list[str] | None = None) -> int:
         "--max-ticks", type=int, default=None, help="optional finite budget for testing"
     )
     parser.add_argument(
-        "--sensory-plasticity",
-        action="store_true",
-        help="Enable organism-owned adaptive sensory receptors; disabled by default for historical equivalence",
-    )
-    parser.add_argument(
-        "--semantic-bootstrap",
-        action="store_true",
-        help="Also expose the legacy hand-labelled CPU/disk senses as aliases for owner-authored graphs. "
-        "Off by default: the native resident stays label-free and develops opaque senses itself.",
-    )
-    parser.add_argument(
-        "--no-interoception",
-        action="store_true",
-        help="Disable internal sensing for a controlled ablation run",
-    )
-    parser.add_argument(
         "--genome-file",
         help="Override the canonical birth genome with an owner-authored genome JSON (first launch only)",
     )
@@ -181,13 +165,7 @@ def main(argv: list[str] | None = None) -> int:
     from symbiont.core.social.capsule import CapsuleKeyPair
     from symbiont.host.checkpoint import load_checkpoint_file
 
-    runtime_kwargs = {
-        "discover_senses": True,
-        "bootstrap_semantic_senses": args.semantic_bootstrap,
-        "interoception_enabled": not args.no_interoception,
-    }
-    if args.sensory_plasticity:
-        runtime_kwargs["sensory_plasticity"] = True
+    runtime_kwargs: dict[str, object] = {}
     existing_payload = load_checkpoint_file(args.state_file)
     runtime_class: type[OrganismRuntime] = OrganismRuntime
     if args.enable_slm:

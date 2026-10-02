@@ -39,9 +39,10 @@ class MemoryDomain:
             return
 
         attended_capability_ids = {allocation.name for allocation in perception.allocations}
-        capability_by_percept_name = {
-            name: capability_id for capability_id, name in perception.percept_names.items()
-        }
+        # Perception's own map also covers receptor-named percepts (sensory
+        # plasticity); rebuilding it from percept_names alone would lose their
+        # source and with it attention and reliability.
+        capability_by_percept_name = perception.capability_by_percept_name
         prediction_loss_by_node: dict[str, float] = {}
         if cognition.cognition is not None:
             for error in cognition.cognition.prediction_errors:

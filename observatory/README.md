@@ -285,8 +285,7 @@ owner-authored inputs as the main organism CLI:
 ```bash
 python -m symbiont_lab.cli.observed_resident \
   --genome-file examples/cognition/genome.json \
-  --graph-file examples/cognition/graph.json \
-  --semantic-bootstrap
+  --graph-file examples/cognition/graph.json
 ```
 
 `--graph-file` requires `--genome-file`. Once a checkpoint exists, cognition is
@@ -321,10 +320,13 @@ and accepts the new run's `sequence == 0` immediately.
 
 The organism's durable checkpoint is separate and is never read by Observatory.
 
-The resident launcher stays label-free by default — opaque, self-developed senses only. An
-owner-authored graph that declares semantic `SENSE` node ids such as `system_load`
-or `storage_pressure` needs `--semantic-bootstrap` to opt in to the legacy aliases
-those ids expect. Without it, such a graph is legitimately not fed by those aliases.
+The resident is born with the canonical organism profile
+(`docs/design/core/canonical-organism-profile-v1.md`): opaque, self-developed
+senses only, sensory plasticity on, no interoception. Launchers cannot change it;
+the former `--semantic-bootstrap`, `--sensory-plasticity` and `--no-interoception`
+flags were removed (ADR-0062). An owner-authored graph that declares semantic
+`SENSE` node ids such as `system_load` is legitimately not fed by them. A resident
+restored from an older checkpoint keeps the configuration it was born with.
 
 ## Fleet server
 

@@ -5,6 +5,7 @@ from symbiont.core.runtime import OrganismRuntime
 from symbiont.cognition.graph import CognitiveGraph, PlasticNode
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.types import NodeKind
+from tests.bodies import test_body_kwargs
 from tests.checkpoints import as_legacy
 
 
@@ -45,7 +46,7 @@ def test_runtime_starts_with_undeveloped_body_schema():
 
 
 def test_runtime_learns_developing_sensory_body_from_established_self_model():
-    runtime = OrganismRuntime(min_samples=1, investigate_ticks=0)
+    runtime = OrganismRuntime(**test_body_kwargs(), min_samples=1, investigate_ticks=0)
 
     runtime.run(10)
     payload = runtime.body_schema.export_representation(current_tick=runtime.tick_count)
@@ -131,7 +132,7 @@ def test_runtime_checkpoint_round_trip_preserves_body_schema_and_private_identit
 
 
 def test_old_checkpoint_without_body_schema_restores_cold_and_learns_later():
-    runtime = OrganismRuntime(min_samples=1, investigate_ticks=0)
+    runtime = OrganismRuntime(**test_body_kwargs(), min_samples=1, investigate_ticks=0)
     runtime.run(10)
     checkpoint = runtime.checkpoint()
     checkpoint.pop("body_schema")

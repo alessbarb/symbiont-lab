@@ -228,8 +228,6 @@ def test_runtime_uses_restored_population_topology_for_constitution():
         topology=topology,
         start_cells=cells,
         movement_enabled=True,
-        sensory_plasticity=True,
-        discover_senses=True,
         experimental_clean=True,
     )
     state = WorldRuntimeState(
