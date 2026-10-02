@@ -40,6 +40,10 @@ So there is exactly one constitutional World: the `symbiont_world` kernel. Every
 other environment below is either Lab apparatus, a host boundary, or a resource
 surface that predates the kernel.
 
+"World" also names a run regime: the Experience and World architecture's
+`world.challenge` and `world.open` run kinds, which are hosted by Physics3D and
+do not involve the kernel. ADR-0060 fixes the vocabulary.
+
 ## 3. Inventory
 
 | Environment | Location | Owning layer | Responsibility | Role | State |
@@ -133,6 +137,12 @@ classifies them as process handles (`_habitat`, `_resource_habitats`,
    `docs/design/world/symbiont-world-v{3,4}.md`.
 
 ## 7. Owner decisions
+
+Decided by [ADR-0060](../../adr/ADR-0060-world-responsibility-and-naming.md)
+(2026-10-02): World stays a category with one constitutional kernel; each family
+below has one role; "World" is qualified as kernel, adapter or run kind; no new
+environment-side class enters the organism package. Items 1 to 3 are deferred
+there, item 4 is decided.
 
 1. Whether `SharedHabitat` and `SocialHabitat` should move out of the organism
    package (to World or to the Lab). Twenty-eight source modules import them.

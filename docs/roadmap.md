@@ -170,8 +170,8 @@ their new location.
 
 ### WORLD-1 — World responsibility map
 
-**Status:** RECORDED — inventory complete; the architectural decision is
-tracked as issue #280.
+**Status:** DECIDED — ADR-0060 (2026-10-02) fixes roles, vocabulary and the
+placement rule; relocation and retirement are deferred there.
 
 **Record:**
 [design/world/world-responsibility-map-v1.md](design/world/world-responsibility-map-v1.md).
@@ -222,4 +222,3 @@ Tracked on GitHub; listing them here does not authorize any experiment.
 | #277 | Workbench states for inactive, unavailable and broken telemetry | OBS-1 |
 | #278 | Causal-efficacy experiments for advanced cognition | Evidence follow-ups |
 | #279 | Cognitive scaling across organism age | Performance |
-| #280 | Canonical responsibility and naming of World | WORLD-1 |
