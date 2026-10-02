@@ -248,6 +248,10 @@ class OrganismDeadError(RuntimeError):
 FACTORIZED_PROBING_SHARE = 0.5
 
 
+# Host systems whose aggregate surfaces the organism can sense (ADR-0062, rule 8).
+_HOST_SENSE_SYSTEMS = frozenset({"Linux", "Darwin", "Windows"})
+
+
 class OrganismRuntime:
     """Continuous cognitive cycle over safe local perceptions.
 
@@ -393,19 +397,27 @@ class OrganismRuntime:
             discovery_providers.append(StandardLibraryProvider())
             reading_providers.append(StandardLibraryReadingProvider())
 
-        # The interoceptive surface is only offered alongside Linux host-sense
+        # The interoceptive surface is only offered alongside host-sense
         # discovery, so gaining it never gives the research subject platform
-        # topology on its own.
-        if discover_senses and platform.system() == "Linux":
+        # topology on its own. Linux exposes procfs/sysfs; macOS and Windows
+        # expose the portable aggregate surfaces.
+        host_system = platform.system()
+        if discover_senses and host_system in _HOST_SENSE_SYSTEMS:
             from ...host.providers.interoception import (
                 InteroceptionProvider,
                 ShamInteroceptionProvider,
             )
-            from ...host.providers.linux_surfaces import LinuxSurfaceProvider
 
-            linux_provider = LinuxSurfaceProvider()
-            discovery_providers.append(linux_provider)
-            reading_providers.append(linux_provider)
+            if host_system == "Linux":
+                from ...host.providers.linux_surfaces import LinuxSurfaceProvider
+
+                host_provider: Any = LinuxSurfaceProvider()
+            else:
+                from ...host.providers.portable_surfaces import PortableSurfaceProvider
+
+                host_provider = PortableSurfaceProvider(system=host_system)
+            discovery_providers.append(host_provider)
+            reading_providers.append(host_provider)
 
             provider_type = (
                 ShamInteroceptionProvider if interoception_mode == "sham" else InteroceptionProvider
@@ -424,7 +436,7 @@ class OrganismRuntime:
             self._host_sense_source = "embodied"
         elif not discover_senses:
             self._host_sense_source = "not_requested"
-        elif platform.system() == "Linux":
+        elif host_system in _HOST_SENSE_SYSTEMS:
             self._host_sense_source = "available"
         else:
             self._host_sense_source = "unavailable"

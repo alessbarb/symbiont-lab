@@ -49,7 +49,9 @@ conflict.
    the remaining sources, and `effective_config.host_sense_source` says
    `unavailable`. It is `embodied` when a Body supplies the sensory surface,
    `available` on a readable host and `not_requested` for an explicit study arm
-   without discovery. (Owner decision 2026-10-02.)
+   without discovery. Readable hosts are Linux (procfs/sysfs surfaces) and macOS
+   and Windows (portable aggregate surfaces, standard library only); a Linux host
+   offers more surfaces than the others. (Owner decisions 2026-10-02/03.)
 9. **Superseded tests leave the canonical run.** A test asserting behavior that
    no longer applies moves to `tests/archive/` with
    `@pytest.mark.superseded(by=..., reason=...)`; pytest does not collect it. A
@@ -59,7 +61,7 @@ conflict.
 
 | Option | `v0-historical` | `v1` (canonical) | Backing result | Scope and limits |
 | --- | --- | --- | --- | --- |
-| `discover_senses` | off | on | Decontamination P0–P2 | Host discovery is Linux only; rule 8 elsewhere |
+| `discover_senses` | off | on | Decontamination P0–P2 | Host surfaces on Linux, macOS and Windows; rule 8 elsewhere |
 | `bootstrap_semantic_senses` | on | off | Decontamination P0–P2: no semantic labels in cognition | Integrated-habitat cultural results under `on` are historical |
 | `sensory_plasticity` | off | on | Sensory Plasticity v1, closed positive | Costs energy through retained structure (§6) |
 | `auto_promote_predictors` | off | on | Predictive Structure Discovery v1, positive | Known limit: promotion does not wire the predictor's input edge |
