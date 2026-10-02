@@ -74,13 +74,17 @@ not restate its acceptance gate.
 
 ### ARCH-1 — Canonical social epistemology ownership
 
-**Status:** OPEN — analysis required before implementation.
+**Status:** OPEN — analysis recorded; owner decision pending.
 
 **Blocked by / feeds:** LI-1 social persistence repair.
 
+**Analysis:**
+[design/core/social-epistemology-ownership-v1.md](design/core/social-epistemology-ownership-v1.md).
+
 The audit found two organism-side social evidence systems with different
-consumers and persistence behavior. The next step is a consumer/ownership matrix
-and an explicit decision whether they are:
+consumers and persistence behavior. The consumer/ownership matrix is recorded in
+the analysis above. The remaining step is an explicit owner decision whether
+they are:
 
 - one capability that must have one canonical owner;
 - intentionally distinct non-overlapping capabilities;

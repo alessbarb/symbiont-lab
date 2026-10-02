@@ -109,6 +109,7 @@ partial implementation is not retroactively treated as approved.
 | [Private Model Learnability v1](core/private-model-learnability-v1.md) | Closed | Implemented | Roadmap closes the bounded P6 experimental scope; scaling remains paused. No production scaling authorization. |
 | [Promotion Stability v1](core/promotion-stability-v1.md) | Proposed | On hold | Design phase; confirmation and P5.2 paused until P0/P1 close. |
 | [Simulation Throughput v1](core/simulation-throughput-v1.md) | Reviewed | Partial | Owner decisions approve only stated bounded levels; do not infer approval for every proposed level or causal optimization. |
+| [Social Epistemology Ownership v1](core/social-epistemology-ownership-v1.md) | Proposed | Analysis only | ARCH-1 consumer/ownership matrix required by Longitudinal Integrity v1 §7. Records current code and options; the canonical-owner decision is pending the owner and is not taken by the document. |
 | [Embodiment Epoch Summary v1](embodiment/embodiment-epoch-summary-v1.md) | Proposed | Partial | Proposed observer/persistence contract; code overlap is not proof that the full contract is adopted. |
 | [Embodiment Memory v1](embodiment/embodiment-memory-v1.md) | Proposed | Not started | Proposed canonical architecture; owner acceptance and implementation mapping are not recorded. |
 | [Embodiment v2](embodiment/embodiment-v2.md) | Reviewed | Implemented | Document says implemented on `main`; preserve distinction between implementation and scientific acceptance. |
