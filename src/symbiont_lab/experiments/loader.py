@@ -36,6 +36,7 @@ def load_experiment_dict(data: dict[str, Any]) -> ExperimentSpec:
         "body",
         "corpora",
         "vision",
+        "transfer",
         "output",
     }
     unknown = set(data) - allowed
@@ -163,6 +164,28 @@ def load_experiment_dict(data: dict[str, Any]) -> ExperimentSpec:
             "sample_every",
             "environment",
         },
+        # Re-embodiment Functional Transfer v1: frozen design and decision
+        # constants, checked against the study module by a contract test.
+        "transfer": {
+            "development_seeds",
+            "arms",
+            "relations",
+            "shared_pairs",
+            "sham_shared_pairs",
+            "swap_unrelated_source_on_alternate_seeds",
+            "naive_arm_is_restored",
+            "private_model_bridge",
+            "actuators",
+            "development_ticks_rule",
+            "measurement_ticks_rule",
+            "max_body_difficulty_spread",
+            "primary_metric",
+            "min_seeds_improved",
+            "min_median_paired_reduction",
+            "practical_null_margin",
+            "max_activity_rate_ratio",
+            "max_contaminated_seeds",
+        },
         "output": {"save_trace", "save_summary"},
     }
     for block_name in (
@@ -176,6 +199,7 @@ def load_experiment_dict(data: dict[str, Any]) -> ExperimentSpec:
         "body",
         "corpora",
         "vision",
+        "transfer",
         "output",
     ):
         if block_name in data:
