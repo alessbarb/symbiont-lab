@@ -5,6 +5,7 @@ from symbiont.core.runtime import OrganismRuntime
 from symbiont.cognition.graph import CognitiveGraph, PlasticNode
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.types import NodeKind
+from tests.checkpoints import as_legacy
 
 
 def _cognitive_runtime() -> OrganismRuntime:
@@ -135,7 +136,9 @@ def test_old_checkpoint_without_body_schema_restores_cold_and_learns_later():
     checkpoint = runtime.checkpoint()
     checkpoint.pop("body_schema")
 
-    restored = OrganismRuntime.from_checkpoint(checkpoint, min_samples=1, investigate_ticks=0)
+    restored = OrganismRuntime.from_checkpoint(
+        as_legacy(checkpoint), min_samples=1, investigate_ticks=0
+    )
 
     assert restored.body_schema.state == "undeveloped"
     restored.tick()

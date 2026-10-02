@@ -40,12 +40,6 @@ MODELED = "modeled"
 PRIVATE_MODEL = "private_model"
 LAYERS = (CORE, MODELED, PRIVATE_MODEL)
 
-# Audit findings a register entry may reference as an unmet contract.
-LI_01 = "LI-01"  # outside the scope of checkpoint_lineage.checkpoint_id
-LI_03 = "LI-03"  # acquired social epistemic state is not serialized
-LI_04 = "LI-04"  # written to the checkpoint but not restored
-LI_06 = "LI-06"  # runtime-only configuration is neither recorded nor reapplied
-
 
 @dataclass(frozen=True, slots=True)
 class ContinuityEntry:
@@ -78,6 +72,7 @@ _BODY = Reembodiment.REPLACED
 _VOID = Reembodiment.INVALIDATED
 _NA = Reembodiment.NOT_APPLICABLE
 
+_UNHASHED_FIELDS = ("checkpoint_lineage", "runtime_provenance")
 _BASE_RESTORE = "OrganismRuntime.from_checkpoint"
 _MODELED_RESTORE = "ModeledOrganismRuntime.from_checkpoint"
 _PRIVATE_RESTORE = "PrivateModelOrganismRuntime.from_checkpoint"
@@ -106,8 +101,8 @@ def _core(
         restore_path=restore_path,
         reembodiment=reembodiment,
         # Every other core checkpoint field is hashed into checkpoint_id.
-        # checkpoint_lineage is the identity itself, so it is never hashed into it.
-        in_state_identity=checkpoint_field not in (None, "checkpoint_lineage"),
+        # Lineage is the identity itself and provenance describes the save.
+        in_state_identity=checkpoint_field not in (None, *_UNHASHED_FIELDS),
         migration=migration,
         known_gap=known_gap,
         extra_checkpoint_fields=extra_checkpoint_fields,
@@ -126,10 +121,6 @@ def _upper(
     migration: str = "none",
     known_gap: str | None = None,
 ) -> ContinuityEntry:
-    # Modeled and private-model fields are appended after the base runtime has
-    # computed checkpoint_id, so none of them is covered by state identity.
-    if checkpoint_field is not None and known_gap is None:
-        known_gap = LI_01
     return ContinuityEntry(
         attribute=attribute,
         layer=layer,
@@ -138,7 +129,8 @@ def _upper(
         checkpoint_field=checkpoint_field,
         restore_path=restore_path,
         reembodiment=reembodiment,
-        in_state_identity=False,
+        # Subclasses extend the payload builder, so their fields are hashed too.
+        in_state_identity=checkpoint_field not in (None, *_UNHASHED_FIELDS),
         migration=migration,
         known_gap=known_gap,
     )
@@ -206,15 +198,35 @@ REGISTER: tuple[ContinuityEntry, ...] = (
         "_expression_regulator",
         "genetics.expression",
         _A,
-        None,
+        "runtime_provenance",
         _KEEP,
-        restore_path=_CONSTRUCTOR,
-        known_gap=LI_06,
+        restore_path="launcher-supplied; its type is recorded and a different one is flagged as a changed condition",
     ),
     # --- sensory and adaptive learning --------------------------------------------
-    _core("_acclimation", "host.acclimation", _P, "acclimation", _KEEP),
-    _core("_rhythm_model", "host.rhythms", _P, "rhythms", _KEEP),
-    _core("_drift_baselines", "host.drift", _P, "drift", _KEEP),
+    _core(
+        "_acclimation",
+        "host.acclimation",
+        _P,
+        "acclimation",
+        _KEEP,
+        extra_checkpoint_fields=("acclimation_replay",),
+    ),
+    _core(
+        "_rhythm_model",
+        "host.rhythms",
+        _P,
+        "rhythms",
+        _KEEP,
+        extra_checkpoint_fields=("rhythms_replay",),
+    ),
+    _core(
+        "_drift_baselines",
+        "host.drift",
+        _P,
+        "drift",
+        _KEEP,
+        extra_checkpoint_fields=("drift_replay",),
+    ),
     _core("_adaptive_senses", "host.adaptive", _P, "sensory_development", _KEEP),
     _core("_sensory_system", "sensory", _P, "sensory_system", _KEEP),
     _core("_evidence_ledger", "cognition.evidence", _P, "evidence_ledger", _KEEP),
@@ -271,50 +283,15 @@ REGISTER: tuple[ContinuityEntry, ...] = (
         "_executive_admission_policy",
         "agency.policy",
         _A,
-        None,
+        "runtime_provenance",
         _KEEP,
-        restore_path=_CONSTRUCTOR,
-        known_gap=LI_06,
+        restore_path="runtime_provenance.session_controls, unless the launcher passes an explicit override",
     ),
     # --- social epistemic state and communication --------------------------------
     _core("_social_ledger", "social.relations", _P, "social_ledger", _KEEP),
     _core("_social_resource_ledger", "social.relations", _P, "social_resource_ledger", _KEEP),
-    _core(
-        "_epistemic_ledger",
-        "social.ledger",
-        _P,
-        None,
-        _KEEP,
-        restore_path="not restored: rebuilt empty, then seeded from cultural_heritage if supplied",
-        known_gap=LI_03,
-    ),
-    _core(
-        "_last_broadcast_reconciliations",
-        "social.ledger",
-        _P,
-        None,
-        _KEEP,
-        restore_path="not restored: every reconciled claim is broadcast again after restart",
-        known_gap=LI_03,
-    ),
-    _core(
-        "_exchange_guard",
-        "social.exchange",
-        _P,
-        "exchange_guard",
-        _KEEP,
-        restore_path="parsed by from_checkpoint but not passed to the constructor",
-        known_gap=LI_04,
-    ),
-    _core(
-        "_exchange_sequence",
-        "social.exchange",
-        _P,
-        "exchange_sequence",
-        _KEEP,
-        restore_path="not read by from_checkpoint: restarts at zero",
-        known_gap=LI_04,
-    ),
+    _core("_exchange_guard", "social.exchange", _P, "exchange_guard", _KEEP),
+    _core("_exchange_sequence", "social.exchange", _P, "exchange_sequence", _KEEP),
     _core("_social_exchange_quantum", "social.exchange", _P, "social_exchange_quantum", _KEEP),
     _core("_social_exchange_cost", "social.exchange", _P, "social_exchange_cost", _KEEP),
     # --- recorded constructor configuration --------------------------------------
@@ -329,42 +306,46 @@ REGISTER: tuple[ContinuityEntry, ...] = (
     _config("_interoception_enabled"),
     _config("_interoception_mode"),
     _config("_physiology_config", "embodiment.physiology_config"),
-    # --- runtime-only configuration that is not recorded -------------------------
+    # --- runtime-only configuration recorded as provenance ------------------------
     _core(
         "_cognitive_plasticity_enabled",
         "runtime configuration",
         _A,
-        None,
+        "runtime_provenance",
         _KEEP,
-        restore_path="defaults to enabled; the launcher must call the setter again",
-        known_gap=LI_06,
+        restore_path="runtime_provenance.session_controls, unless the launcher passes an explicit override",
     ),
     _core(
         "_predictor_promotion_enabled",
         "runtime configuration",
         _A,
-        None,
+        "runtime_provenance",
         _KEEP,
-        restore_path="defaults to enabled; the launcher must call the setter again",
-        known_gap=LI_06,
+        restore_path="runtime_provenance.session_controls, unless the launcher passes an explicit override",
     ),
     _core(
         "_kernel_limits",
         "cognition.limits",
         _A,
-        None,
+        "runtime_provenance",
         _KEEP,
-        restore_path=_CONSTRUCTOR,
-        known_gap=LI_06,
+        restore_path="runtime_provenance.session_controls, unless the launcher passes an explicit override",
     ),
     _core(
         "_persist_replay_state",
         "runtime configuration",
         _A,
-        None,
+        "runtime_provenance",
         _KEEP,
-        restore_path=_CONSTRUCTOR,
-        known_gap=LI_06,
+        restore_path="runtime_provenance.session_controls, unless the launcher passes an explicit override",
+    ),
+    _core(
+        "_restored_session_controls",
+        "runtime configuration",
+        _R,
+        None,
+        _NA,
+        restore_path="set by from_checkpoint to the controls the checkpoint recorded",
     ),
     # --- host and process handles ------------------------------------------------
     _handle("_lifecycle", "host.lifecycle"),
@@ -703,6 +684,25 @@ APPARATUS_FIELDS: tuple[ApparatusField, ...] = (
 )
 
 
+# Not written by every runtime: ancestry state exists only once ancestry training
+# has been enabled, and replay accumulators only when persist_replay_state is on.
+CONDITIONAL_FIELDS = frozenset(
+    {"training_ancestry", "acclimation_replay", "rhythms_replay", "drift_replay"}
+)
+
+
+def required_checkpoint_fields(layer: str) -> frozenset[str]:
+    """Fields a current-schema checkpoint of ``layer`` may not lack.
+
+    Every checkpoint field the register assigns to that runtime, plus the save
+    envelope. Absence is acceptable only from a schema that predates the field,
+    never from a current save (Longitudinal Integrity v1 §5).
+    """
+    fields = {field for entry in entries_for(layer) for field in entry.checkpoint_fields}
+    fields |= {field.checkpoint_field for field in ENVELOPE_FIELDS}
+    return frozenset(fields - CONDITIONAL_FIELDS)
+
+
 def entries_for(layer: str) -> tuple[ContinuityEntry, ...]:
     """Entries visible on a runtime of ``layer``, including inherited layers."""
     if layer not in LAYERS:
@@ -713,6 +713,7 @@ def entries_for(layer: str) -> tuple[ContinuityEntry, ...]:
 
 __all__ = [
     "APPARATUS_FIELDS",
+    "CONDITIONAL_FIELDS",
     "ENVELOPE_FIELDS",
     "LAYERS",
     "REGISTER",
@@ -722,4 +723,5 @@ __all__ = [
     "EnvelopeField",
     "Reembodiment",
     "entries_for",
+    "required_checkpoint_fields",
 ]

@@ -539,6 +539,54 @@ def test_temporal_migration_repairs_only_unambiguous_global_body_age() -> None:
     assert migrated["temporal_migration"]["body_age_ticks"] == 2_000
 
 
+def test_temporal_migration_is_recorded_and_never_reconstructs_physiology() -> None:
+    """Longitudinal Integrity v1 §13: only clock coordinates are corrected."""
+    payload = _checkpoint(vital_state="dead")
+    payload["saved_at_tick"] = 10_000
+    payload["living_body"]["age_ticks"] = 10_000
+    payload["living_body"]["death_tick"] = 10_000
+    payload["embodiment_lifecycle"] = {
+        "schema_version": 1,
+        "state": "dormant",
+        "epoch": 3,
+        "current": {
+            "body_kind": "anthropomorphic-v4",
+            "receptor_count": 107,
+            "effector_count": 62,
+            "started_tick": 8_000,
+        },
+        "history": [],
+    }
+
+    migrated = migrate_temporal_domains(payload)
+
+    # The correction is explicit provenance, not a silent rewrite.
+    assert migrated["temporal_migration"]["kind"] == "global_tick_to_body_age"
+    assert migrated["checkpoint_lineage"]["transforms"] == ["temporal-decontamination"]
+    # Everything the contaminated clock already produced is left as it was.
+    clock_coordinates = {"age_ticks", "death_tick"}
+    for key, value in payload["living_body"].items():
+        if key not in clock_coordinates:
+            assert migrated["living_body"][key] == value, key
+    for field in ("metabolism", "homeostasis", "degradation"):
+        if field in payload:
+            assert migrated[field] == payload[field], field
+
+    # The record survives a later re-embodiment instead of being laundered away.
+    reembodied = prepare_fresh_embodiment_checkpoint(
+        migrated,
+        _fresh(),
+        contract=PhysicsEmbodimentDescriptor(
+            body_kind="anthropomorphic-v4", receptor_count=107, effector_count=62
+        ),
+    )
+    assert reembodied["temporal_migration"] == migrated["temporal_migration"]
+    assert reembodied["checkpoint_lineage"]["transforms"] == [
+        "temporal-decontamination",
+        "re-embodiment",
+    ]
+
+
 def test_temporal_migration_fails_safe_on_ambiguous_age() -> None:
     payload = _checkpoint(vital_state="active")
     payload["saved_at_tick"] = 10_000

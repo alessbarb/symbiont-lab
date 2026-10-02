@@ -12,6 +12,7 @@ from symbiont.core.embodiment import (
     EmbodimentArchive,
     archive_episode_checkpoint,
 )
+from symbiont.host.checkpoint import stamp_checkpoint_identity
 
 from .longitudinal import (
     CONTRACT_FINGERPRINT_SCHEMA_VERSION,
@@ -121,7 +122,8 @@ def migrate_temporal_domains(payload: Mapping[str, Any]) -> dict[str, Any]:
         "started_at_symbiont_tick": started_tick,
         "saved_at_symbiont_tick": saved_tick,
     }
-    return result
+    # The corrected clock is a different organism state than the one saved.
+    return stamp_checkpoint_identity(result, transform="temporal-decontamination")
 
 
 def lifecycle_summary(payload: Mapping[str, Any]) -> dict[str, object]:
@@ -238,28 +240,6 @@ def _detach_body_specific_cognition(
         "nodes": archived_nodes,
         "edges": archived_edges,
     }
-
-
-def _degrade_active_private_model(
-    checkpoint: dict[str, Any],
-) -> str | None:
-    """Keep prior private models but remove old-body inference authority."""
-    registry = checkpoint.get("private_model_registry")
-    if not isinstance(registry, dict):
-        return None
-    records = registry.get("records")
-    if not isinstance(records, list):
-        return None
-
-    active_id: str | None = None
-    for record in records:
-        if not isinstance(record, dict) or record.get("state") != "active":
-            continue
-        model_id = record.get("model_id")
-        if isinstance(model_id, str):
-            active_id = model_id
-        record["state"] = "degraded"
-    return active_id
 
 
 def _active_private_model_id(checkpoint: Mapping[str, Any]) -> str | None:
@@ -730,7 +710,9 @@ def prepare_fresh_embodiment_checkpoint(
         },
         "history": history,
     }
-    return result
+    # Fresh Body physiology and withdrawn execution authority make this a new
+    # organism state; its identity chains from the checkpoint it replaced.
+    return stamp_checkpoint_identity(result, transform="re-embodiment")
 
 
 def update_lifecycle_for_checkpoint(

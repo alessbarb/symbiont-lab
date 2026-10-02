@@ -7,6 +7,7 @@ from symbiont.core.runtime import OrganismRuntime
 from symbiont.actuation.surface import derive_actuator_constitution
 from symbiont.cognition.birth import load_base_cognition
 from symbiont.cognition.limits import KernelLimits
+from tests.checkpoints import as_legacy, edited
 
 
 def _runtime() -> OrganismRuntime:
@@ -211,7 +212,7 @@ def test_exploration_restore_rejects_missing_sensorimotor_checkpoint():
         match="missing competence_development",
     ):
         OrganismRuntime.from_checkpoint(
-            payload,
+            edited(payload),
             bootstrap_semantic_senses=False,
             discover_senses=False,
         )
@@ -231,7 +232,7 @@ def test_restore_rejects_removed_pending_primitive_verification_state():
 
     with pytest.raises(CheckpointError, match="removed primitive verification state"):
         OrganismRuntime.from_checkpoint(
-            payload,
+            as_legacy(payload),
             bootstrap_semantic_senses=False,
             discover_senses=False,
         )

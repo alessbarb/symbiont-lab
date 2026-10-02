@@ -49,7 +49,8 @@ record is
 
 ### LI-1 — Longitudinal integrity
 
-**Status:** OPEN — design proposed.
+**Status:** OPEN — phases LI-P0 to LI-P6 implemented; awaiting owner review.
+The design's acceptance gate is closed by its owner, not by this index.
 
 **Priority:** P0 remediation.
 
@@ -70,28 +71,22 @@ This workstream covers:
 - bounded treatment of historically contaminated temporal state.
 
 Dependencies and execution order live in the governing design. The roadmap does
-not restate its acceptance gate.
+not restate its acceptance gate. Implementation evidence per gate item is
+listed in the design's implementation record.
 
 ### ARCH-1 — Canonical social epistemology ownership
 
-**Status:** OPEN — analysis recorded; owner decision pending.
+**Status:** DECIDED — Option A (owner decision, 2026-10-02); implemented with
+LI-1.
 
-**Blocked by / feeds:** LI-1 social persistence repair.
-
-**Analysis:**
+**Record:**
 [design/core/social-epistemology-ownership-v1.md](design/core/social-epistemology-ownership-v1.md).
 
 The audit found two organism-side social evidence systems with different
-consumers and persistence behavior. The consumer/ownership matrix is recorded in
-the analysis above. The remaining step is an explicit owner decision whether
-they are:
-
-- one capability that must have one canonical owner;
-- intentionally distinct non-overlapping capabilities;
-- or active plus legacy/migration-only state.
-
-This work must not be resolved by indefinitely checkpointing two overlapping
-sources of truth.
+consumers and persistence behavior. The modeled ledger is now the single
+canonical owner in the organism runtime; the core ledger remains only as the
+model of the legacy `Agent` simulation. Whether the legacy envelope transport
+stays in the runtime is recorded as open in that document.
 
 ### GOV-1 — Repository-enforced publication to main
 
@@ -111,7 +106,8 @@ candidate promotion.
 
 ### DOC-1 — Persistence terminology and legacy cleanup
 
-**Status:** BLOCKED by LI-1 ownership inventory.
+**Status:** IMPLEMENTED with LI-P6 — terminology recorded in the glossary and
+the persistence chapter; superseded code removed after consumer searches.
 
 After continuity ownership is proven, documentation and APIs should use
 unambiguous terms for:

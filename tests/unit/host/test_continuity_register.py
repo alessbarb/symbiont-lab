@@ -9,6 +9,7 @@ import pytest
 from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont.host.continuity import (
     APPARATUS_FIELDS,
+    CONDITIONAL_FIELDS,
     ENVELOPE_FIELDS,
     LAYERS,
     REGISTER,
@@ -20,14 +21,15 @@ from symbiont.modeling.private_runtime import PrivateModelOrganismRuntime
 from symbiont.modeling.runtime import ModeledOrganismRuntime
 
 RUNTIMES = dict(zip(LAYERS, (OrganismRuntime, ModeledOrganismRuntime, PrivateModelOrganismRuntime)))
-# Written only once ancestry training has been enabled or has recorded state.
-CONDITIONAL_FIELDS = {"training_ancestry"}
-# Findings open at LI-P0. Closing one must remove it here and from the register.
-OPEN_GAPS = {"LI-01", "LI-03", "LI-04", "LI-06"}
+# Audit findings whose contract the code does not meet yet. None remain; a new
+# gap must be named here and in the register entry that carries it.
+OPEN_GAPS: set[str] = set()
 
 
-def _runtime(layer: str) -> OrganismRuntime:
-    runtime = RUNTIMES[layer](bootstrap_semantic_senses=True, discover_senses=False, min_samples=1)
+def _runtime(layer: str, **kwargs: object) -> OrganismRuntime:
+    runtime = RUNTIMES[layer](
+        bootstrap_semantic_senses=True, discover_senses=False, min_samples=1, **kwargs
+    )
     runtime.tick()
     return runtime
 
@@ -44,10 +46,12 @@ def test_every_runtime_attribute_is_classified(layer: str) -> None:
 
 
 @pytest.mark.parametrize("layer", LAYERS)
-def test_every_checkpoint_field_is_owned(layer: str) -> None:
+@pytest.mark.parametrize("persist_replay_state", [False, True])
+def test_every_checkpoint_field_is_owned(layer: str, persist_replay_state: bool) -> None:
     owned = {field for entry in entries_for(layer) for field in entry.checkpoint_fields}
     owned |= {field.checkpoint_field for field in ENVELOPE_FIELDS}
-    written = set(_runtime(layer).checkpoint())
+    runtime = _runtime(layer, persist_replay_state=persist_replay_state)
+    written = set(runtime.checkpoint())
     assert written <= owned
     assert owned - written <= CONDITIONAL_FIELDS
 
@@ -59,7 +63,7 @@ def test_state_identity_flag_matches_the_hashed_payload() -> None:
         field for entry in REGISTER if entry.in_state_identity for field in entry.checkpoint_fields
     }
     declared |= {field.checkpoint_field for field in ENVELOPE_FIELDS if field.in_state_identity}
-    assert declared == hashed
+    assert declared - CONDITIONAL_FIELDS == hashed
 
 
 def test_entries_are_internally_consistent() -> None:
@@ -72,7 +76,7 @@ def test_entries_are_internally_consistent() -> None:
         if entry.continuity is ContinuityClass.MUST_INVALIDATE_AUTHORITY:
             assert entry.reembodiment is Reembodiment.INVALIDATED, entry.attribute
         if entry.continuity is ContinuityClass.MUST_REAPPLY_CONFIG:
-            assert (entry.checkpoint_field is None) == (entry.known_gap == "LI-06"), entry.attribute
+            assert entry.checkpoint_field is not None, entry.attribute
 
 
 def test_open_gaps_are_exactly_the_audit_findings() -> None:

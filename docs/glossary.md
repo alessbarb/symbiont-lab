@@ -39,8 +39,30 @@ language: en
   individual develops during its life, distinct from its genome.
 - **Habitat:** An explicit, bounded, authorized multi-organism resource and
   population boundary. See `docs/design/fisiologia-y-reproduccion.md`.
-- **Checkpoint:** A durable, atomic snapshot of consolidated organism state
-  used for restart/recovery — never raw sensor histories. See
-  `docs/design/cognicion-y-plasticidad.md`.
+- **Runtime checkpoint:** The serialized organism/runtime state produced by
+  `OrganismRuntime.checkpoint()` — consolidated state, never raw sensor
+  histories. It carries its own state identity
+  (`checkpoint_lineage.checkpoint_id`) and may *reference* artifacts stored
+  elsewhere: private-model weights are not inside it. "Checkpoint" without a
+  qualifier means this.
+- **Portable Symbiont bundle:** The self-contained `.symbiont` transport
+  package: the runtime checkpoint plus the private-model artifacts it needs,
+  with a manifest that hashes every packaged byte. Bundle integrity (the
+  package matches its manifest) and checkpoint identity (the accepted state
+  matches its recorded save) are separate contracts; neither replaces the
+  other.
+- **Body checkpoint:** The physical Body state saved by the embodiment
+  apparatus. It is Body-owned, is never part of the portable bundle, and is
+  what a same-Body restart needs in addition to the runtime checkpoint.
+- **EmbodimentEpisode:** One continuous period of one Symbiont in one Body.
+  A new Body always starts a new episode; the previous one is closed and
+  archived.
+- **Observer reconstruction:** State rebuilt for display from telemetry or
+  replay. It is explicitly marked as reconstructed and is never organism
+  state.
+- **Continuity class:** What must happen to a piece of runtime state across a
+  restart: `MUST_PRESERVE`, `MUST_RESET`, `MAY_RECOMPUTE`,
+  `MUST_REAPPLY_CONFIG` or `MUST_INVALIDATE_AUTHORITY`. Every runtime field
+  has exactly one, recorded in `src/symbiont/host/continuity.py`.
 - **Percept:** A platform-neutral perception synthesized from a raw,
   platform-specific reading (see `docs/math/02-percepcion-aclimatacion-y-relaciones.md`).

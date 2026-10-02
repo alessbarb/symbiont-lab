@@ -20,6 +20,7 @@ from symbiont.modeling import (
     TrainingRequest,
 )
 from symbiont_lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
+from tests.checkpoints import as_legacy
 
 HASH_A = "a" * 64
 HASH_B = "b" * 64
@@ -435,7 +436,7 @@ def test_pre_episodic_checkpoint_migrates_retained_causal_history():
     legacy = runtime.checkpoint()
     legacy.pop("episodic_memory", None)
 
-    restored = ModeledOrganismRuntime.from_checkpoint(legacy)
+    restored = ModeledOrganismRuntime.from_checkpoint(as_legacy(legacy))
 
     assert restored.episodic_memory.episodes
     source_ids = {

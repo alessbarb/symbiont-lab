@@ -39,6 +39,7 @@ from symbiont.host.adaptive import (
     _ADAPTIVE_HISTORICAL_MIN_SAMPLES,
     AdaptiveSenseModel,
 )
+from tests.checkpoints import as_legacy, edited
 
 
 def test_epistemic_conventions_invariants() -> None:
@@ -540,7 +541,7 @@ def test_checkpoint_physiology_fail_closed_and_migration() -> None:
     corrupted_ckpt["effective_config"] = dict(ckpt["effective_config"])
     corrupted_ckpt["effective_config"]["physiology"] = "not-a-valid-dict"
     with pytest.raises(CheckpointError, match="invalid physiology config"):
-        OrganismRuntime.from_checkpoint(corrupted_ckpt)
+        OrganismRuntime.from_checkpoint(edited(corrupted_ckpt))
 
     # Invalid physiology numbers (e.g., negative or inverted ratios)
     invalid_nums_ckpt = dict(ckpt)
@@ -551,7 +552,7 @@ def test_checkpoint_physiology_fail_closed_and_migration() -> None:
         "ratio_elevated": 0.1,  # inverted
     }
     with pytest.raises(CheckpointError, match="invalid physiology config"):
-        OrganismRuntime.from_checkpoint(invalid_nums_ckpt)
+        OrganismRuntime.from_checkpoint(edited(invalid_nums_ckpt))
 
     # 3. Historical checkpoint migration: absent effective_config["physiology"]
     # but valid degradation queue ticks
@@ -566,7 +567,7 @@ def test_checkpoint_physiology_fail_closed_and_migration() -> None:
         "excreted_units": 0,
         "items": [],
     }
-    restored_hist = OrganismRuntime.from_checkpoint(historical_ckpt)
+    restored_hist = OrganismRuntime.from_checkpoint(as_legacy(historical_ckpt))
     assert restored_hist.physiology_config.aging_ticks == 44
     assert restored_hist.physiology_config.waste_ticks == 12
 
@@ -693,4 +694,4 @@ def test_checkpoint_rejects_contradictory_sensory_constitution() -> None:
     checkpoint["effective_config"]["sensory_plasticity"] = False
 
     with pytest.raises(CheckpointError, match="sensory constitution contradicts"):
-        OrganismRuntime.from_checkpoint(checkpoint)
+        OrganismRuntime.from_checkpoint(edited(checkpoint))

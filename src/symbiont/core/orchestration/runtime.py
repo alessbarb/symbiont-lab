@@ -7,7 +7,7 @@ import platform
 import time
 import uuid
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Self, cast
 
@@ -52,12 +52,16 @@ from ...host.acclimation import HostAcclimation
 from ...host.adaptive import AdaptiveSenseModel, SamplingPlan
 from ...host.checkpoint import (
     CHECKPOINT_SCHEMA_VERSION,
+    IDENTITY_SCOPE,
     CheckpointError,
+    checkpoint_state_hash,
     export_checkpoint,
     import_checkpoint,
     load_checkpoint_file,
     normalize_checkpoint,
+    require_current_schema_fields,
     save_checkpoint_atomic,
+    verify_checkpoint_identity,
 )
 from ...host.contracts import DiscoveryPolicy, DiscoveryProvider, HostManifest
 from ...host.discovery import HostDiscovery
@@ -117,7 +121,6 @@ from ..signals.knowledge_checkpoint import validate_checkpoint
 from ..social.communication import ConsentBoundChannel, SignedMessage
 from ..social.ecology import SharedHabitat
 from ..social.exchange import ExchangeEnvelope, ExchangeReplayGuard
-from ..social.ledger import SocialEvidenceLedger
 from ..social.relations import (
     InteractionOutcome,
     RelationLedger,
@@ -146,6 +149,36 @@ def _canonical_hash(payload: dict[str, Any]) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def _recorded_session_controls(normalized: dict[str, Any]) -> dict[str, Any] | None:
+    """Parse runtime_provenance.session_controls; None when it was never recorded."""
+    provenance = normalized.get("runtime_provenance")
+    if not isinstance(provenance, dict) or "session_controls" not in provenance:
+        return None
+    raw = provenance["session_controls"]
+    if not isinstance(raw, dict):
+        raise CheckpointError("invalid session_controls provenance")
+    controls: dict[str, Any] = {}
+    for name in (
+        "cognitive_plasticity_enabled",
+        "predictor_promotion_enabled",
+        "persist_replay_state",
+    ):
+        if name in raw:
+            if not isinstance(raw[name], bool):
+                raise CheckpointError(f"invalid session control: {name}")
+            controls[name] = raw[name]
+    try:
+        if "kernel_limits" in raw:
+            controls["kernel_limits"] = KernelLimits(**raw["kernel_limits"])
+        if "executive_admission_policy" in raw:
+            controls["executive_admission_policy"] = ExecutiveAdmissionPolicy(
+                **raw["executive_admission_policy"]
+            )
+    except (TypeError, ValueError) as exc:
+        raise CheckpointError(f"invalid session control: {exc}") from exc
+    return controls
+
+
 def _state_hash_of(checkpoint_payload: dict[str, Any]) -> str:
     """Hash organism state, excluding save-event/provenance metadata.
 
@@ -154,13 +187,7 @@ def _state_hash_of(checkpoint_payload: dict[str, Any]) -> str:
     organism *is*. Two checkpoints of the same underlying state must hash
     identically regardless of when or under what version they were taken.
     """
-    return _canonical_hash(
-        {
-            key: value
-            for key, value in checkpoint_payload.items()
-            if key not in ("checkpoint_lineage", "runtime_provenance")
-        }
-    )
+    return checkpoint_state_hash(checkpoint_payload)
 
 
 # Backward-compatible public name; canonical ownership lives in ActionDomain.
@@ -208,7 +235,6 @@ class RuntimeTickResult:
     sensorimotor_transition: SensorimotorTransition | None = None
     sensorimotor_v2: SensorimotorV2Snapshot | None = None
     gene_expression: dict[str, object] | None = None
-    messages: tuple[SignedMessage, ...] = ()
 
 
 class OrganismDeadError(RuntimeError):
@@ -227,6 +253,9 @@ class OrganismRuntime:
     after attention has been allocated for the current tick, so attention and the
     self-model can constrain plastic updates instead of merely describing them.
     """
+
+    # Layer of the continuity register this runtime's checkpoint must satisfy.
+    _CONTINUITY_LAYER = "core"
 
     _SUPPORTED_EPIGENETIC_KEYS = frozenset()
 
@@ -277,8 +306,6 @@ class OrganismRuntime:
         social_habitat: SocialHabitat | None = None,
         social_ledger: RelationLedger | None = None,
         social_resource_ledger: ResourceEvidenceLedger | None = None,
-        epistemic_ledger: SocialEvidenceLedger | None = None,
-        cultural_heritage: list[dict[str, Any]] | None = None,
         communication_channel: ConsentBoundChannel | None = None,
         exchange_guard: ExchangeReplayGuard | None = None,
         exchange_sequence: int = 0,
@@ -436,10 +463,13 @@ class OrganismRuntime:
         self._explicit_metabolism = bool(explicit_metabolism)
         self._auto_promote_predictors = bool(auto_promote_predictors)
         # Runtime-scoped switches for existing capabilities. They are
-        # configuration, not acquired state: never checkpointed and never
-        # part of effective_config. Cognition does not write them.
+        # configuration, not acquired state: never part of effective_config
+        # or of state identity. Cognition does not write them. Their effective
+        # values are recorded in runtime_provenance and reapplied on restore
+        # (Longitudinal Integrity v1 §9).
         self._cognitive_plasticity_enabled = True
         self._predictor_promotion_enabled = True
+        self._restored_session_controls: dict[str, Any] | None = None
         self._developmental_tracker = (
             developmental_tracker if developmental_tracker is not None else DevelopmentalTracker()
         )
@@ -654,30 +684,11 @@ class OrganismRuntime:
             if social_resource_ledger is not None
             else ResourceEvidenceLedger()
         )
-        self._epistemic_ledger = (
-            epistemic_ledger if epistemic_ledger is not None else SocialEvidenceLedger()
-        )
         self._communication_channel = communication_channel
         self._exchange_guard = (
             exchange_guard if exchange_guard is not None else ExchangeReplayGuard()
         )
         self._exchange_sequence = exchange_sequence
-        self._last_broadcast_reconciliations: set[str] = set()
-
-        if cultural_heritage is not None:
-            from ..social.ledger import SocialClaim
-
-            for claim_data in cultural_heritage:
-                claim = SocialClaim(
-                    claim_id=claim_data["claim_id"],
-                    source_id=claim_data["source_id"],
-                    root_evidence_ids=frozenset(),
-                    parent_claim_ids=frozenset(claim_data.get("parent_claim_ids", [])),
-                    payload=claim_data["payload"],
-                    received_tick=self._tick_count,
-                    freshness=claim_data.get("freshness", 1.0),
-                )
-                self._epistemic_ledger.receive_claim(claim)
         self._social_habitat_released = False
         self._habitat_released = False
         if self._habitat is not None and not self._habitat.has_allocation(self._organism_id):
@@ -2240,18 +2251,6 @@ class OrganismRuntime:
             self._epigenetic_priors,
             decay=self._epigenetic_decay,
         )
-        # Autonomous social communication
-        outbound_messages = ()
-        if self._social_habitat is not None and self._communication_channel is not None:
-            # Autonomous Cultural Agency v1: Teach (broadcast) only if metabolic pressure is low
-            targets = [peer for peer in self._social_habitat.members if peer != self._organism_id]
-            if targets and metabolism_snapshot.pressure.value < 0.8:
-                try:
-                    self._metabolism.charge("cognition", 0.05 * len(targets))
-                    outbound_messages = tuple(self.broadcast_claims(targets))
-                except ValueError:
-                    pass
-
         return RuntimeTickResult(
             tick=self._tick_count,
             snapshot=perception.snapshot,
@@ -2293,7 +2292,6 @@ class OrganismRuntime:
                 if self._gene_expression_state is not None
                 else None
             ),
-            messages=outbound_messages,
         )
 
     def run(self, ticks: int) -> tuple[RuntimeTickResult, ...]:
@@ -2411,7 +2409,6 @@ class OrganismRuntime:
         payload["physiology"] = self._physiology.checkpoint()
         payload["social_ledger"] = self._social_ledger.checkpoint()
         payload["social_resource_ledger"] = self._social_resource_ledger.checkpoint()
-        # payload["epistemic_ledger"] = self._epistemic_ledger.checkpoint() # TODO
         payload["exchange_guard"] = self._exchange_guard.checkpoint()
         payload["exchange_sequence"] = self._exchange_sequence
         payload["generation"] = self._generation
@@ -2438,11 +2435,40 @@ class OrganismRuntime:
             # A genome-less organism still has a constitution: the hash of null.
             "genome_hash": _canonical_hash(cast(dict[str, Any], genome_data)),
         }
+        session_controls = self.session_controls()
+        restored_controls = self._restored_session_controls
         payload["runtime_provenance"] = {
             "software_version": _symbiont_version,
             "checkpoint_schema_version": CHECKPOINT_SCHEMA_VERSION,
+            "session_controls": session_controls,
+            # A continuation whose effective controls differ from the ones it
+            # was restored with is a changed condition, not restart equivalence.
+            "changed_since_restore": (
+                []
+                if restored_controls is None
+                else sorted(
+                    name
+                    for name, value in session_controls.items()
+                    if name in restored_controls and restored_controls[name] != value
+                )
+            ),
         }
         return payload
+
+    def session_controls(self) -> dict[str, Any]:
+        """Effective runtime-only configuration that shapes future learning.
+
+        Apparatus configuration, not organism state: recorded as provenance,
+        excluded from state identity and reapplied by ``from_checkpoint``.
+        """
+        return {
+            "cognitive_plasticity_enabled": self._cognitive_plasticity_enabled,
+            "predictor_promotion_enabled": self._predictor_promotion_enabled,
+            "persist_replay_state": self._persist_replay_state,
+            "kernel_limits": asdict(self._kernel_limits),
+            "executive_admission_policy": asdict(self._executive_admission_policy),
+            "expression_regulator": type(self._expression_regulator).__qualname__,
+        }
 
     def set_cognitive_plasticity_enabled(self, enabled: bool) -> None:
         """Enable or disable cognitive plasticity for this runtime session."""
@@ -2469,99 +2495,23 @@ class OrganismRuntime:
     def attach_communication_channel(self, channel: ConsentBoundChannel) -> None:
         self._communication_channel = channel
 
-    def export_cultural_heritage(self) -> list[dict[str, Any]]:
-        """Cumulative Culture v1: Pass verified hypotheses to offspring as social claims."""
-        heritage = []
-        for claim_id, outcome in self._epistemic_ledger.reconciliations.items():
-            claim = self._epistemic_ledger.claims.get(claim_id)
-            if not claim:
-                continue
-            heritage.append(
-                {
-                    "claim_id": f"{claim_id}-heritage",
-                    "source_id": self._organism_id,  # The parent is the source
-                    "parent_claim_ids": [claim_id],
-                    "payload": claim.payload,
-                    "freshness": 1.0,
-                }
-            )
-        return heritage
+    def receive_communication(self, message: SignedMessage) -> bool:
+        """Accept one signed envelope at the transport level.
 
-    def broadcast_claims(self, targets: list[str]) -> list[SignedMessage]:
-        """Emit internally reconciled claims to authorized peers."""
+        Returns whether the envelope was authentic and not a replay. Its claims
+        are not ingested: an organism runtime owns no core social ledger
+        (ARCH-1, Option A). Social claims between modeled organisms travel
+        through the modeled ledger (``receive_social_claim``), which keeps their
+        ancestry; this legacy envelope format cannot carry it.
+        """
         if not self._communication_channel:
-            return []
-
-        payload = {}
-        for claim_id, outcome in self._epistemic_ledger.reconciliations.items():
-            if claim_id in self._last_broadcast_reconciliations:
-                continue
-            claim = self._epistemic_ledger.claims.get(claim_id)
-            if not claim:
-                continue
-            data = {"payload": claim.payload, "outcome": outcome.name}
-            payload[claim_id] = json.dumps(data)
-
-        if not payload:
-            return []
-
-        self._exchange_sequence += 1
-        envelope = ExchangeEnvelope(
-            sender=self._organism_id, sequence=self._exchange_sequence, payload=payload
-        )
-
-        messages = []
-        for claim_id in payload:
-            self._last_broadcast_reconciliations.add(claim_id)
-
-        for target in targets:
-            try:
-                msg = self._communication_channel.send(envelope, target)
-                messages.append(msg)
-            except PermissionError:
-                pass
-        return messages
-
-    def receive_communication(self, message: SignedMessage) -> None:
-        """Receive and verify a message, extracting non-authoritative claims."""
-        if not self._communication_channel:
-            return
+            return False
         if not self._communication_channel.verify(message):
-            return
-
-        # Autonomous Cultural Agency v1: Learn (receive) costs metabolism.
-        # If starving, ignore the message.
-        if hasattr(self, "_physiology") and self._physiology.state.name == "DEAD":
-            return
-
-        try:
-            # We charge a small "cognition" cost for processing the cultural capsule.
-            if hasattr(self, "_metabolism"):
-                self._metabolism.charge("cognition", 0.02)
-        except Exception:
-            return
-
+            return False
+        if self._physiology.state is VitalState.DEAD:
+            return False
         envelope = ExchangeEnvelope(message.sender, message.sequence, message.payload)
-        if not self._exchange_guard.accept(envelope):
-            return
-
-        for claim_id, data_str in envelope.payload.items():
-            try:
-                data = json.loads(data_str)
-                from ..social.ledger import SocialClaim
-
-                claim = SocialClaim(
-                    claim_id=claim_id,
-                    source_id=envelope.sender,
-                    root_evidence_ids=frozenset(),
-                    parent_claim_ids=frozenset(),
-                    payload=data.get("payload"),
-                    received_tick=self._tick_count,
-                    freshness=1.0,
-                )
-                self._epistemic_ledger.receive_claim(claim)
-            except Exception:
-                pass
+        return self._exchange_guard.accept(envelope)
 
     def checkpoint(self, *, advance_lineage: bool = True) -> dict[str, Any]:
         """Serialize organism state.
@@ -2576,6 +2526,8 @@ class OrganismRuntime:
         payload["checkpoint_lineage"] = {
             "checkpoint_id": state_hash,
             "parent_checkpoint_hash": self._last_checkpoint_hash,
+            "identity_scope": IDENTITY_SCOPE,
+            "schema_version": CHECKPOINT_SCHEMA_VERSION,
         }
         if advance_lineage:
             self._last_checkpoint_hash = state_hash
@@ -2602,6 +2554,10 @@ class OrganismRuntime:
         ):
             raise CheckpointError("actuator_constitution_override must be an ActuatorSurface")
         fingerprint_migration: tuple[str, str] | None = None
+        # Identity is verified on the payload exactly as it was loaded: the
+        # stored identifier describes that representation, not a migrated one.
+        verify_checkpoint_identity(payload)
+        require_current_schema_fields(payload, layer=cls._CONTINUITY_LAYER)
         normalized = normalize_checkpoint(payload)
         effective = normalized.get("effective_config", {})
         min_samples = int(kwargs.get("min_samples", effective.get("min_samples", 5)))
@@ -2670,6 +2626,24 @@ class OrganismRuntime:
         )
         from ... import __version__ as _symbiont_version
 
+        recorded_controls = _recorded_session_controls(normalized)
+        if recorded_controls is not None:
+            # Reapply launcher-owned configuration the previous session ran
+            # with, unless this launcher states a different value explicitly.
+            if kwargs.get("kernel_limits") is None and "kernel_limits" in recorded_controls:
+                kwargs["kernel_limits"] = recorded_controls["kernel_limits"]
+            if (
+                kwargs.get("executive_admission_policy") is None
+                and "executive_admission_policy" in recorded_controls
+            ):
+                kwargs["executive_admission_policy"] = recorded_controls[
+                    "executive_admission_policy"
+                ]
+            if (
+                kwargs.get("persist_replay_state") is None
+                and "persist_replay_state" in recorded_controls
+            ):
+                kwargs["persist_replay_state"] = recorded_controls["persist_replay_state"]
         kernel_limits = kwargs.get("kernel_limits") or KernelLimits()
         genome = restore_genome_checkpoint(
             normalized.get("genome"),
@@ -3041,9 +3015,20 @@ class OrganismRuntime:
             if normalized.get("social_resource_ledger")
             else ResourceEvidenceLedger()
         )
-        exchange_guard = ExchangeReplayGuard()
-        if "exchange_guard" in normalized:
-            exchange_guard._seen = normalized["exchange_guard"]
+        # Anti-replay and outbound sequencing are acquired communication state:
+        # a restored organism must keep rejecting envelopes it already accepted
+        # and must not reuse sequence numbers it already emitted.
+        try:
+            exchange_guard = ExchangeReplayGuard.restore(normalized.get("exchange_guard", {}))
+        except ValueError as exc:
+            raise CheckpointError(f"invalid exchange guard checkpoint: {exc}") from exc
+        exchange_sequence = normalized.get("exchange_sequence", 0)
+        if (
+            isinstance(exchange_sequence, bool)
+            or not isinstance(exchange_sequence, int)
+            or exchange_sequence < 0
+        ):
+            raise CheckpointError("invalid exchange_sequence checkpoint")
         degradation_queue = (
             DegradationQueue.from_checkpoint(normalized["degradation"])
             if normalized.get("degradation")
@@ -3097,6 +3082,8 @@ class OrganismRuntime:
             constructor_kwargs["conflict_z"] = conflict_z
         constructor_kwargs.pop("explicit_metabolism", None)
         constructor_kwargs.pop("auto_promote_predictors", None)
+        constructor_kwargs.pop("exchange_guard", None)
+        constructor_kwargs.pop("exchange_sequence", None)
         raw_generative = normalized.get("generative_cognition")
         try:
             generative_cognition = (
@@ -3144,6 +3131,8 @@ class OrganismRuntime:
             physiology_config=resolved_physiology_config,
             social_ledger=social_ledger,
             social_resource_ledger=social_resource_ledger,
+            exchange_guard=exchange_guard,
+            exchange_sequence=exchange_sequence,
             explicit_metabolism=bool(
                 kwargs.get("explicit_metabolism", effective.get("explicit_metabolism", False))
             ),
@@ -3309,6 +3298,17 @@ class OrganismRuntime:
             # predates this tracking — it honestly starts a new root rather
             # than inventing a history it never recorded.
             runtime._last_checkpoint_hash = raw_lineage["checkpoint_id"]
+        if recorded_controls is not None:
+            if "cognitive_plasticity_enabled" in recorded_controls:
+                runtime.set_cognitive_plasticity_enabled(
+                    recorded_controls["cognitive_plasticity_enabled"]
+                )
+            if "predictor_promotion_enabled" in recorded_controls:
+                runtime.set_predictor_promotion_enabled(
+                    recorded_controls["predictor_promotion_enabled"]
+                )
+            recorded_snapshot = normalized["runtime_provenance"]["session_controls"]
+            runtime._restored_session_controls = deepcopy(recorded_snapshot)
         return runtime
 
     @classmethod

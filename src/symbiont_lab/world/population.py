@@ -567,7 +567,6 @@ class PopulationGenesisRuntime:
             journal=self.journal,
             geography=self.geography,
         )
-        all_emitted_messages = []
         with tx:
             self.environment.propagate_fields(current_tick)
             tx.stage_event(
@@ -799,10 +798,7 @@ class PopulationGenesisRuntime:
                                 )
                     action_result = _act(rig)
                 else:
-                    tick_res = rig.runtime.tick()
-                    if hasattr(tick_res, "messages") and tick_res.messages:
-                        for msg in tick_res.messages:
-                            all_emitted_messages.append(msg)
+                    rig.runtime.tick()
                     world_action = rig.actuation_adapter.translate(rig.runtime.last_actuation)
                     self._resolve_local_interaction(
                         organism_id,
@@ -1023,13 +1019,6 @@ class PopulationGenesisRuntime:
 
         if not tx.committed:
             return None
-
-        # 3.5 Deliver Emergent Structured Communication messages, only from a
-        # committed tick: an aborted tick must leave no side effects.
-        for msg in all_emitted_messages:
-            recipient_rig = self._rigs.get(msg.recipient)
-            if recipient_rig is not None and recipient_rig.runtime is not None:
-                recipient_rig.runtime.receive_communication(msg)
 
         self._emissions = next_emissions
         record = PopulationTickRecord(tick=current_tick, per_organism=per_organism)
