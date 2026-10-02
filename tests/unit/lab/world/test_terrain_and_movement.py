@@ -410,8 +410,6 @@ def test_clean_population_observation_contains_no_apparatus_resource_hazard_or_o
         topology=HexTopology(width=4, height=4),
         start_cells=(HexCoord(1, 1),),
         movement_enabled=True,
-        sensory_plasticity=True,
-        discover_senses=True,
         experimental_clean=True,
     )
     observation = pop._observation_for("clean-a")
@@ -433,8 +431,6 @@ def test_clean_population_does_not_execute_typed_local_action_frontier():
         topology=HexTopology(width=4, height=4),
         start_cells=(HexCoord(1, 1),),
         movement_enabled=True,
-        sensory_plasticity=True,
-        discover_senses=True,
         experimental_clean=True,
     )
     record = pop.run_tick()

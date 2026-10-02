@@ -87,12 +87,13 @@ class PairwisePredictiveEvidence:
             return 0.0
         return max(0.0, min(1.0, relative_gain))
 
-    def checkpoint(self) -> dict[str, Any]:
+    def checkpoint(self, *, include_replay: bool = False) -> dict[str, Any]:
         payload = asdict(self)
         # The immediately preceding target is private temporal experience, not
         # durable phenotype. Aggregated sufficient statistics may persist;
-        # the raw last value may not.
-        payload.pop("last_target", None)
+        # the raw last value may not, except as exact-continuation replay state.
+        if not include_replay:
+            payload.pop("last_target", None)
         return payload
 
     @classmethod
@@ -124,7 +125,7 @@ class PairwisePredictiveEvidence:
                 "baseline_error_ewma",
                 payload.get("persistence_error_ewma", 0.0),
             ),
-            last_target=None,
+            last_target=payload.get("last_target"),
         )
         if not isinstance(evidence.source_id, str) or not evidence.source_id:
             raise ValueError("selection source_id must be non-empty")
@@ -248,13 +249,21 @@ class SensorySelectionEngine:
         self._previous = current
         return dict(credits)
 
-    def checkpoint(self) -> dict[str, Any]:
-        return {
+    def checkpoint(self, *, include_replay: bool = False) -> dict[str, Any]:
+        payload: dict[str, Any] = {
             "schema_version": SELECTION_SCHEMA_VERSION,
             "max_pairs": self.max_pairs,
-            "pairs": [self._pairs[key].checkpoint() for key in sorted(self._pairs)],
-            # Previous raw percept values are deliberately transient/private.
+            "pairs": [
+                self._pairs[key].checkpoint(include_replay=include_replay)
+                for key in sorted(self._pairs)
+            ],
         }
+        # Previous raw percept values are transient/private. They are saved only
+        # under the exact-continuation contract of a deterministic host, so the
+        # first tick after restore is not a hidden cold start of selection.
+        if include_replay:
+            payload["replay_previous"] = dict(sorted(self._previous.items()))
+        return payload
 
     @classmethod
     def restore(cls, payload: Mapping[str, Any] | None) -> "SensorySelectionEngine":
@@ -275,5 +284,15 @@ class SensorySelectionEngine:
             if key in engine._pairs:
                 raise ValueError("duplicate sensory selection pair")
             engine._pairs[key] = evidence
+        raw_previous = payload.get("replay_previous", {})
+        if not isinstance(raw_previous, Mapping) or any(
+            not isinstance(key, str)
+            or isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(float(value))
+            for key, value in raw_previous.items()
+        ):
+            raise ValueError("invalid sensory selection replay state")
+        engine._previous = {key: float(value) for key, value in raw_previous.items()}
         engine._credits = {}
         return engine

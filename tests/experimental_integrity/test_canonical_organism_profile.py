@@ -20,60 +20,33 @@ from symbiont.core.organism_profile import (
     HISTORICAL_V0,
     PROFILES,
     SYMBOL_SEED_SHARED,
+    symbol_seed_for,
 )
 from symbiont.modeling.runtime import ModeledOrganismRuntime
+from tests.checkpoints import edited
 
 ROOT = Path(__file__).resolve().parents[2]
 REGISTER = ROOT / "docs" / "design" / "core" / "canonical-organism-profile-v1.md"
 
-# Modules outside ``studies/`` that set a governed option explicitly. Each entry is
-# a divergence still to be removed by convergence on the canonical profile; adding
-# one requires a register entry, removing one only requires deleting it here.
+# Modules outside ``studies/`` that set a governed option explicitly. Launchers may
+# not deviate (ADR-0062); what remains is study-arm plumbing: code that forwards an
+# intervention a protocol declares, never a launcher default.
 DECLARED_DEVIATIONS: dict[str, set[str]] = {
-    "src/symbiont_lab/cli/observed_resident.py": {
-        "bootstrap_semantic_senses",
-        "discover_senses",
-        "interoception_enabled",
-        "sensory_plasticity",
-    },
-    "src/symbiont_lab/cli/organism.py": {
-        "bootstrap_semantic_senses",
-        "discover_senses",
-        "interoception_enabled",
-        "sensory_plasticity",
-    },
+    # Protocol ablation blocks (experiment.toml) select factorized effects as an arm.
     "src/symbiont_lab/experiments/runner.py": {"factorized_effects"},
-    "src/symbiont_lab/integration/integrated_habitat.py": {
-        "bootstrap_semantic_senses",
-        "discover_senses",
-        "interoception_mode",
-        "symbol_policy_seed",
-    },
+    # Physics3D CLI flags used to run declared arms of the factorized-effects and
+    # ancestry protocols; off unless a protocol passes them.
     "src/symbiont_lab/physics3d/cli.py": {"ancestry_training", "factorized_effects"},
+    # The causal-equivalence harness scenario that exercises factorized state.
     "src/symbiont_lab/physics3d/equivalence.py": {"factorized_effects"},
-    "src/symbiont_lab/physics3d/runtime.py": {
-        "auto_promote_predictors",
-        "bootstrap_semantic_senses",
-        "discover_senses",
-        "interoception_mode",
-        "sensory_plasticity",
-    },
-    "src/symbiont_lab/world/adapter.py": {
-        "bootstrap_semantic_senses",
-        "discover_senses",
-        "interoception_mode",
-        "sensory_plasticity",
-    },
-    "src/symbiont_lab/world/cli_view.py": {"interoception_mode"},
-    "src/symbiont_lab/world/persistence.py": {"discover_senses", "sensory_plasticity"},
-    "src/symbiont_lab/world/population.py": {"discover_senses", "sensory_plasticity"},
-    "src/symbiont_lab/world/runtime.py": {"discover_senses", "sensory_plasticity"},
 }
-# Plumbing that forwards a caller's or a parent's own configuration unchanged.
+# Plumbing that forwards a caller's or a parent's own configuration unchanged,
+# and views that only report a configuration.
 FORWARDERS = {
     "src/symbiont/core/orchestration/runtime.py",
     "src/symbiont/core/organism_profile.py",
     "src/symbiont_lab/reproduction/runtime.py",
+    "src/symbiont_lab/world/cli_view.py",
 }
 
 
@@ -108,23 +81,38 @@ def _scan() -> dict[str, set[str]]:
     return found
 
 
-def test_constructors_produce_the_historical_profile() -> None:
-    runtime = inspect.signature(OrganismRuntime.__init__).parameters
-    for option in (
-        "discover_senses",
-        "bootstrap_semantic_senses",
-        "sensory_plasticity",
-        "auto_promote_predictors",
-        "factorized_effects",
-    ):
-        assert runtime[option].default == getattr(HISTORICAL_V0, option), option
-    assert runtime["interoception_enabled"].default is True
-    assert runtime["interoception_mode"].default is None
-    assert HISTORICAL_V0.interoception_mode == "enabled"
-    modeled = inspect.signature(ModeledOrganismRuntime.__init__).parameters
-    assert modeled["symbol_policy_seed"].default == 0
-    assert HISTORICAL_V0.symbol_seed_policy == SYMBOL_SEED_SHARED
+def test_bare_organisms_are_born_with_the_canonical_profile() -> None:
+    runtime = OrganismRuntime()
+    assert runtime._profile_version == CANONICAL.version
+    assert runtime._discover_senses is CANONICAL.discover_senses
+    assert runtime._bootstrap_semantic_senses is CANONICAL.bootstrap_semantic_senses
+    assert runtime.sensory_system.plasticity_enabled is CANONICAL.sensory_plasticity
+    assert runtime._auto_promote_predictors is CANONICAL.auto_promote_predictors
+    assert runtime._interoception_mode == CANONICAL.interoception_mode
+    modeled = ModeledOrganismRuntime(organism_id="profile-probe")
+    assert modeled._symbol_policy.seed == symbol_seed_for(CANONICAL, "profile-probe")
+    # Governed constructor options have no value of their own.
+    parameters = inspect.signature(OrganismRuntime.__init__).parameters
+    for option in GOVERNED_OPTIONS & set(parameters):
+        assert parameters[option].default is None, option
+
+
+def test_restored_organisms_keep_the_profile_they_were_born_with() -> None:
+    historical = OrganismRuntime(profile=HISTORICAL_V0)
+    restored = OrganismRuntime.from_checkpoint(historical.checkpoint())
+    assert restored._profile_version == HISTORICAL_V0.version
+    assert restored._bootstrap_semantic_senses is True
+    # A checkpoint written before profiles existed carries no profile_version.
+    legacy = historical.checkpoint()
+    del legacy["effective_config"]["profile_version"]
+    restored_legacy = OrganismRuntime.from_checkpoint(edited(legacy))
+    assert restored_legacy._profile_version == HISTORICAL_V0.version
+
+
+def test_historical_profile_matches_the_old_constructor_defaults() -> None:
     assert HISTORICAL_V0.intention_policy() == IntentionPolicy()
+    assert HISTORICAL_V0.symbol_seed_policy == SYMBOL_SEED_SHARED
+    assert symbol_seed_for(HISTORICAL_V0, "any") == 0
 
 
 def test_canonical_profile_is_a_registered_version() -> None:

@@ -40,6 +40,7 @@ from symbiont.cognition.birth import load_base_cognition
 from symbiont.cognition.limits import KernelLimits
 from symbiont.core.embodiment.physiology import LivingBodyState
 from symbiont.core.orchestration.runtime import OrganismRuntime
+from symbiont.core.organism_profile import HISTORICAL_V0
 from symbiont.host.contracts import AccessMode, Capability, CapabilityKind, CapabilityScope
 from symbiont.host.discovery import HostDiscovery
 from symbiont.host.lifecycle import HostLifecycle
@@ -259,6 +260,9 @@ def build_subject(
     """A newborn canonical runtime embodied in ``body`` (no semantic senses)."""
     limits = KernelLimits()
     genome, graph = load_base_cognition(kernel_limits=limits, running_version=(0, 80, 0))
+    # Closed experiments ran this subject on the historical profile (ADR-0062);
+    # a study on the canonical organism passes ``profile`` explicitly.
+    runtime_options.setdefault("profile", HISTORICAL_V0)
     return runtime_class(
         organism_id=organism_id,
         host_lifecycle=subject_lifecycle(body),

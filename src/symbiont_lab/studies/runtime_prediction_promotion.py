@@ -9,6 +9,7 @@ from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.types import EdgeKind, NodeKind
 from symbiont.core.cognition.bridge import CognitiveBridge
 from symbiont.core.orchestration.runtime import OrganismRuntime
+from symbiont.core.organism_profile import HISTORICAL_V0
 from symbiont.genetics.migration import GenomeMigrationCodec as GenomeCodec
 
 _GENOME = {
@@ -88,6 +89,7 @@ def _runtime(
         graph=graph, genome=genome, kernel_limits=KernelLimits(), develop_senses=True
     )
     return OrganismRuntime(
+        profile=HISTORICAL_V0,
         organism_id=organism_id,
         genome=genome,
         cognitive_graph=graph,

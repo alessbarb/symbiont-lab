@@ -8,6 +8,7 @@ from symbiont import __version__ as symbiont_version
 from symbiont.cognition.birth import load_base_genome
 from symbiont.cognition.limits import KernelLimits
 from symbiont.core.orchestration.runtime import OrganismRuntime
+from symbiont.core.organism_profile import HISTORICAL_V0
 from symbiont_lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
 
 
@@ -31,6 +32,7 @@ def run_runtime_reproduction_study(*, ticks: int = 2) -> RuntimeReproductionStud
     genome = load_base_genome(kernel_limits=KernelLimits(), running_version=version)
     authority = HabitatBirthAuthority(habitat_id="runtime-study", capacity=2)
     parent = OrganismRuntime(
+        profile=HISTORICAL_V0,
         organism_id="study-parent",
         genome=genome,
         bootstrap_semantic_senses=False,

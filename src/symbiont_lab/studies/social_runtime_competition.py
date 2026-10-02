@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 
 from symbiont.core.orchestration.runtime import OrganismRuntime
+from symbiont.core.organism_profile import HISTORICAL_V0
 from symbiont.core.social import SocialHabitat
 from symbiont.core.social.interactions import EcologicalResourcePool
 
@@ -27,7 +28,8 @@ def run_social_runtime_competition_study() -> SocialRuntimeCompetitionStudy:
     habitat.admit("left")
     habitat.admit("right")
     runtimes = tuple(
-        OrganismRuntime(organism_id=member, social_habitat=habitat) for member in ("left", "right")
+        OrganismRuntime(profile=HISTORICAL_V0, organism_id=member, social_habitat=habitat)
+        for member in ("left", "right")
     )
     for runtime, target in zip(runtimes, ("right", "left")):
         runtime.social_ledger.observe(runtime.organism_id, target, cost=1.0, tick=0)

@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 
+from symbiont.core.organism_profile import HISTORICAL_V0
 from symbiont.modeling import (
     ModeledOrganismRuntime,
     ModelObjective,
@@ -109,6 +110,7 @@ def run_replay_pressure_curve_study(
     for seed in normalized:
         organism_id = f"replay-pressure-{seed}"
         runtime = ModeledOrganismRuntime(
+            profile=HISTORICAL_V0,
             organism_id=organism_id,
             bootstrap_semantic_senses=False,
             discover_senses=False,

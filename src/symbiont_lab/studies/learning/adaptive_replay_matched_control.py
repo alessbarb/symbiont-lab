@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 
+from symbiont.core.organism_profile import HISTORICAL_V0
 from symbiont.modeling import (
     EpistemicStatus,
     ExperienceRecord,
@@ -173,6 +174,7 @@ def run_adaptive_replay_matched_control_study(
     for seed in normalized:
         organism_id = f"adaptive-replay-{seed}"
         runtime = ModeledOrganismRuntime(
+            profile=HISTORICAL_V0,
             organism_id=organism_id,
             bootstrap_semantic_senses=False,
             discover_senses=False,

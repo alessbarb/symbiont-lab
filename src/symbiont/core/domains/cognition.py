@@ -175,6 +175,9 @@ class CognitionDomain:
                     max(0.0, candidate.predictive_gain),
                 )
         services.sensory_system.update_downstream_utility(predictive_gain_by_name)
+        # Receptors are not held by the post-restore reacclimation gate: an
+        # organism restored into a new Body must be able to adapt its sensors
+        # at once. The gate covers concepts and connections only.
         sensory_mutations = services.sensory_system.plastic_step(tick=context.symbiont_tick)
         if sensory_mutations:
             services.charge_metabolism(

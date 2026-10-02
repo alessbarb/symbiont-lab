@@ -14,6 +14,7 @@ from collections import Counter
 from dataclasses import asdict, dataclass
 from typing import Sequence
 
+from symbiont.core.organism_profile import HISTORICAL_V0
 from symbiont.modeling import (
     ModeledOrganismRuntime,
     SequenceChannel,
@@ -108,12 +109,14 @@ def _trial(
         raise ValueError(f"unknown condition: {condition}")
     space = default_symbol_space(f"study-{seed}")
     emitter = ModeledOrganismRuntime(
+        profile=HISTORICAL_V0,
         organism_id=f"esc-emitter-{seed}",
         bootstrap_semantic_senses=False,
         symbol_policy_seed=seed,
         symbol_space=space,
     )
     receiver = ModeledOrganismRuntime(
+        profile=HISTORICAL_V0,
         organism_id=f"esc-receiver-{seed}",
         bootstrap_semantic_senses=False,
         symbol_policy_seed=seed + 1,
@@ -233,6 +236,7 @@ def _result(seed: int) -> StructuredCommunicationSeedResult:
     # supplied by the apparatus.
     learner = autonomous["receiver"]
     newborn = ModeledOrganismRuntime(
+        profile=HISTORICAL_V0,
         organism_id=f"esc-newborn-{seed}",
         bootstrap_semantic_senses=False,
         symbol_space=default_symbol_space(f"study-{seed}"),

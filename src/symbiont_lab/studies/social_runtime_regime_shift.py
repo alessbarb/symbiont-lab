@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 
 from symbiont.core.orchestration.runtime import OrganismRuntime
+from symbiont.core.organism_profile import HISTORICAL_V0
 from symbiont.core.social import SocialHabitat
 from symbiont.core.social.interactions import EcologicalResourcePool
 
@@ -36,7 +37,10 @@ def run_social_runtime_regime_shift_study(*, phase_ticks: int = 8) -> SocialRunt
     habitat.admit("adaptive")
     habitat.admit("peer")
     runtime = OrganismRuntime(
-        organism_id="adaptive", social_habitat=habitat, social_exchange_quantum=0.5
+        profile=HISTORICAL_V0,
+        organism_id="adaptive",
+        social_habitat=habitat,
+        social_exchange_quantum=0.5,
     )
     pre_shift: list[str] = []
     for _ in range(phase_ticks):

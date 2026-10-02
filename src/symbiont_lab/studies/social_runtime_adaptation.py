@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 
 from symbiont.core.orchestration.runtime import OrganismRuntime
+from symbiont.core.organism_profile import HISTORICAL_V0
 from symbiont.core.social import SocialHabitat
 from symbiont.core.social.interactions import EcologicalResourcePool
 
@@ -30,7 +31,7 @@ def run_social_runtime_adaptation_study() -> SocialRuntimeAdaptationStudy:
     habitat = SocialHabitat(EcologicalResourcePool({"food": 4.0}))
     for member in ("observer", "candidate", "unknown"):
         habitat.admit(member)
-    runtime = OrganismRuntime(organism_id="observer", social_habitat=habitat)
+    runtime = OrganismRuntime(profile=HISTORICAL_V0, organism_id="observer", social_habitat=habitat)
     runtime.social_ledger.observe("observer", "candidate", benefit=4.0, tick=0)
     initial = runtime.select_social_opportunity()
     # A later contradictory outcome outweighs the earlier support while the

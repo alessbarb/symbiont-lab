@@ -29,6 +29,11 @@ protocol ran its development stage with an undeclared non-default option.
    adopt, reject, no change with reason, or pending behind named work.
 6. The experiment determines the value; a value is never set so that an
    experiment passes. The Golden Invariant is unchanged.
+7. The test suite describes the organism as it is now. A change that makes a
+   test obsolete cleans it in the same change: the test is migrated to the
+   canonical organism if its mechanism still exists, or archived as superseded,
+   naming its canonical replacement, outside the canonical run
+   (`tests/README.md`, "Superseded tests"). (Owner amendment 2026-10-03.)
 
 ## Consequences
 

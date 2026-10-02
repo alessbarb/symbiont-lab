@@ -13,6 +13,7 @@ from symbiont.core.signal_knowledge_types import SignalObservation, SignalObserv
 
 from symbiont.host.checkpoint import CheckpointError
 from symbiont.host.percepts import DEFAULT_PERCEPT_NAMES
+from tests.bodies import SIGNALS, test_body_kwargs
 from tests.checkpoints import as_legacy
 
 
@@ -144,7 +145,7 @@ def test_tick_count_and_run_accumulate_across_calls():
 
 
 def test_acclimation_and_rhythm_model_accumulate_across_ticks():
-    runtime = OrganismRuntime(min_samples=2, investigate_ticks=0)
+    runtime = OrganismRuntime(**test_body_kwargs(), min_samples=2, investigate_ticks=0)
     runtime.run(2)
 
     assert runtime.acclimation.acclimated_capabilities
@@ -177,7 +178,7 @@ def test_investigation_targets_the_top_attention_allocation():
 
 
 def test_checkpoint_reflects_accumulated_state():
-    runtime = OrganismRuntime(min_samples=2, investigate_ticks=0)
+    runtime = OrganismRuntime(**test_body_kwargs(), min_samples=2, investigate_ticks=0)
     runtime.run(2)
 
     checkpoint = runtime.checkpoint()
@@ -422,13 +423,11 @@ def test_drift_baselines_stay_bounded_as_sensed_capabilities_renew():
 
 
 def test_runtime_feeds_sampling_outcomes_into_self_model():
-    runtime = OrganismRuntime(min_samples=1, investigate_ticks=0)
+    runtime = OrganismRuntime(**test_body_kwargs(), min_samples=1, investigate_ticks=0)
     for _ in range(10):
         runtime.tick()
 
-    assert any(
-        runtime.self_model.is_established(capability_id) for capability_id in DEFAULT_PERCEPT_NAMES
-    )
+    assert any(runtime.self_model.is_established(capability_id) for capability_id in SIGNALS)
 
 
 def test_self_model_survives_checkpoint_round_trip():
@@ -674,7 +673,7 @@ def test_health_without_current_tick_stays_undecayed_from_the_perspective_of_run
 def test_runtime_passes_current_tick_to_self_model_health_for_second_look_gate(monkeypatch):
     calls = []
 
-    runtime = OrganismRuntime(min_samples=1, investigate_ticks=1)
+    runtime = OrganismRuntime(**test_body_kwargs(), min_samples=1, investigate_ticks=1)
 
     real_health = runtime.self_model.health
 
@@ -690,13 +689,13 @@ def test_runtime_passes_current_tick_to_self_model_health_for_second_look_gate(m
 
 
 def test_a_sense_observed_just_before_checkpoint_is_not_idle_immediately_after_restore():
-    runtime = OrganismRuntime(min_samples=1, investigate_ticks=0)
+    runtime = OrganismRuntime(**test_body_kwargs(), min_samples=1, investigate_ticks=0)
     for _ in range(10):
         runtime.tick()
 
     established = [
         capability_id
-        for capability_id in DEFAULT_PERCEPT_NAMES
+        for capability_id in SIGNALS
         if runtime.self_model.is_established(capability_id)
     ]
     assert established
@@ -966,6 +965,14 @@ class _TickOverride:
         return getattr(self._bridge, name)
 
 
+def _opaque_percept_name(runtime, capability_id: str) -> str:
+    """The name under which ``runtime`` perceives ``capability_id``."""
+    from symbiont.sensory.system import SensorySystem
+
+    del runtime  # the receptor identity depends only on the source
+    return SensorySystem._identity_id(capability_id)
+
+
 def _drive_regime_shift_with_surprise(
     runtime,
     *,
@@ -977,8 +984,8 @@ def _drive_regime_shift_with_surprise(
     extreme_ticks=3,
 ):
     """Deterministically forces a real DriftKind.REGIME_SHIFT on `capability_id`
-    (percept name "system_load" via DEFAULT_PERCEPT_NAMES) while also injecting
-    a high-loss PredictionError for that same node, so the combined signal's
+    (perceived under the organism's own opaque receptor name) while also injecting
+    a high-loss PredictionError for that same percept, so the combined signal's
     score can cross fast_consolidation_threshold -- design §22's "flame"
     scenario. Uses the same _lifecycle-override pattern already used
     elsewhere in this file, not scripted drift-baseline internals."""
@@ -1027,36 +1034,33 @@ def _drive_regime_shift_with_surprise(
         1, manifest, (reading(extreme_value),), (), (), (capability_id,), outcome()
     )
 
+    # The percept's name is the organism's own; it is known once it is perceived.
+    target = {"id": _opaque_percept_name(runtime, capability_id)}
+
+    def surprise():
+        return (
+            PredictionError(
+                predictor_id="synthetic",
+                target_id=target["id"],
+                error=extra_loss,
+                loss=extra_loss,
+            ),
+        )
+
     real_bridge = runtime.cognitive_bridge
     if real_bridge is not None and not getattr(real_bridge, "_is_synthetic_fake", False):
         original_tick = real_bridge.tick
 
         def boosted_tick(*args, **kwargs):
             result = original_tick(*args, **kwargs)
-            boosted = result.prediction_errors + (
-                PredictionError(
-                    predictor_id="synthetic",
-                    target_id="system_load",
-                    error=extra_loss,
-                    loss=extra_loss,
-                ),
-            )
+            boosted = result.prediction_errors + surprise()
             return dataclasses.replace(result, prediction_errors=boosted)
 
         runtime._cognitive_bridge = _TickOverride(real_bridge, boosted_tick)
     else:
-        fake_result = SimpleNamespace(
-            prediction_errors=(
-                PredictionError(
-                    predictor_id="synthetic",
-                    target_id="system_load",
-                    error=extra_loss,
-                    loss=extra_loss,
-                ),
-            ),
-        )
         runtime._cognitive_bridge = SimpleNamespace(
-            tick=lambda *a, **k: fake_result,
+            tick=lambda *a, **k: SimpleNamespace(prediction_errors=surprise()),
+            nominate_shadow_prediction=lambda *a, **k: None,
             export_checkpoint=lambda: None,
             restore=lambda *a, **k: None,
             set_generative_retention_protection=lambda *a, **k: None,
@@ -1087,15 +1091,14 @@ def test_a_single_extraordinary_regime_shift_creates_a_durable_salient_trace():
     call."""
     from symbiont.host.drift import DriftKind
 
-    runtime = OrganismRuntime(
-        discover_senses=False, bootstrap_semantic_senses=True, min_samples=1, investigate_ticks=0
-    )
+    runtime = OrganismRuntime(min_samples=1, investigate_ticks=0)
     result = _drive_regime_shift_with_surprise(runtime)
+    percept = _opaque_percept_name(runtime, "compute.logical_cpu")
 
-    assert result.drift_observations["system_load"].kind == DriftKind.REGIME_SHIFT
+    assert result.drift_observations[percept].kind == DriftKind.REGIME_SHIFT
     checkpoint = runtime.checkpoint()
     assert len(checkpoint["memory"]["salient_events"]) == 1
-    assert checkpoint["memory"]["salient_events"][0]["pattern_id"] == "system_load"
+    assert checkpoint["memory"]["salient_events"][0]["pattern_id"] == percept
 
 
 def test_p3_salient_trace_never_contains_a_raw_reading():
@@ -1103,9 +1106,7 @@ def test_p3_salient_trace_never_contains_a_raw_reading():
     but persisted fields are only bounded categorical classes and safe ids
     -- never the extreme raw value (1000.0) or exact loss (1.0) that
     triggered it."""
-    runtime = OrganismRuntime(
-        discover_senses=False, bootstrap_semantic_senses=True, min_samples=1, investigate_ticks=0
-    )
+    runtime = OrganismRuntime(min_samples=1, investigate_ticks=0)
     _drive_regime_shift_with_surprise(runtime)
 
     checkpoint = runtime.checkpoint()
@@ -1175,13 +1176,7 @@ def test_reacclimation_gate_blocks_salient_fast_path_after_restore():
     from symbiont.cognition.limits import KernelLimits
 
     limits = KernelLimits(reacclimation_ticks=20)
-    runtime = OrganismRuntime(
-        discover_senses=False,
-        bootstrap_semantic_senses=True,
-        min_samples=1,
-        investigate_ticks=0,
-        kernel_limits=limits,
-    )
+    runtime = OrganismRuntime(min_samples=1, investigate_ticks=0, kernel_limits=limits)
     checkpoint = runtime.checkpoint()
     restored = OrganismRuntime.from_checkpoint(
         checkpoint, min_samples=1, investigate_ticks=0, kernel_limits=limits

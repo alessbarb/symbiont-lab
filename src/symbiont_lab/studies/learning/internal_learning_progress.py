@@ -4,6 +4,7 @@ import math
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 
+from symbiont.core.organism_profile import HISTORICAL_V0
 from symbiont.modeling import (
     ModeledOrganismRuntime,
     ModelObjective,
@@ -131,6 +132,7 @@ def run_internal_learning_progress_study(
     for seed in normalized:
         organism_id = f"internal-progress-{seed}"
         runtime = ModeledOrganismRuntime(
+            profile=HISTORICAL_V0,
             organism_id=organism_id,
             bootstrap_semantic_senses=False,
             discover_senses=False,

@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 
 from symbiont.core.orchestration.runtime import OrganismRuntime
+from symbiont.core.organism_profile import HISTORICAL_V0
 from symbiont.core.social import SocialHabitat
 from symbiont.core.social.interactions import EcologicalResourcePool
 
@@ -29,8 +30,12 @@ def run_social_runtime_context_study() -> SocialRuntimeContextStudy:
     habitat = SocialHabitat(EcologicalResourcePool({"food": 4.5}), max_members=4)
     for member in ("observer", "peer-a", "peer-b", "isolated"):
         habitat.admit(member)
-    observer = OrganismRuntime(organism_id="observer", social_habitat=habitat)
-    isolated = OrganismRuntime(organism_id="isolated", social_habitat=habitat)
+    observer = OrganismRuntime(
+        profile=HISTORICAL_V0, organism_id="observer", social_habitat=habitat
+    )
+    isolated = OrganismRuntime(
+        profile=HISTORICAL_V0, organism_id="isolated", social_habitat=habitat
+    )
 
     # Establish two local evidence channels, then contradict one of them.
     observer.request_social_exchange("peer-a", "food", 2.0)

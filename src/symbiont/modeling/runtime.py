@@ -8,6 +8,7 @@ from typing import Any, Self
 
 from ..core.embodiment.physiology import VitalState
 from ..core.orchestration.runtime import OrganismDeadError, OrganismRuntime
+from ..core.organism_profile import PROFILES, symbol_seed_for
 from ..provenance import CausalEvent, CausalRef
 from .authority import ArchitectureId, ModelArtifactManifest, ModelObjective, TrainingRequest
 from .corpus import TrainingCorpus, build_training_corpus
@@ -167,7 +168,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
         model_storage_scale: float = 0.02,
         cultural_policy_seed: int = 0,
         cultural_policy_config: CulturalPolicyConfig | None = None,
-        symbol_policy_seed: int = 0,
+        symbol_policy_seed: int | None = None,
         symbol_space: tuple[str, ...] | None = None,
         symbol_grounding_ledger: SymbolGroundingLedger | None = None,
         sequence_grounding_ledger: SequenceGroundingLedger | None = None,
@@ -228,6 +229,8 @@ class ModeledOrganismRuntime(OrganismRuntime):
         self._symbol_grounding_ledger = symbol_grounding_ledger or SymbolGroundingLedger(
             self.organism_id
         )
+        if symbol_policy_seed is None:
+            symbol_policy_seed = symbol_seed_for(PROFILES[self._profile_version], self.organism_id)
         self._symbol_policy = SymbolPolicy(
             self.organism_id,
             seed=symbol_policy_seed,

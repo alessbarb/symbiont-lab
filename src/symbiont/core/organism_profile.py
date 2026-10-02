@@ -9,7 +9,8 @@ register, with the result backing each value, is
 
 from __future__ import annotations
 
-from dataclasses import dataclass, fields
+import hashlib
+from dataclasses import dataclass, fields, replace
 from typing import Any
 
 from symbiont.core.domains.intention import IntentionPolicy
@@ -80,10 +81,31 @@ HISTORICAL_V0 = OrganismProfile(
     ancestry_training=False,
 )
 
-PROFILES: dict[str, OrganismProfile] = {HISTORICAL_V0.version: HISTORICAL_V0}
+# Convergence of the results closed up to 2026-10-02 (register §3, ADR-0062).
+V1 = replace(
+    HISTORICAL_V0,
+    version="v1",
+    discover_senses=True,
+    bootstrap_semantic_senses=False,
+    sensory_plasticity=True,
+    auto_promote_predictors=True,
+    interoception_mode="absent",
+    symbol_seed_policy=SYMBOL_SEED_PER_ORGANISM,
+)
+
+PROFILES: dict[str, OrganismProfile] = {profile.version: profile for profile in (HISTORICAL_V0, V1)}
 
 # The profile every new organism is born with.
-CANONICAL = HISTORICAL_V0
+CANONICAL = V1
+
+
+def symbol_seed_for(profile: OrganismProfile, organism_id: str) -> int:
+    """Symbol policy seed of one organism under ``profile``."""
+    if profile.symbol_seed_policy == SYMBOL_SEED_SHARED:
+        return 0
+    digest = hashlib.sha256(f"symbol-policy-seed:{organism_id}".encode()).digest()
+    return int.from_bytes(digest[:4], "big") & (2**31 - 1)
+
 
 __all__ = [
     "CANONICAL",
@@ -92,5 +114,7 @@ __all__ = [
     "PROFILES",
     "SYMBOL_SEED_PER_ORGANISM",
     "SYMBOL_SEED_SHARED",
+    "V1",
     "OrganismProfile",
+    "symbol_seed_for",
 ]
