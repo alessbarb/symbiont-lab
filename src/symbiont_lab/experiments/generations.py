@@ -84,7 +84,16 @@ class GenerationStore:
                 data = value.encode("utf-8") if isinstance(value, str) else bytes(value)
                 target = tmp_dir.joinpath(*relative.parts)
                 target.parent.mkdir(parents=True, exist_ok=True)
-                durable_atomic_write(target, data, sync_dir=True)
+
+                def payload_fault(point: str) -> None:
+                    self._hit(_fault_point, f"payload.{relative.as_posix()}.{point}")
+
+                durable_atomic_write(
+                    target,
+                    data,
+                    sync_dir=True,
+                    _fault_point=payload_fault if _fault_point is not None else None,
+                )
                 digests[relative.as_posix()] = self._digest(data)
             return digests
 
@@ -119,14 +128,32 @@ class GenerationStore:
                 target = tmp_dir.joinpath(*relative.parts)
                 target.parent.mkdir(parents=True, exist_ok=True)
                 digest = hashlib.sha256()
+                relative_name = relative.as_posix()
+
+                def payload_fault(point: str) -> None:
+                    self._hit(_fault_point, f"payload.{relative_name}.{point}")
+
+                payload_fault("before_write")
                 with path.open("rb") as reader, target.open("wb") as writer:
+                    injected_during_write = False
                     for chunk in iter(lambda: reader.read(1024 * 1024), b""):
                         digest.update(chunk)
-                        writer.write(chunk)
+                        if _fault_point is not None and not injected_during_write and chunk:
+                            split_at = max(1, len(chunk) // 2)
+                            writer.write(chunk[:split_at])
+                            payload_fault("during_write")
+                            writer.write(chunk[split_at:])
+                            injected_during_write = True
+                        else:
+                            writer.write(chunk)
                     writer.flush()
+                    payload_fault("before_file_fsync")
                     os.fsync(writer.fileno())
+                    payload_fault("after_file_fsync")
+                payload_fault("before_dir_fsync")
                 sync_directory(target.parent)
-                digests[relative.as_posix()] = digest.hexdigest()
+                payload_fault("after_dir_fsync")
+                digests[relative_name] = digest.hexdigest()
             for raw_name, value in sorted(extras.items()):
                 relative = self._safe_relative_path(raw_name)
                 if relative.as_posix() in digests:

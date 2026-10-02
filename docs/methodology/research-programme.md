@@ -446,20 +446,19 @@ write temporary
 
 and compound temporary replacements fsync their payload before replacement.
 
-#### Remaining work
+#### Validation and limits
 
-Add systematic power-loss/fault-injection coverage at each meaningful boundary:
+The integrity suite injects failures before and during writes, around file
+`fsync`, before and after replacement, and around directory `fsync`. It covers
+both direct durable writes and compound replacements. The multi-file generation
+sample additionally injects failure during payload writing and around file and
+directory `fsync`, then reopens the store and verifies that the previous
+complete generation remains current; publication-boundary tests verify that
+the new generation is either absent or fully valid.
 
-```text
-before write
-during write
-before file fsync
-after file fsync
-before replace
-after replace
-before directory fsync
-during directory fsync
-```
+These are deterministic process-level fault simulations. They do not claim
+hardware power-cut testing or certify behavior for every filesystem and storage
+device.
 
 #### A1 acceptance
 
@@ -577,7 +576,7 @@ environment.
 
 ### A4 — Generational scientific commits
 
-**Status:** IMPLEMENTED for the governed run path — awaiting owner closure.
+**Status:** CLOSED for governed run publication by owner decision on 2026-10-02.
 In-run checkpoints are not covered (ADR-0061).
 
 A transactional `GenerationStore` implements immutable `generation-N`
@@ -597,9 +596,9 @@ generation, so the acceptance criterion below is met as "nothing or the complete
 run", not as a sequence of generations inside a run.
 
 Atomic files are insufficient when one scientific state consists of multiple
-files.
-
-A run or checkpoint generation must become visible as one committed generation.
+files. Under the accepted ADR-0061 scope, one governed run becomes visible as
+one committed generation. In-run checkpoint generations remain an explicit
+exclusion and are not claimed as covered by this closure.
 
 Target pattern:
 
@@ -618,10 +617,11 @@ CURRENT -> generation-000042
 
 Consumers must only open committed generations.
 
-#### A4 acceptance
+#### A4 acceptance (governed run scope)
 
-Crash injection must leave either generation `N` or generation `N+1`
-fully valid.
+Crash injection while committing a run must leave either no visible result, the
+previous committed generation, or the complete new generation. A mixed or
+digest-invalid generation must never be accepted.
 
 Mixed generations are invalid.
 
