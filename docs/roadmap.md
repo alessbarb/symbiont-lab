@@ -164,10 +164,9 @@ of the `observatory` package into `symbiont_lab.cli`; a test fails if any
 manifest that cannot be written is reported and fails the launcher's exit code
 after the organism has been saved, instead of being swallowed.
 
-**Follow-up (open, owner):** `governance/validation-matrix.toml` maps only
-`observatory/**` to the Observatory CI lane, so a change limited to
-`src/symbiont_lab/cli/observed_*.py` does not select it. The launcher contract is
-also tested under `tests/unit/lab/`; extending the matrix is a governance edit.
+The moved launchers select the Observatory CI lane through
+`governance/validation-matrix.toml`, and ADR-0018 carries an amendment naming
+their new location.
 
 ### WORLD-1 — World responsibility map
 
