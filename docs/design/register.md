@@ -1,8 +1,8 @@
 # Design Status Register
 
 **Authority:** canonical register for the lifecycle and implementation status of
-design documents under `docs/design/`.  
-**Last triaged:** 2026-10-01.  
+design documents under `docs/design/`.
+**Last triaged:** 2026-10-02.
 **Owner:** Project owner.
 
 This register exists so design proposals remain discoverable without changing
@@ -110,16 +110,16 @@ partial implementation is not retroactively treated as approved.
 | [Promotion Stability v1](core/promotion-stability-v1.md) | Proposed | On hold | Design phase; confirmation and P5.2 paused until P0/P1 close. |
 | [Simulation Throughput v1](core/simulation-throughput-v1.md) | Reviewed | Partial | Owner decisions approve only stated bounded levels; do not infer approval for every proposed level or causal optimization. |
 | [Social Epistemology Ownership v1](core/social-epistemology-ownership-v1.md) | Proposed | Implemented | ARCH-1 consumer/ownership matrix. Owner decision of 2026-10-02: Option A, the modeled ledger is the single canonical owner in the organism runtime; implemented. The fate of the legacy envelope transport is recorded as open. |
-| [Embodiment Epoch Summary v1](embodiment/embodiment-epoch-summary-v1.md) | Proposed | Partial | Proposed observer/persistence contract; code overlap is not proof that the full contract is adopted. |
-| [Embodiment Memory v1](embodiment/embodiment-memory-v1.md) | Proposed | Not started | Proposed canonical architecture; owner acceptance and implementation mapping are not recorded. |
+| [Embodiment Epoch Summary v1](embodiment/embodiment-epoch-summary-v1.md) | Proposed | Partial | Active observational-contract delta over Embodiment v2; two runtime-specific summary stores remain distinct. Semantics, retention, provenance, and no-leakage acceptance are specified as residual work; no runtime change or experiment authorization. |
+| [Embodiment Memory v1](embodiment/embodiment-memory-v1.md) | Superseded | Partial | Active architecture replaced by Embodiment v2; legacy `embodiment_memory` is a one-way migration input only. This does not establish useful transfer or satisfy every historical proposal. |
 | [Embodiment v2](embodiment/embodiment-v2.md) | Reviewed | Implemented | Document says implemented on `main`; preserve distinction between implementation and scientific acceptance. |
 | [Living Body P0](embodiment/living-body-p0.md) | Reviewed | In progress | L1–L4 complete and L5 mechanism implemented; validation remains pending per document. |
 | [Longitudinal Re-embodiment Implementation Plan](embodiment/longitudinal-reembodiment-implementation-plan.md) | Reviewed | Partial | Plan says implementation-ready; implementation exists in the repository, but this triage does not claim every plan item closed. Reconcile against current code before further work. |
-| [Longitudinal Re-embodiment v1](embodiment/longitudinal-reembodiment-v1.md) | Proposed | Partial | Proposed canonical direction; code now preserves longitudinal identity, but design adoption/transfer advantage is not established here. |
+| [Longitudinal Re-embodiment v1](embodiment/longitudinal-reembodiment-v1.md) | Proposed | Partial | Active only for residual scientific questions; architecture/mechanical continuity is covered by Embodiment v2 and Longitudinal Integrity v1. No functional-transfer claim or experiment authorization. |
 | [Longitudinal Integrity v1](core/longitudinal-integrity-v1.md) | Closed | Implemented | Owner closed the gate positively on 2026-10-02: mechanical longitudinal continuity established within the documented scope. Focused validation: 280 passed; no future-state equivalence, historical pre-schema-11 identity, functional transfer, or scientific-value claim. |
 | [Perception and Embodiment](embodiment/perception-and-embodiment.md) | Reviewed | Implemented | Document records design closure and bounded implementation/test evidence; no extension beyond that evidence. |
 | [Physics3D Embodiment v0](embodiment/physics3d-embodiment-v0.md) | Reviewed | Implemented | Document identifies canonical-runtime integration as implemented. |
-| [Symbiont Body Temporal Separation v1](embodiment/symbiont-body-temporal-separation-v1.md) | Proposed | Partial | Proposed canonical architecture; longitudinal split is present in current design/code, but formal adoption status is not established by the document. |
+| [Symbiont Body Temporal Separation v1](embodiment/symbiont-body-temporal-separation-v1.md) | Superseded | Partial | Architectural/mechanical contract replaced by Embodiment v2 and Longitudinal Integrity v1. Historical rationale retained; no scientific conclusion is implied. |
 | [Adaptive Sensory Specialisation Experiments](experimentation/adaptive-sensory-specialisation-experiments.md) | Proposed | Not started | Preregistration design; no executed or accepted result inferred. |
 | [Experimental Decontamination P0](experimentation/experimental-decontamination-p0.md) | Reviewed | Implemented | Document reports implementation; extended by P1. |
 | [Experimental Decontamination P1](experimentation/experimental-decontamination-p1.md) | Reviewed | Implemented | Document reports implementation; extended by P2. |

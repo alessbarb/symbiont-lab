@@ -3,14 +3,16 @@ id: design.embodiment.embodiment-memory-v1
 title: "Embodiment Memory V1"
 document_type: design
 domain: embodiment
-status: unclassified
+status: superseded
 canonical: false
-implementation_status: unknown
+implementation_status: partial
 migrated_on: 2026-09-25
-last_reviewed: null
+last_reviewed: 2026-10-02
 language: en
 ---
 # Spec — Embodiment Memory v1
+
+> **Superseded as active architecture** by [Embodiment v2](embodiment-v2.md). The old `embodiment_memory` representation is a one-way legacy migration input only; the active model is `EmbodimentArchive`, `BodySpecificMemory`, and `EmbodimentPrior`. This architectural replacement does not claim that every proposal below was implemented, that re-access is useful, or that transfer advantage was demonstrated. The original rationale is retained for provenance.
 
 Status: **proposed canonical architecture**.
 
