@@ -1,11 +1,11 @@
 ---
 id: design.experimentation.reembodiment-functional-transfer-v1
-title: "Re-embodiment Functional Transfer v1 — Preregistration Draft"
+title: "Re-embodiment Functional Transfer v1 — Frozen Preregistration"
 document_type: design
 domain: experimentation
-status: proposed
+status: approved
 canonical: false
-implementation_status: not-started
+implementation_status: in-progress
 date: 2026-10-02
 depends_on:
   - docs/design/core/longitudinal-integrity-v1.md
@@ -13,11 +13,14 @@ depends_on:
 language: en
 ---
 
-# Re-embodiment Functional Transfer v1 — Preregistration Draft
+# Re-embodiment Functional Transfer v1 — Frozen Preregistration
 
-**Status:** preregistration **draft for owner review**. Not approved, not
-registered, not scheduled. No `experiments/` entry, protocol or runner exists
-for it, and this document authorizes none.
+**Status:** **approved and frozen (r5, 2026-10-02)**. The owner approved the
+synthetic causal Body, the proposed numbers and the seed lists, with two changes
+recorded in §10.2. Regime: **confirmatory**. The apparatus, protocol record and
+contract tests exist; **no development or confirmation seed has been run**.
+Nothing in this document may change after the first confirmation run starts;
+any change before then is a new revision.
 
 **Roadmap item:** first "evidence follow-up after integrity remediation" —
 *functional transfer advantage after re-embodiment*
@@ -152,7 +155,8 @@ by a regression test: ten recorded agency-acquisition experiments use this Body.
 
 Seeds are fixed in this document and are not chosen after any run.
 
-- Development: `101, 127, 149`.
+- Development: `101, 131, 149`. Seed 127 was used for the exploratory
+  observation of §10.1.1 and is excluded from both lists (r5).
 - Confirmation: `173, 211, 257, 307, 353, 401, 457, 503, 557, 601, 653, 701`.
 
 Each confirmation seed is run for all three arms at all three relation levels
@@ -165,15 +169,12 @@ Both horizons are computed by rule from the development seeds. Nobody chooses
 them, and neither rule looks at arm T.
 
 - **`D`** — the smallest multiple of 100 ticks, up to `D_max = 1000`, at which
-  all three development organisms in source Body A hold at least one `VALID`
-  execution binding and meet the reacclimation-completion criteria of §5. If
-  that does not happen by `D_max`, the study is **not runnable** and is
-  reported as such.
-- **`H`** — twice the median M1 of **arm N at R1** over the three development
-  seeds, rounded up to a multiple of 50 ticks, capped at `H_max = D`. If arm N
-  fails to reach M1 within `H_max` on two or more development seeds, the
-  milestone is unreachable in the target Body and the study is **not
-  runnable**.
+  every development organism holds at least one `VALID` execution binding in
+  every source Body of the family (the R1, R2 and R3 sources and the sham
+  Body). If that does not happen by `D_max`, the study is **not runnable** and
+  is reported as such.
+- **`H`** — equal to `D` (r5). The earlier rule tied `H` to the naive arm, which
+  would right-censor a slower treatment arm and hide how much slower it is.
 
 `D`, `H`, the Body family and the swap order of §4.2.1 are written into the
 experiment record before the first confirmation run and are not revised.
@@ -215,12 +216,12 @@ excess** at a level if the median of `rho` over the 12 seeds is greater than
 transfer** and does not support the claim. The 1.20 margin is fixed here and is
 not revisited after the confirmation runs.
 
-Secondary, using the existing `EmbodimentAdaptation` convergence criteria
-unchanged (causal confidence ≥ 0.45, controllability ≥ 0.35, schema uncertainty
-≤ 0.35, prediction shock ≤ 0.20):
-
-- **M2** — ticks to reacclimation completion.
-- **M3** — ticks to causal confidence ≥ 0.45.
+Secondary measures M2 (ticks to reacclimation completion) and M3 (ticks to
+causal confidence ≥ 0.45) were defined on `EmbodimentAdaptation`, which is
+tracked by the `EmbodimentEpisode` of the Physics3D apparatus. The synthetic
+causal Body has no such episode, so **M2 and M3 are not measured in this
+experiment (r5)**. They were secondary and could neither rescue nor strengthen
+the confirmatory claim; nothing replaces them.
 
 Descriptive only: number of valid bindings at `H`, actuations before M1,
 cumulative metabolic cost in B, number of Body A competences revalidated versus
@@ -418,6 +419,18 @@ identical to the source, could be built):
 
 ## 10.2 Revision history
 
+- **r5, 2026-10-02 — approved and frozen.** Owner decisions: apparatus is the
+  synthetic causal Body; the proposed numbers stand (20% reduction, ±10%
+  practical-null margin, 1.20 activity-rate ratio, 15% Body-difficulty spread,
+  `D_max = 1000`, 10 of 12); development seed 127 is replaced by 131; `H = D`.
+  Forced by the approved apparatus and recorded before any run: M2 and M3 are
+  not measured (§5); the `D` rule requires a `VALID` binding in every source
+  Body and no longer refers to reacclimation-completion criteria (§4.5); the
+  Body family is realised with four actuators as the identity mapping (target),
+  a mapping sharing two pairs, and two mappings sharing none (§4.2.1). The draft
+  record of §8 is superseded by
+  `experiments/embodiment/reembodiment-functional-transfer-v1/experiment.toml`.
+
 - **r4, 2026-10-02.** Apparatus facts checked against the code: Bodies A, A′
   and B must share one construction seed and shape and differ only in a
   seed-independent mapping; the fingerprint sub-criterion of M1 is vacuous
@@ -440,9 +453,29 @@ identical to the source, could be built):
   against an activity explanation; one conjunctive confirmatory claim replaces
   per-level claims.
 
-## 11. What approval would start
+## 10.3 Known property of the practical-null criterion
 
-On approval: freeze this document, add the protocol and `experiment.toml`, add
-the runner and its mechanical contract tests under `tests/experiments/`, run the
-development seeds, fix `D` and `H`, and only then run the confirmation seeds.
-None of that exists or is started by this draft.
+Recorded while writing the contract tests, before any run: the criterion of §7.1
+is stated on the median paired reduction and on seed counts. A level in which
+half the seeds are much earlier and half much later therefore has a median
+reduction near zero, neither arm wins ten seeds, and it is classified as
+practically null although the per-seed effects are large and opposite. The rule
+is not changed. If a level shows that pattern, the report must say so and show
+the per-seed values next to the classification.
+
+## 11. Execution
+
+Implemented: `symbiont_lab.studies.embodiment.reembodiment_functional_transfer`,
+the experiment record, and the contract tests in
+`tests/experiments/protocols/test_reembodiment_functional_transfer_protocol.py`.
+
+Order, each step a governed run through `agentctl run start`:
+
+1. development stage on seeds 101, 131 and 149: Body-difficulty check and the
+   rule for `D`; the result is committed as `horizons.json`. If the family is
+   outside the 15% spread or `D` is not reached, the study is not runnable and
+   that is the recorded result;
+2. confirmation stage on the twelve confirmation seeds, three relation levels,
+   three arms (108 runs);
+3. the preregistered decision rule is applied as implemented; no measure,
+   threshold, margin, seed or exclusion is added.

@@ -1,0 +1,56 @@
+schema_version = 1
+
+[experiment]
+id = "embodiment.reembodiment-functional-transfer-v1"
+title = "Re-embodiment Functional Transfer v1"
+protocol = "embodiment.reembodiment-functional-transfer"
+protocol_version = 1
+hypothesis = """
+H1: an organism developed in a source Body reaches its first valid execution
+binding in a new target Body sooner than an equally old organism developed in an
+unrelated Body and than a restored newborn, and the advantage decreases with the
+number of actuator-to-receptor pairs the source Body shares with the target.
+"""
+success_criteria = """
+One conjunctive confirmatory claim: advantage at same_structure (the same seed
+beats both controls in at least 10 of 12 seeds and the median paired reduction
+against the sham arm is at least 0.20), ordered median reductions
+same_structure >= partial >= unrelated, the unrelated level meets the
+practical-null criterion (median reduction within +/-0.10 and neither arm earlier
+in 10 or more seeds), and no activity excess at same_structure. Any other
+preregistered outcome, including negative transfer, is a valid result and is
+recorded without changing a threshold.
+"""
+notes = """
+Frozen protocol: docs/design/experimentation/reembodiment-functional-transfer-v1.md
+(r5). Development ticks D and measurement ticks H are fixed by rule on the
+development seeds and written to horizons.json before any confirmation seed is
+run. Scientific runs go through agentctl run start.
+"""
+
+[design]
+seeds = [173, 211, 257, 307, 353, 401, 457, 503, 557, 601, 653, 701]
+
+[transfer]
+development_seeds = [101, 131, 149]
+arms = ["transfer", "sham_experience", "naive"]
+relations = ["same_structure", "partial", "unrelated"]
+shared_pairs = { same_structure = 4, partial = 2, unrelated = 0 }
+sham_shared_pairs = 0
+swap_unrelated_source_on_alternate_seeds = true
+naive_arm_is_restored = true
+private_model_bridge = false
+actuators = 4
+development_ticks_rule = "smallest multiple of 100 <= 1000 at which every development organism holds a VALID binding in every source Body"
+measurement_ticks_rule = "equal to development ticks"
+max_body_difficulty_spread = 0.15
+primary_metric = "ticks_to_first_valid_binding_acquired_in_target_body"
+min_seeds_improved = 10
+min_median_paired_reduction = 0.20
+practical_null_margin = 0.10
+max_activity_rate_ratio = 1.20
+max_contaminated_seeds = 2
+
+[output]
+save_trace = false
+save_summary = true

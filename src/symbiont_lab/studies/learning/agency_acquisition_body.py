@@ -87,6 +87,7 @@ class CausalBody:
         inert_actuator_count: int = 0,
         receptors_per_actuator: int = 1,
         drifting_receptor_count: int = 0,
+        actuator_mapping: tuple[int, ...] | None = None,
     ) -> None:
         if actuator_count < 1:
             raise ValueError("a causal body needs at least one actuator")
@@ -96,6 +97,17 @@ class CausalBody:
             raise ValueError("receptors_per_actuator must be within [1, 4]")
         if drifting_receptor_count < 0:
             raise ValueError("drifting_receptor_count must be non-negative")
+        if actuator_mapping is not None:
+            # Which receptor group each functional actuator drives, independent
+            # of the construction seed: two bodies with the same seed and shape
+            # share every identifier and differ only in this bijection.
+            if sorted(actuator_mapping) != list(range(int(actuator_count))):
+                raise ValueError(
+                    "actuator_mapping must be a permutation of the functional actuators"
+                )
+            if BodyCondition(condition) is BodyCondition.PERMUTED:
+                raise ValueError("actuator_mapping cannot be combined with the PERMUTED condition")
+        self.actuator_mapping = None if actuator_mapping is None else tuple(actuator_mapping)
         self.receptors_per_actuator = int(receptors_per_actuator)
         self.drifting_count = int(drifting_receptor_count)
         self.seed = int(seed)
@@ -136,6 +148,8 @@ class CausalBody:
             return ()
         if self.condition is BodyCondition.PERMUTED:
             index = (index + 1) % count
+        elif self.actuator_mapping is not None:
+            index = self.actuator_mapping[index]
         k = self.receptors_per_actuator
         return self.receptor_ids[index * k : index * k + k]
 
@@ -155,6 +169,8 @@ class CausalBody:
         )
 
     def set_condition(self, condition: BodyCondition) -> None:
+        if self.actuator_mapping is not None and BodyCondition(condition) is BodyCondition.PERMUTED:
+            raise ValueError("actuator_mapping cannot be combined with the PERMUTED condition")
         self.condition = BodyCondition(condition)
 
     # -- physics ---------------------------------------------------------------
