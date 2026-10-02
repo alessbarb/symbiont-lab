@@ -57,6 +57,7 @@ from ...host.checkpoint import (
     checkpoint_state_hash,
     export_checkpoint,
     import_checkpoint,
+    lineage_history,
     load_checkpoint_file,
     normalize_checkpoint,
     require_current_schema_fields,
@@ -476,6 +477,7 @@ class OrganismRuntime:
         self._lifecycle_domain = LifecycleDomain()
         self._generation = generation
         self._last_checkpoint_hash: str | None = None
+        self._lineage_history: dict[str, Any] = {}
         self._social_exchange_quantum = float(social_exchange_quantum)
         self._social_exchange_cost = float(social_exchange_cost)
         self._resting_requested = bool(resting_requested)
@@ -2528,6 +2530,7 @@ class OrganismRuntime:
             "parent_checkpoint_hash": self._last_checkpoint_hash,
             "identity_scope": IDENTITY_SCOPE,
             "schema_version": CHECKPOINT_SCHEMA_VERSION,
+            **deepcopy(self._lineage_history),
         }
         if advance_lineage:
             self._last_checkpoint_hash = state_hash
@@ -3287,6 +3290,9 @@ class OrganismRuntime:
         runtime._first_concept_emitted = raw_first_events.get("concept", False)
         runtime._first_prediction_emitted = raw_first_events.get("prediction", False)
 
+        # Authorized transforms and an unverified legacy ancestor are facts
+        # about this organism's history: every later save keeps them.
+        runtime._lineage_history = lineage_history(normalized)
         raw_lineage = normalized.get("checkpoint_lineage")
         if raw_lineage is not None:
             if not isinstance(raw_lineage, dict) or not isinstance(

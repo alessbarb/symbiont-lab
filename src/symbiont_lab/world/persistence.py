@@ -1,4 +1,4 @@
-"""Durable world persistence and atomic checkpointing (docs/design/symbiont-world-v3.md §6, §7, §8, §37).
+"""Durable world persistence and atomic checkpointing (docs/design/world/symbiont-world-v3.md §6, §7, §8, §37).
 
 Guarantees:
 1. Complete universe state is captured in PersistentWorldCheckpoint.

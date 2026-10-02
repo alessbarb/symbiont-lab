@@ -1,4 +1,4 @@
-"""W1 local observation pipeline (docs/design/symbiont-world-v1.md §12.1).
+"""W1 local observation pipeline (docs/design/archive/symbiont-world-v1.md §12.1).
 
 No real fields/resources exist yet (deferred to W2's Genesis ground truth).
 This only exercises ObservableSource -> WorldObservation end to end with a

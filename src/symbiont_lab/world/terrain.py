@@ -1,4 +1,4 @@
-"""Dynamic Geography & Rich Terrain for Symbiont World v4 (docs/design/symbiont-world-v4.md §2).
+"""Dynamic Geography & Rich Terrain for Symbiont World v4 (docs/design/world/symbiont-world-v4.md §2).
 
 Provides continuous terrain topography (elevation, permeability, moisture,
 temperature, fertility) and dynamic ecological state (disturbance, decaying organism traces).

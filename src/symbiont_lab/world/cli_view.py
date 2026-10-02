@@ -61,7 +61,7 @@ def world_snapshot(
 ) -> dict:
     """Structured, JSON-serializable read of the world state for Observatory.
     Includes geography of all cells, real local hazard exposures, and rich organism
-    telemetry without breaking read-only discipline (docs/design/symbiont-world-v3.md §16-26)."""
+    telemetry without breaking read-only discipline (docs/design/world/symbiont-world-v3.md §16-26)."""
     occupied = state.occupancy.snapshot()
 
     organisms = []

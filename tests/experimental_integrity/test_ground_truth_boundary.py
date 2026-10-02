@@ -62,7 +62,7 @@ def test_cognition_never_imports_symbiont_lab():
 
 
 def test_symbiont_never_imports_symbiont_world():
-    """docs/design/symbiont-world-v1.md §2: the organism keeps receiving
+    """docs/design/archive/symbiont-world-v1.md §2: the organism keeps receiving
     only normalized readings via source -> sensor -> percept; it never
     imports symbiont_world directly."""
     repo_root = Path(__file__).resolve().parents[2]
@@ -89,7 +89,7 @@ def test_symbiont_never_imports_symbiont_world():
 
 
 def test_symbiont_world_imports_nothing_from_this_repo():
-    """docs/design/symbiont-world-v1.md §2: symbiont_world imports neither
+    """docs/design/archive/symbiont-world-v1.md §2: symbiont_world imports neither
     symbiont nor symbiont_lab. symbiont_lab is the only adapter that
     crosses the boundary in both directions."""
     repo_root = Path(__file__).resolve().parents[2]

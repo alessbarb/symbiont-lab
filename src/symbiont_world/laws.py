@@ -1,4 +1,4 @@
-"""Generic, domain-name-free dynamics laws (docs/design/symbiont-world-v1.md
+"""Generic, domain-name-free dynamics laws (docs/design/archive/symbiont-world-v1.md
 §13). Numeric parameters only -- no field/resource ever carries a domain
 label such as "temperature" or "food" inside symbiont_world.
 """

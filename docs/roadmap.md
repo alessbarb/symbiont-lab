@@ -124,6 +124,59 @@ unambiguous terms for:
 Code identified as superseded or dead during the audit should be removed only
 after consumer searches and tests prove it is no longer authoritative.
 
+## Current-state audit follow-up workstreams
+
+A second audit on 2026-10-02, taken at `main@2ac4296d` after the longitudinal
+remediation, found that the remaining risk is no longer loss of state but more
+than one operational definition of what belongs to the organism. Its findings
+record is
+[research/audits/current/2026-10-02-current-state-architecture-audit.md](../research/audits/current/2026-10-02-current-state-architecture-audit.md),
+which also carries the resolution record per finding.
+
+### LC-1 — Lifecycle continuity contract
+
+**Status:** IMPLEMENTED — awaiting owner review. Owner decisions listed in the
+record remain open.
+
+**Record:**
+[design/core/lifecycle-continuity-contract-v1.md](design/core/lifecycle-continuity-contract-v1.md).
+
+Covers audit findings F-01, F-04, F-05 and F-06:
+
+- one table of lifecycle operations against the executable continuity registers;
+- the reduced seed's transplant semantics declared per attribute, with the
+  attributes where it diverges from canonical re-embodiment pinned by a test;
+- authorized transforms and an unverified legacy origin carried in the lineage
+  of every later save;
+- one owner-facing restore path for every runtime layer;
+- a whole-lifecycle test per register entry.
+
+Whether the two transplant semantics converge, and whether unverified legacy
+checkpoints stop being accepted, are owner decisions and are not made here.
+
+### OBS-1 — Observatory is passive by construction
+
+**Status:** IMPLEMENTED — awaiting owner review.
+
+Covers audit findings F-07 and F-08. The resident and replay launchers moved out
+of the `observatory` package into `symbiont_lab.cli`; a test fails if any
+`observatory` module constructs, restores or drives an organism. A capture
+manifest that cannot be written is reported and fails the launcher's exit code
+after the organism has been saved, instead of being swallowed.
+
+### WORLD-1 — World responsibility map
+
+**Status:** RECORDED — inventory complete; owner decisions pending.
+
+**Record:**
+[design/world/world-responsibility-map-v1.md](design/world/world-responsibility-map-v1.md).
+
+Covers audit finding F-09. Every environment family is listed with its owning
+layer, role, consumers and state. The map removes nothing. Relocation of the
+habitat classes, the status of Physics3D surroundings, retirement of the two
+legacy environments and the reserved meaning of "World" are owner decisions. The
+World programme stays maintenance-only.
+
 ## Evidence follow-ups after integrity remediation
 
 These are not opened or authorized experiments by this roadmap. They are

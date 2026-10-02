@@ -1,4 +1,9 @@
-"""Run a resident Symbiont and emit passive Observatory snapshot envelopes."""
+"""Launch a resident Symbiont and publish its ticks to the passive Observatory.
+
+This module owns the organism: it constructs or restores the runtime, drives
+it, and optionally trains its private model. The ``observatory`` package only
+projects and serves what is published here; it never constructs a runtime.
+"""
 
 from __future__ import annotations
 
@@ -11,24 +16,24 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-try:  # Package invocation: ``python -m observatory.resident``.
-    from .adapter import BODY_SCHEMA_SNAPSHOT_VERSION, envelope, project_tick, project_topology
-    from .manifest import create_capture_manifest, write_capture_manifest
-    from .provenance import build_observer_provenance
-    from .publisher import JournalSink, Sink, SnapshotPublisher, StdoutSink
-    from .registry import derive_instance_id, new_run_id, write_heartbeat
-except ImportError:  # Direct script invocation remains a documented interface.
-    from adapter import BODY_SCHEMA_SNAPSHOT_VERSION, envelope, project_tick, project_topology
-    from manifest import create_capture_manifest, write_capture_manifest
-    from provenance import build_observer_provenance
-    from publisher import JournalSink, Sink, SnapshotPublisher, StdoutSink
-    from registry import derive_instance_id, new_run_id, write_heartbeat
-
+from observatory.adapter import (
+    BODY_SCHEMA_SNAPSHOT_VERSION,
+    envelope,
+    project_tick,
+    project_topology,
+)
+from observatory.manifest import create_capture_manifest, write_capture_manifest
+from observatory.provenance import build_observer_provenance
+from observatory.publisher import JournalSink, Sink, SnapshotPublisher, StdoutSink
+from observatory.registry import derive_instance_id, new_run_id, write_heartbeat
 from symbiont.host.durable import (
     durable_atomic_write,
     durable_atomic_write_json,
     ensure_secure_file_permissions,
 )
+
+# Bound of the closed snapshot contract for a published error message.
+_MAX_ERROR_TEXT = 512
 
 
 def _rounded(value: float | None) -> float | None:
@@ -99,16 +104,12 @@ def _load_first_launch_cognition(args: argparse.Namespace, runtime_kwargs: dict)
 
 
 def main(argv: list[str] | None = None) -> int:
+    from observatory.config import DEFAULT_OBSERVATORY_DIR
     from symbiont.core.runtime_defaults import (
         DEFAULT_CHECKPOINT_TICKS,
         DEFAULT_STATE_FILE,
         DEFAULT_TICK_INTERVAL_SECONDS,
     )
-
-    try:
-        from .config import DEFAULT_OBSERVATORY_DIR
-    except ImportError:
-        from config import DEFAULT_OBSERVATORY_DIR
 
     parser = argparse.ArgumentParser(
         description="Stream a resident self-discovering Symbiont to Observatory"
@@ -188,55 +189,21 @@ def main(argv: list[str] | None = None) -> int:
     if args.sensory_plasticity:
         runtime_kwargs["sensory_plasticity"] = True
     existing_payload = load_checkpoint_file(args.state_file)
+    runtime_class: type[OrganismRuntime] = OrganismRuntime
     if args.enable_slm:
-        from symbiont.cognition.birth import load_base_cognition
-        from symbiont.cognition.checkpoint import export_genome_checkpoint
-        from symbiont.cognition.limits import KernelLimits
-        from symbiont.core.cognition.bridge import CognitiveBridge
-        from symbiont.core.orchestration.canonical_birth import _running_version
-        from symbiont.host.checkpoint import (
-            normalize_checkpoint,
-            stamp_checkpoint_identity,
-            verify_checkpoint_identity,
-        )
         from symbiont.modeling.private_runtime import PrivateModelOrganismRuntime
 
-        if existing_payload is None:
-            try:
-                _load_first_launch_cognition(args, runtime_kwargs)
-            except (OSError, ValueError, json.JSONDecodeError) as exc:
-                parser.error(str(exc))
-            runtime = PrivateModelOrganismRuntime(**runtime_kwargs)
-        else:
-            verify_checkpoint_identity(existing_payload)
-            normalized = normalize_checkpoint(existing_payload)
-            if normalized.get("genome") is None:
-                kernel_limits = runtime_kwargs.get("kernel_limits") or KernelLimits()
-                genome, graph = load_base_cognition(
-                    kernel_limits=kernel_limits,
-                    running_version=_running_version(),
-                )
-                bridge = CognitiveBridge(
-                    graph=graph,
-                    genome=genome,
-                    kernel_limits=kernel_limits,
-                )
-                normalized["genome"] = export_genome_checkpoint(genome)
-                normalized["cognitive_bridge"] = bridge.export_checkpoint()
-                normalized = stamp_checkpoint_identity(
-                    normalized, transform="canonical-cognition-adoption"
-                )
-                runtime_kwargs["kernel_limits"] = kernel_limits
-            runtime = PrivateModelOrganismRuntime.from_checkpoint(normalized, **runtime_kwargs)
+        runtime_class = PrivateModelOrganismRuntime
+    if existing_payload is None:
+        try:
+            _load_first_launch_cognition(args, runtime_kwargs)
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            parser.error(str(exc))
+        runtime = runtime_class(**runtime_kwargs)
     else:
-        if existing_payload is None:
-            try:
-                _load_first_launch_cognition(args, runtime_kwargs)
-            except (OSError, ValueError, json.JSONDecodeError) as exc:
-                parser.error(str(exc))
-            runtime = OrganismRuntime(**runtime_kwargs)
-        else:
-            runtime = restore_resident_with_canonical_cognition(existing_payload, **runtime_kwargs)
+        runtime = restore_resident_with_canonical_cognition(
+            existing_payload, runtime_class=runtime_class, **runtime_kwargs
+        )
 
     resolved_state_file = str(Path(args.state_file).expanduser().resolve())
     instance_id = derive_instance_id(resolved_state_file)
@@ -255,7 +222,13 @@ def main(argv: list[str] | None = None) -> int:
 
     manifest_path = Path(args.observatory_dir) / "manifests" / f"{instance_id}.manifest.json"
 
+    manifest_failure: list[str] = []
+
     def sync_manifest() -> None:
+        # An observer failure must not take over the organism's lifecycle, and
+        # it must not vanish either: a capture without its manifest is
+        # incomplete evidence, so the failure is reported and fails the run.
+        manifest_failure.clear()
         try:
             manifest = create_capture_manifest(
                 organism_id=runtime.organism_id,
@@ -271,8 +244,12 @@ def main(argv: list[str] | None = None) -> int:
                 effective_config=runtime.effective_configuration(),
             )
             write_capture_manifest(manifest_path, manifest)
-        except Exception:
-            pass
+        except Exception as exc:
+            manifest_failure.append(f"{exc.__class__.__name__}: {exc}")
+            print(
+                f"error: capture manifest not written to '{manifest_path}': {manifest_failure[0]}",
+                file=sys.stderr,
+            )
 
     key_file = Path(args.state_file).with_suffix(".key")
     if key_file.is_file():
@@ -443,13 +420,13 @@ def main(argv: list[str] | None = None) -> int:
                     except Exception as exc:
                         slm_status["available"] = False
                         slm_status["last_error_class"] = exc.__class__.__name__
-                        slm_status["last_error"] = str(exc)
+                        slm_status["last_error"] = str(exc)[:_MAX_ERROR_TEXT]
         except Exception as exc:
             slm_factory = None
             slm_store = None
             slm_status["available"] = False
             slm_status["last_error_class"] = exc.__class__.__name__
-            slm_status["last_error"] = str(exc)
+            slm_status["last_error"] = str(exc)[:_MAX_ERROR_TEXT]
 
     def step_slm_training(current_tick: int) -> None:
         if slm_factory is None or slm_store is None:
@@ -498,7 +475,7 @@ def main(argv: list[str] | None = None) -> int:
             slm_status["available"] = False
             slm_status["consecutive_failures"] += 1
             slm_status["last_error_class"] = exc.__class__.__name__
-            slm_status["last_error"] = str(exc)
+            slm_status["last_error"] = str(exc)[:_MAX_ERROR_TEXT]
 
     def on_checkpoint_hook() -> None:
         if args.enable_slm:
@@ -529,7 +506,7 @@ def main(argv: list[str] | None = None) -> int:
     resident.run()
     journal_sink.finalize()
     sync_manifest()
-    return 0
+    return 1 if manifest_failure else 0
 
 
 if __name__ == "__main__":

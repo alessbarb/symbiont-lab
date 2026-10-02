@@ -1,4 +1,4 @@
-"""symbiont_lab <-> symbiont_world adapter layer (docs/design/symbiont-world-v1.md §2).
+"""symbiont_lab <-> symbiont_world adapter layer (docs/design/archive/symbiont-world-v1.md §2).
 
 The only package allowed to know what a field/resource/hazard means, and
 the only package that imports both symbiont_world and symbiont.

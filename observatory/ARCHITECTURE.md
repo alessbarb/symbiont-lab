@@ -10,8 +10,11 @@ Observatory's authority. The Observatory remains a passive, read-only apparatus.
 - `state/` owns browser-local state and selectors.
 - `render/` owns DOM/SVG presentation and accessible inspectors.
 - `schemas/` closes the JSON wire contracts.
-- `adapter.py` is a finite runtime-to-replay projection; `resident.py` publishes
-  bounded artifacts; `server.py` is loopback-only static/SSE serving.
+- `adapter.py` is a tick-to-snapshot projection; `server.py` is loopback-only
+  static/SSE serving.
+- No module here constructs, restores or drives an organism. The launchers live in
+  the Lab (`symbiont_lab.cli.observed_resident`, `symbiont_lab.cli.observed_replay`)
+  and publish bounded artifacts through this package.
 - The organism checkpoint is not read by the browser server or Fleet transport.
 
 ## Current dependency shape
@@ -21,7 +24,7 @@ transport ──> projection ──> state
     │              │          │
     └──────────────┴──────> render ──> ui
 
-resident/adapter ──> bounded JSON artifacts ──> server ──> browser transport
+Lab launcher ──> adapter ──> bounded JSON artifacts ──> server ──> browser transport
 ```
 
 The application shell owns snapshot render cycles. Projection modules only normalize

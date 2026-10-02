@@ -26,6 +26,7 @@ CHECKPOINT_SCHEMA_VERSION = 11
 # identifier covered only the base runtime fields and was never checked.
 IDENTITY_VERIFIED_SINCE_SCHEMA = 11
 IDENTITY_SCOPE = "organism-state-v1"
+UNVERIFIED_LEGACY_ORIGIN = "unverified_legacy_origin"
 # Save-event metadata and embodiment history written around the organism
 # checkpoint by the embodiment apparatus are not organism state identity.
 _IDENTITY_EXCLUDED_FIELDS = frozenset(
@@ -447,6 +448,26 @@ def checkpoint_state_hash(payload: dict[str, Any]) -> str:
     return sha256(encoded.encode("utf-8")).hexdigest()
 
 
+def lineage_history(payload: dict[str, Any]) -> dict[str, Any]:
+    """The part of a checkpoint's lineage that every later save must carry.
+
+    ``transforms`` lists the authorized transforms the organism has been
+    through. ``unverified_legacy_origin`` records that some ancestor checkpoint
+    was accepted without a verifiable identity (schema 10 and earlier). Both are
+    facts about the organism's history, not about one save, so they outlive the
+    checkpoint that first recorded them instead of vanishing at the next save.
+    """
+    lineage = payload.get("checkpoint_lineage")
+    lineage = lineage if isinstance(lineage, dict) else {}
+    history: dict[str, Any] = {}
+    transforms = lineage.get("transforms")
+    if isinstance(transforms, list) and transforms:
+        history["transforms"] = [str(item) for item in transforms]
+    if lineage.get(UNVERIFIED_LEGACY_ORIGIN) is True or "identity_scope" not in lineage:
+        history[UNVERIFIED_LEGACY_ORIGIN] = True
+    return history
+
+
 def stamp_checkpoint_identity(payload: dict[str, Any], *, transform: str) -> dict[str, Any]:
     """Re-identify a checkpoint that an authorized transform has changed.
 
@@ -460,12 +481,13 @@ def stamp_checkpoint_identity(payload: dict[str, Any], *, transform: str) -> dic
     stamped = dict(payload)
     previous = stamped.get("checkpoint_lineage")
     previous = previous if isinstance(previous, dict) else {}
-    transforms = previous.get("transforms", [])
+    history = lineage_history(stamped)
     lineage: dict[str, Any] = {
         "checkpoint_id": checkpoint_state_hash(stamped),
         "parent_checkpoint_hash": previous.get("checkpoint_id"),
         "identity_scope": IDENTITY_SCOPE,
-        "transforms": [*(transforms if isinstance(transforms, list) else []), transform],
+        **history,
+        "transforms": [*history.get("transforms", []), transform],
     }
     # The schema the saving runtime declared travels with the state; a
     # transform never upgrades a legacy checkpoint to a current one.

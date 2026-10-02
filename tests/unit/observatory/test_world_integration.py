@@ -117,7 +117,7 @@ def test_unknown_path_returns_404(running_server):
 
 def test_server_has_no_post_handler():
     """No control surface: the handler class must not define do_POST or
-    any other mutating verb (docs/design/symbiont-world-v2.md §8)."""
+    any other mutating verb (docs/design/archive/symbiont-world-v2.md §8)."""
     from observatory.server import _Handler
 
     for verb in ("do_POST", "do_PUT", "do_DELETE", "do_PATCH"):

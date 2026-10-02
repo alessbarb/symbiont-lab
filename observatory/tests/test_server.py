@@ -11,6 +11,9 @@ from observatory.journal import Journal
 from observatory.registry import write_heartbeat
 from observatory.server import ObservatoryServer, _Handler
 
+OUTSIDE_STATIC_ROOT = "src/symbiont_lab/workbench/web/app.html"
+assert (Path(__file__).resolve().parents[2] / OUTSIDE_STATIC_ROOT).is_file()
+
 
 class ServerTests(unittest.TestCase):
     def _start_server(self, observatory_dir: Path) -> ObservatoryServer:
@@ -85,7 +88,10 @@ class ServerTests(unittest.TestCase):
             server = self._start_server(Path(directory))
             port = server.server_address[1]
             with self.assertRaises(urllib.error.HTTPError) as ctx:
-                urllib.request.urlopen(f"http://127.0.0.1:{port}/../resident.py", timeout=2)
+                # A real file with a served extension, so only the root check refuses it.
+                urllib.request.urlopen(
+                    f"http://127.0.0.1:{port}/../{OUTSIDE_STATIC_ROOT}", timeout=2
+                )
             self.assertEqual(ctx.exception.code, 404)
 
     def test_refuses_unknown_extensions(self):

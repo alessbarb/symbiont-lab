@@ -1,4 +1,4 @@
-"""Atomic multi-layer tick transaction (docs/design/symbiont-world-v3.md §4, §5).
+"""Atomic multi-layer tick transaction (docs/design/world/symbiont-world-v3.md §4, §5).
 
 Guarantees full commit-or-rollback across:
 1. WorldState (occupancy, bodies, tick)

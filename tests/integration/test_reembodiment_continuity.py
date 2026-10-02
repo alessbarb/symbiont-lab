@@ -217,3 +217,85 @@ def test_a_modified_reembodied_checkpoint_is_rejected(case: _Case) -> None:
 
     with pytest.raises(CheckpointError, match="does not match its recorded checkpoint_id"):
         case.restore(tampered)
+
+
+def _fields(reembodiment: Reembodiment) -> set[str]:
+    return {
+        field
+        for entry in REGISTER
+        if entry.reembodiment is reembodiment
+        for field in entry.checkpoint_fields
+    } - SAVE_METADATA
+
+
+def test_the_whole_lifecycle_holds_per_register_entry(case: _Case) -> None:
+    """state -> checkpoint -> restore -> checkpoint -> re-embodiment -> restore -> checkpoint.
+
+    Each step is checked against what the register declares for the field, not
+    against field presence: a restore that silently substituted a default, or a
+    re-embodiment that carried Body state across, fails here by name.
+    """
+    body_a = CausalBody(actuator_count=4, seed=127)
+    restarted = PrivateModelOrganismRuntime.from_checkpoint(
+        _json(case.previous),
+        host_lifecycle=subject_lifecycle(body_a),
+        host_reading_providers=(body_a,),
+        kernel_limits=KernelLimits(),
+        actuator_constitution_override=body_a.surface,
+        bootstrap_semantic_senses=False,
+        discover_senses=True,
+        min_samples=1,
+        interoception_mode="absent",
+    )
+    resaved = _json(restarted.checkpoint())
+
+    # Restore followed by save is lossless for every field the register owns.
+    assert {
+        field
+        for field in set(case.previous) - SAVE_METADATA
+        if resaved[field] != case.previous[field]
+    } == set()
+    assert (
+        resaved["checkpoint_lineage"]["parent_checkpoint_hash"]
+        == (case.previous["checkpoint_lineage"]["checkpoint_id"])
+    )
+
+    transformed = prepare_fresh_embodiment_checkpoint(
+        resaved,
+        case.fresh,
+        contract=PhysicsEmbodimentDescriptor(
+            body_kind="causal-body-b", receptor_count=6, effector_count=6
+        ),
+        canonical_contract_fingerprint=case.body_b.surface.contract_fingerprint,
+    )
+    reembodied = case.restore(transformed)
+    final = _json(reembodied.checkpoint())
+
+    preserved = _fields(Reembodiment.PRESERVED) & set(resaved)
+    invalidated = _fields(Reembodiment.INVALIDATED) & set(resaved)
+    # ``actuation`` carries both the domain (authority invalidated) and the new
+    # Body's enablement; the domain rule governs the field as a whole.
+    replaced = (_fields(Reembodiment.REPLACED) & set(resaved)) - invalidated
+    assert len(preserved) > 40 and replaced and invalidated
+
+    assert {field for field in preserved if final[field] != resaved[field]} <= {
+        "last_runtime_vital_state"
+    }
+    assert {field for field in replaced if final[field] != case.fresh[field]} == set()
+    assert invalidated == {"actuation", "executive_intention"}
+    # Knowledge is carried, authority is not: the action domain is neither the
+    # old Body's state nor a naive fresh one, and no intention is in flight.
+    assert final["actuation"] != resaved["actuation"]
+    assert final["actuation"] != case.fresh["actuation"]
+    assert final["executive_intention"]["active"] is None
+    assert final["executive_intention"]["active_commitment_id"] is None
+
+    lineage = final["checkpoint_lineage"]
+    assert lineage["parent_checkpoint_hash"] == transformed["checkpoint_lineage"]["checkpoint_id"]
+    assert lineage["transforms"] == ["re-embodiment"]
+    assert "unverified_legacy_origin" not in lineage
+    assert not any(
+        binding.status is BindingStatus.VALID
+        for binding in reembodied._action_domain.execution_bindings.items
+    )
+    assert _competence_ids(reembodied) >= case.competences_in_a

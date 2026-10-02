@@ -76,7 +76,7 @@ class WorldRuntimeState:
 
         self.population.assert_experimental_boundary()
 
-        # Bounded timeline metrics (docs/design/symbiont-world-v3.md §27, §28)
+        # Bounded timeline metrics (docs/design/world/symbiont-world-v3.md §27, §28)
         self._timeline_max = 2048
         self._history_ticks: deque[int] = deque(maxlen=self._timeline_max)
         self._history_alive: deque[int] = deque(maxlen=self._timeline_max)
