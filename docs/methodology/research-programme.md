@@ -745,7 +745,7 @@ This is an enabling engineering gate, not authorization for broad rewrites. The
 initial source-size, test-layout, boundary and artifact inventory, along with
 the source-to-test mappings for the bounded telemetry worker and monitor
 geometry extractions, and the mappings for the test-ownership moves, are
-recorded in the [A9 maintainability baseline](development/maintainability-baseline.md).
+recorded in the [A9 maintainability baseline](../development/maintainability-baseline.md).
 Before each further extraction, map its public interfaces, callers, test
 ownership, and scientific/state invariants. Prioritize changes that make
 experimental behavior easier to isolate and verify; file length alone is not

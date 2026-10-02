@@ -147,14 +147,14 @@ def test_adr_is_constitutional() -> None:
     assert result.classification == ChangeClass.CONSTITUTIONAL
 
 
-def test_trusted_main_still_classifies_roadmap_as_scientific_during_policy_transition() -> None:
+def test_roadmap_classifies_as_ordinary_under_current_policy() -> None:
     result = assess(
         ROOT,
         "HEAD",
         ["docs/roadmap.md"],
         "diff --git a/docs/roadmap.md b/docs/roadmap.md\n+ update task status",
     )
-    assert result.classification == ChangeClass.SCIENTIFIC
+    assert result.classification == ChangeClass.ORDINARY
 
 
 def test_methodology_remains_scientific() -> None:
