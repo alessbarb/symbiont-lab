@@ -40,3 +40,96 @@ valid only within the exact scope in which they were obtained.
 - An implementation milestone does not imply scientific validity or acceptance.
 - A negative, closed, frozen, paused, or unscheduled programme retains the state
   recorded by its governing artifact; a roadmap edit cannot reopen it.
+## Active remediation workstreams
+
+The 2026-10-02 longitudinal audit identified integrity and governance debt that
+must be tracked independently from new capability work. The canonical findings
+record is
+[research/audits/current/2026-10-02-longitudinal-integrity-audit.md](../research/audits/current/2026-10-02-longitudinal-integrity-audit.md).
+
+### LI-1 — Longitudinal integrity
+
+**Status:** OPEN — design proposed.
+
+**Priority:** P0 remediation.
+
+**Governing design:**
+[design/core/longitudinal-integrity-v1.md](design/core/longitudinal-integrity-v1.md).
+
+This workstream covers:
+
+- checkpoint lineage authenticity verification;
+- strict current-schema restore instead of silent fresh-state substitution;
+- complete state-ownership and continuity classification;
+- persistence of active social/epistemic state;
+- communication replay-guard and sequence continuity;
+- restart provenance/reapplication for runtime-only learning controls;
+- explicit raw-checkpoint versus portable-bundle semantics;
+- cold-restart semantic equivalence with developed cognition;
+- re-embodiment continuity with Body authority correctly invalidated;
+- bounded treatment of historically contaminated temporal state.
+
+Dependencies and execution order live in the governing design. The roadmap does
+not restate its acceptance gate.
+
+### ARCH-1 — Canonical social epistemology ownership
+
+**Status:** OPEN — analysis required before implementation.
+
+**Blocked by / feeds:** LI-1 social persistence repair.
+
+The audit found two organism-side social evidence systems with different
+consumers and persistence behavior. The next step is a consumer/ownership matrix
+and an explicit decision whether they are:
+
+- one capability that must have one canonical owner;
+- intentionally distinct non-overlapping capabilities;
+- or active plus legacy/migration-only state.
+
+This work must not be resolved by indefinitely checkpointing two overlapping
+sources of truth.
+
+### GOV-1 — Repository-enforced publication to main
+
+**Status:** PROPOSED — owner decision required.
+
+**Governing proposal:**
+[adr/ADR-0057-enforce-governed-main-publication.md](adr/ADR-0057-enforce-governed-main-publication.md).
+
+The current agentctl/CI promotion path is governed, but GitHub does not yet make
+that path unavoidable because main has no active branch protection/ruleset.
+This workstream tracks repository-side enforcement without reintroducing
+duplicate full validation.
+
+### DOC-1 — Persistence terminology and legacy cleanup
+
+**Status:** BLOCKED by LI-1 ownership inventory.
+
+After continuity ownership is proven, documentation and APIs should use
+unambiguous terms for:
+
+- runtime checkpoint;
+- portable Symbiont bundle;
+- Body checkpoint;
+- EmbodimentEpisode;
+- observer reconstruction.
+
+Code identified as superseded or dead during the audit should be removed only
+after consumer searches and tests prove it is no longer authoritative.
+
+## Evidence follow-ups after integrity remediation
+
+These are not opened or authorized experiments by this roadmap. They are
+planning reminders for questions already identified by the governed scientific
+programme and the longitudinal-integrity design.
+
+After LI-1 closes, the relevant scientific authorities may decide whether to
+schedule work on:
+
+- functional transfer advantage after re-embodiment;
+- causal behavioral contribution of the private model;
+- matched-budget utility of model ancestry;
+- causal behavioral contribution of generative cognition.
+
+Mechanical preservation alone must not be presented as positive evidence for
+those capabilities.
