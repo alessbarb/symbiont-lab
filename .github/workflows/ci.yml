@@ -52,7 +52,9 @@ jobs:
             BASE="$PR_BASE"
             HEAD="$PR_HEAD"
           fi
-          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+          if [ "$EVENT_NAME" != "pull_request" ] && git merge-base --is-ancestor origin/main "$HEAD"; then
+            BASE="$(git merge-base origin/main "$HEAD")"
+          elif [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
             BASE="$(git rev-parse "$HEAD^")"
           fi
           python scripts/governance/ci_plan.py --base "$BASE" --head "$HEAD" --github-output "$GITHUB_OUTPUT"
@@ -94,7 +96,9 @@ jobs:
             BASE="$PR_BASE"
             HEAD="$PR_HEAD"
           fi
-          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+          if [ "$EVENT_NAME" != "pull_request" ] && git merge-base --is-ancestor origin/main "$HEAD"; then
+            BASE="$(git merge-base origin/main "$HEAD")"
+          elif [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
             BASE="$(git rev-parse "$HEAD^")"
           fi
           uv run --no-sync python scripts/agentctl.py ci-check --base "$BASE" --head "$HEAD"
