@@ -1,7 +1,7 @@
 # Seguridad y análisis estático
 
-**Última comprobación local:** 2026-10-01, sobre el código de producción en
-`main` (`a54df2662099c54731a23a913fb30980ad19f0ca`). Las modificaciones
+**Última comprobación local:** 2026-10-02, sobre el código de producción en
+`main` (`60eb9a04896408dcf2c39c811252d431f4fc142b`). Las modificaciones
 documentales locales no cambian ese alcance.
 
 ## Alcance actual
@@ -84,7 +84,7 @@ obtenido ocultando el problema.
   `symbiont-lab` (`0.90.0`) no está publicada en PyPI y quedó expresamente sin
   auditar; por tanto, este resultado no cubre las dependencias declaradas por
   el propio proyecto si no están instaladas o resueltas por separado.
-- `pip-audit` consulta PyPI; la comprobación del 2026-10-01 se ejecutó con
+- `pip-audit` consulta PyPI; la comprobación del 2026-10-02 se ejecutó con
   acceso a red. Un fallo de red no debe registrarse como un resultado limpio.
 - La política y las excepciones están versionadas junto con el código para
   evitar que el resultado limpio pierda contexto.

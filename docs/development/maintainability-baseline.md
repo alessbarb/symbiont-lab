@@ -1,7 +1,7 @@
 # A9 Maintainability Baseline
 
-**Captured:** 2026-10-01  
-**Repository commit:** `6190039520bda6de418687925158120631ea4da3`  
+**Captured:** 2026-10-02  
+**Repository commit:** `60eb9a04896408dcf2c39c811252d431f4fc142b`  
 **Status:** Initial source-verified inventory; no refactor authorized or performed.
 
 ## Scope and method
@@ -17,11 +17,11 @@ not complexity or refactor thresholds.
 
 | Area | Python files | Physical lines |
 |---|---:|---:|
-| `src/symbiont` | 251 | 64,038 |
-| `src/symbiont_lab` (excluding Observatory) | 285 | 73,006 |
+| `src/symbiont` | 251 | 64,073 |
+| `src/symbiont_lab` (excluding Observatory) | 309 | 73,039 |
 | `src/symbiont_world` | 12 | 1,019 |
-| **In-scope source total** | **548** | **138,063** |
-| **In-scope tests** | **521** | **67,286** |
+| **In-scope source total** | **572** | **138,131** |
+| **In-scope tests** | **523** | **67,392** |
 
 The test total excludes Observatory and empty directories; two test files are
 at the `tests/` root. Test ownership is
@@ -37,14 +37,14 @@ establish that any move is safe.
 
 | Lines | Module |
 |---:|---|
-| 3,589 | `src/symbiont_lab/app/physics3d/monitor/viewer.py` |
+| 3,386 | `src/symbiont_lab/app/physics3d/monitor/viewer.py` |
 | 3,319 | `src/symbiont/core/orchestration/runtime.py` |
 | 2,954 | `src/symbiont/core/domains/action.py` |
 | 2,556 | `src/symbiont_lab/physics3d/runtime.py` |
 | 1,967 | `src/symbiont/actuation/sensorimotor.py` |
 | 1,859 | `src/symbiont/modeling/runtime.py` |
-| 1,658 | `src/symbiont_lab/physics3d/telemetry/v41.py` |
 | 1,590 | `src/symbiont/core/embodiment/body_schema.py` |
+| 1,576 | `src/symbiont_lab/physics3d/telemetry/v41.py` |
 | 1,509 | `src/symbiont/modeling/episodic.py` |
 | 1,459 | `src/symbiont/modeling/culture.py` |
 
