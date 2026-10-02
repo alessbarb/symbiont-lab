@@ -1219,8 +1219,11 @@ catch it is the audit discipline working, not a setback.
 
 ## What comes next
 
-The occupancy-percept ablation implied by W03's audit, more seeds before
-any claim solidifies, and -- separately -- the still-unapproved movement
+W03 was closed by the owner on 2026-10-02 as exploratory, observed once, not
+replicated and with its mechanism unidentified; the occupancy-percept ablation
+and additional seeds are not scheduled, and its stored result is a historical
+record that current code does not reproduce
+(`research/studies/ecology/w03-closure.md`). Separately, the still-unapproved movement
 `ActionKind` design, which unlocks real spatial contention and is a
 prerequisite for testing niches under actual foraging/migration rather
 than static regional placement alone.
