@@ -62,10 +62,7 @@ def test_ci_exposes_one_stable_governed_required_gate() -> None:
     ):
         assert f"      - {job}" in workflow
 
-    gate = workflow.split("  governed-ci-gate:", 1)[1].split(
-        "\n  performance-report:", 1
-    )[0]
+    gate = workflow.split("  governed-ci-gate:", 1)[1].split("\n  performance-report:", 1)[0]
     assert "performance-report" not in gate
     assert 'require_lane "host-portability"' in gate
     assert 'require_lane "python-compatibility"' in gate
-
