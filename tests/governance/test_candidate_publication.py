@@ -6,6 +6,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 
+def test_governance_label_descriptions_fit_github_limit() -> None:
+    from governance.publish import _GOVERNANCE_LABELS
+
+    assert all(len(description) <= 100 for _, description in _GOVERNANCE_LABELS.values())
+
+
 def test_agentctl_publish_never_pushes_directly_to_main() -> None:
     source = (ROOT / "scripts/governance/publish.py").read_text(encoding="utf-8")
     assert "HEAD:main" not in source
@@ -89,3 +95,36 @@ def test_candidate_pr_creates_missing_class_label(monkeypatch) -> None:
     assert calls[1][:3] == ["gh", "label", "create"]
     assert calls[1][3] == "SCIENTIFIC"
     assert calls[-1][-2:] == ["--label", "SCIENTIFIC"]
+
+def test_ci_exposes_one_stable_governed_required_gate() -> None:
+    workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+
+    assert "governed-ci-gate:" in workflow
+    assert "name: governed-ci-gate" in workflow
+    assert "if: always()" in workflow
+    assert 'require_success "validation-plan" "$PLAN_RESULT"' in workflow
+    assert 'require_success "code-quality-and-governance" "$QUALITY_RESULT"' in workflow
+    assert "\\${{" not in workflow
+
+    for job in (
+        "governance-docs",
+        "software-core",
+        "physics3d-tests",
+        "modeling-tests",
+        "world-tests",
+        "observatory-tests",
+        "architecture-integrity",
+        "runtime-contracts",
+        "experiment-mechanics",
+        "canonical-full",
+        "python-compatibility",
+        "host-portability",
+        "host-constrained",
+        "protocol-mechanics",
+    ):
+        assert f"      - {job}" in workflow
+
+    gate = workflow.split("  governed-ci-gate:", 1)[1].split("\n  performance-report:", 1)[0]
+    assert "performance-report" not in gate
+    assert 'require_lane "host-portability"' in gate
+    assert 'require_lane "python-compatibility"' in gate

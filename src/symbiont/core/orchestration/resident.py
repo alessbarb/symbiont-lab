@@ -142,8 +142,6 @@ class ResidentOrganism:
         try:
             reserve = self.runtime.metabolism.snapshot().reserve.get("maintenance", 0.0)
             if reserve >= 0.75 and ticks >= 20 and self.habitat.count_incubated() < 2:
-                # Deduct parental reproduction cost
-                self.runtime._metabolism.charge("maintenance", 0.35)
                 child_suffix = secrets.token_hex(3)
                 child_id = f"{self.runtime.organism_id}-child-{child_suffix}"
                 from ...cognition.birth import load_base_graph
@@ -163,6 +161,8 @@ class ResidentOrganism:
                     cultural_heritage=heritage,
                 )
                 embryo_payload = child_runtime.checkpoint()
-                self.habitat.deposit_embryo(embryo_payload, child_id)
+                if self.habitat.deposit_embryo(embryo_payload, child_id) is not None:
+                    # Deduct parental reproduction cost only for a deposited embryo
+                    self.runtime._metabolism.charge("maintenance", 0.35)
         except Exception:
             logger.exception("resident reproductive step failed")

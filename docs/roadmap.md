@@ -74,13 +74,17 @@ not restate its acceptance gate.
 
 ### ARCH-1 — Canonical social epistemology ownership
 
-**Status:** OPEN — analysis required before implementation.
+**Status:** OPEN — analysis recorded; owner decision pending.
 
 **Blocked by / feeds:** LI-1 social persistence repair.
 
+**Analysis:**
+[design/core/social-epistemology-ownership-v1.md](design/core/social-epistemology-ownership-v1.md).
+
 The audit found two organism-side social evidence systems with different
-consumers and persistence behavior. The next step is a consumer/ownership matrix
-and an explicit decision whether they are:
+consumers and persistence behavior. The consumer/ownership matrix is recorded in
+the analysis above. The remaining step is an explicit owner decision whether
+they are:
 
 - one capability that must have one canonical owner;
 - intentionally distinct non-overlapping capabilities;
@@ -91,17 +95,19 @@ sources of truth.
 
 ### GOV-1 — Repository-enforced publication to main
 
-**Status:** ACTIVE — repository ruleset configured; end-to-end verification pending.
+**Status:** ACTIVE — stable aggregate CI gate implementation in progress.
 
 **Governing decision:**
 [adr/ADR-0057-enforce-governed-main-publication.md](adr/ADR-0057-enforce-governed-main-publication.md).
 
-GitHub now enforces a validated-commit boundary on `main`: required governed CI
-checks, deletion protection and non-fast-forward protection are active with no
-bypass actors. `Restrict updates` remains intentionally disabled under ADR-0057,
-so agentctl is the canonical governance publisher rather than the only technically
-possible publisher of an already-validated fast-forward SHA. Remaining work is
-end-to-end verification of unchecked rejection and ordinary candidate promotion.
+GitHub enforces a validated-commit boundary on `main` with deletion and
+non-fast-forward protection and no bypass actors. PR #239 exposed that requiring
+all dynamic CI contexts individually can deadlock when a conditional matrix is
+skipped before expansion. ADR-0057 therefore moves the repository boundary to one
+always-present `governed-ci-gate` that certifies the validation plan. After that
+workflow change merges, the ruleset must be switched to require only this stable
+context, followed by end-to-end verification of unchecked rejection and ordinary
+candidate promotion.
 
 ### DOC-1 — Persistence terminology and legacy cleanup
 

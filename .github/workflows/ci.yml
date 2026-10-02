@@ -437,6 +437,133 @@ jobs:
       - run: uv run --no-sync symbiont-lab study run evidence.replicated --seeds 3,7 --hosts 10 --steps 80
       - run: uv run --no-sync symbiont-lab study compare --parameter threat_rate --baseline 0.01 --variant 0.03 --seeds 3,7 --hosts 10 --steps 60 --no-record
 
+
+  governed-ci-gate:
+    name: governed-ci-gate
+    if: always()
+    needs:
+      - plan
+      - quality
+      - governance-docs
+      - software-core
+      - physics3d-tests
+      - modeling-tests
+      - world-tests
+      - observatory-tests
+      - architecture-integrity
+      - runtime-contracts
+      - experiment-mechanics
+      - canonical-full
+      - python-compatibility
+      - host-portability
+      - host-constrained
+      - protocol-mechanics
+    runs-on: ubuntu-latest
+    env:
+      PLAN_RESULT: ${{ needs.plan.result }}
+      QUALITY_RESULT: ${{ needs.quality.result }}
+
+      DOCS_EXPECTED: ${{ needs.plan.outputs.docs }}
+      GOVERNANCE_EXPECTED: ${{ needs.plan.outputs.governance }}
+      GOVERNANCE_DOCS_RESULT: ${{ needs.governance-docs.result }}
+
+      SOFTWARE_CORE_EXPECTED: ${{ needs.plan.outputs.software_core }}
+      SOFTWARE_CORE_RESULT: ${{ needs.software-core.result }}
+
+      PHYSICS3D_EXPECTED: ${{ needs.plan.outputs.physics3d }}
+      PHYSICS3D_RESULT: ${{ needs.physics3d-tests.result }}
+
+      MODELING_EXPECTED: ${{ needs.plan.outputs.modeling }}
+      MODELING_RESULT: ${{ needs.modeling-tests.result }}
+
+      WORLD_EXPECTED: ${{ needs.plan.outputs.world }}
+      WORLD_RESULT: ${{ needs.world-tests.result }}
+
+      OBSERVATORY_EXPECTED: ${{ needs.plan.outputs.observatory }}
+      OBSERVATORY_RESULT: ${{ needs.observatory-tests.result }}
+
+      ARCHITECTURE_EXPECTED: ${{ needs.plan.outputs.architecture_integrity }}
+      ARCHITECTURE_RESULT: ${{ needs.architecture-integrity.result }}
+
+      RUNTIME_EXPECTED: ${{ needs.plan.outputs.runtime_contracts }}
+      RUNTIME_RESULT: ${{ needs.runtime-contracts.result }}
+
+      EXPERIMENT_EXPECTED: ${{ needs.plan.outputs.experiment_mechanics }}
+      EXPERIMENT_RESULT: ${{ needs.experiment-mechanics.result }}
+
+      CANONICAL_EXPECTED: ${{ needs.plan.outputs.canonical_full }}
+      CANONICAL_RESULT: ${{ needs.canonical-full.result }}
+
+      PYTHON_COMPAT_EXPECTED: ${{ needs.plan.outputs.python_compat }}
+      PYTHON_COMPAT_RESULT: ${{ needs.python-compatibility.result }}
+
+      HOST_PORTABILITY_EXPECTED: ${{ needs.plan.outputs.host_portability }}
+      HOST_PORTABILITY_RESULT: ${{ needs.host-portability.result }}
+
+      ALPINE_EXPECTED: ${{ needs.plan.outputs.alpine }}
+      ALPINE_RESULT: ${{ needs.host-constrained.result }}
+
+      PROTOCOL_EXPECTED: ${{ needs.plan.outputs.protocol_mechanics }}
+      PROTOCOL_RESULT: ${{ needs.protocol-mechanics.result }}
+    steps:
+      - name: Verify governed validation plan completed
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          require_success() {
+            local name="$1"
+            local actual="$2"
+            if [ "$actual" != "success" ]; then
+              echo "::error::$name must succeed; got $actual"
+              exit 1
+            fi
+          }
+
+          require_lane() {
+            local name="$1"
+            local expected="$2"
+            local actual="$3"
+
+            if [ "$expected" = "true" ]; then
+              if [ "$actual" != "success" ]; then
+                echo "::error::$name was selected by validation-plan but finished as $actual"
+                exit 1
+              fi
+              return
+            fi
+
+            if [ "$actual" != "skipped" ] && [ "$actual" != "success" ]; then
+              echo "::error::$name was not selected but finished as $actual"
+              exit 1
+            fi
+          }
+
+          require_success "validation-plan" "$PLAN_RESULT"
+          require_success "code-quality-and-governance" "$QUALITY_RESULT"
+
+          GOVERNANCE_DOCS_EXPECTED=false
+          if [ "$GOVERNANCE_EXPECTED" = "true" ] || [ "$DOCS_EXPECTED" = "true" ]; then
+            GOVERNANCE_DOCS_EXPECTED=true
+          fi
+
+          require_lane "governance-and-docs-tests" "$GOVERNANCE_DOCS_EXPECTED" "$GOVERNANCE_DOCS_RESULT"
+          require_lane "software-core (py3.12)" "$SOFTWARE_CORE_EXPECTED" "$SOFTWARE_CORE_RESULT"
+          require_lane "physics3d-tests (py3.12)" "$PHYSICS3D_EXPECTED" "$PHYSICS3D_RESULT"
+          require_lane "modeling-tests (py3.12)" "$MODELING_EXPECTED" "$MODELING_RESULT"
+          require_lane "world-tests (py3.12)" "$WORLD_EXPECTED" "$WORLD_RESULT"
+          require_lane "observatory-tests (py3.12)" "$OBSERVATORY_EXPECTED" "$OBSERVATORY_RESULT"
+          require_lane "architecture-integrity" "$ARCHITECTURE_EXPECTED" "$ARCHITECTURE_RESULT"
+          require_lane "runtime-contracts" "$RUNTIME_EXPECTED" "$RUNTIME_RESULT"
+          require_lane "experiment-mechanics" "$EXPERIMENT_EXPECTED" "$EXPERIMENT_RESULT"
+          require_lane "canonical-full (py3.12)" "$CANONICAL_EXPECTED" "$CANONICAL_RESULT"
+          require_lane "python-compatibility" "$PYTHON_COMPAT_EXPECTED" "$PYTHON_COMPAT_RESULT"
+          require_lane "host-portability" "$HOST_PORTABILITY_EXPECTED" "$HOST_PORTABILITY_RESULT"
+          require_lane "host-constrained (alpine/musl)" "$ALPINE_EXPECTED" "$ALPINE_RESULT"
+          require_lane "protocol-mechanics (py3.12)" "$PROTOCOL_EXPECTED" "$PROTOCOL_RESULT"
+
+          echo "governed CI gate: PASS"
+
   performance-report:
     name: performance-report (informational)
     needs: plan
