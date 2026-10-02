@@ -21,9 +21,14 @@ except ImportError:  # Windows has no stdlib resource module.
     resource = None
 from typing import Any, Sequence
 
+from symbiont.simulation import ARCHITECTURE as LEGACY_ARCHITECTURE
 from symbiont.simulation import SimulationSnapshot, run_simulation
 
 from .social_runtime_generations import run_social_runtime_generations_study
+
+# Runs on the legacy Agent simulation, not on the canonical organism runtime.
+SUBJECT_ARCHITECTURE = LEGACY_ARCHITECTURE
+
 
 SEEDS = (101, 127, 149)
 STAGES = (1_000, 10_000)

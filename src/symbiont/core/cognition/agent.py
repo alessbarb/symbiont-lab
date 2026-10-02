@@ -6,13 +6,20 @@ from dataclasses import dataclass, field
 from ..foundation.model import Assessment, HostModel, Observation, fingerprint
 from ..social.communication import ConsentBoundChannel, SignedMessage
 from ..social.exchange import ExchangeEnvelope, ExchangeReplayGuard
-from ..social.ledger import SocialEvidenceLedger, SourceEvidenceOutcome
+from ..social.ledger import SocialClaim, SocialEvidenceLedger, SourceEvidenceOutcome
 from .beliefs import BeliefModel
 from .memory import AgentMemory, Episode
 
 
 @dataclass(slots=True)
 class Agent:
+    """Subject of the legacy Agent population simulation.
+
+    Not the canonical organism. It assesses externally labelled host
+    observations and exists for the recorded studies built on
+    ``symbiont.simulation``; see that package's status note.
+    """
+
     agent_id: str
     model: HostModel = field(default_factory=HostModel)
     memory: AgentMemory = field(default_factory=AgentMemory)
@@ -31,6 +38,9 @@ class Agent:
     exchange_guard: ExchangeReplayGuard = field(default_factory=ExchangeReplayGuard)
     exchange_sequence: int = 0
     last_broadcast_reconciliations: set[str] = field(default_factory=set)
+    # Claims in an accepted envelope that could not be ingested. A malformed
+    # claim is dropped without failing the exchange, but never silently.
+    malformed_claims: int = 0
 
     def broadcast_claims(self, targets: list[str]) -> list[SignedMessage]:
         if not self.communication_channel:
@@ -53,7 +63,7 @@ class Agent:
 
         self.exchange_sequence += 1
         envelope = ExchangeEnvelope(
-            sender=self.model.host_id, sequence=self.exchange_sequence, payload=payload
+            sender=self.agent_id, sequence=self.exchange_sequence, payload=payload
         )
 
         messages = []
@@ -73,22 +83,25 @@ class Agent:
             return
 
         for claim_id, data_str in envelope.payload.items():
+            # Only a malformed claim is tolerated, and it is counted. Any other
+            # failure is a defect in the ledger and must not be swallowed.
             try:
                 data = json.loads(data_str)
-                from ..social.ledger import SocialClaim
-
-                claim = SocialClaim(
+                payload = data.get("payload")
+            except (TypeError, ValueError, AttributeError):
+                self.malformed_claims += 1
+                continue
+            self.epistemic_ledger.receive_claim(
+                SocialClaim(
                     claim_id=claim_id,
                     source_id=envelope.sender,
                     root_evidence_ids=frozenset(),
                     parent_claim_ids=frozenset(),
-                    payload=data.get("payload"),
+                    payload=payload,
                     received_tick=tick,
                     freshness=1.0,
                 )
-                self.epistemic_ledger.receive_claim(claim)
-            except Exception:
-                pass
+            )
 
     def assess(self, obs: Observation, ledger: SocialEvidenceLedger | None = None) -> Assessment:
         novelty = self.model.novelty(obs)

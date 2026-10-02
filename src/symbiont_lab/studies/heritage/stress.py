@@ -12,7 +12,11 @@ from symbiont.core.lineage.heritage import (
     distill_heritage,
 )
 from symbiont.core.social.ledger import SocialEvidenceLedger
+from symbiont.simulation import ARCHITECTURE as LEGACY_ARCHITECTURE
 from symbiont.simulation import EventContext, _run_population, run_simulation
+
+# Runs on the legacy Agent simulation, not on the canonical organism runtime.
+SUBJECT_ARCHITECTURE = LEGACY_ARCHITECTURE
 
 
 @dataclass(slots=True, frozen=True)

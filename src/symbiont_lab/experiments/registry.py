@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
+from symbiont.simulation import ARCHITECTURE as LEGACY_ARCHITECTURE
 from symbiont.simulation import run_simulation
 from symbiont_lab.studies.attention.causal import run_causal_attention_budget
 from symbiont_lab.studies.attention.replicated import run_causal_budget_study
@@ -200,6 +201,11 @@ def run_comparative_study(*args: Any, **kwargs: Any) -> Any:
     from symbiont_lab.studies.campaigns.comparative import run_comparative_study as implementation
 
     return implementation(*args, **kwargs)
+
+
+# This wrapper lives beside canonical-runtime wrappers, so it declares its
+# subject on the function rather than on the module.
+run_comparative_study.SUBJECT_ARCHITECTURE = LEGACY_ARCHITECTURE  # type: ignore[attr-defined]
 
 
 PROTOCOLS: dict[str, Callable[..., Any]] = {

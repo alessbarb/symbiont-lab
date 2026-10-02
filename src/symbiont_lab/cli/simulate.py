@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import argparse
 
+from symbiont.simulation import ARCHITECTURE as LEGACY_ARCHITECTURE
 from symbiont.simulation import run_simulation
+
+# Runs on the legacy Agent simulation, not on the canonical organism runtime.
+SUBJECT_ARCHITECTURE = LEGACY_ARCHITECTURE
 
 
 def build_simulate_parser(parser: argparse.ArgumentParser) -> None:

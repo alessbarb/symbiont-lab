@@ -4,7 +4,13 @@ from dataclasses import asdict, dataclass
 from statistics import mean, pstdev
 from typing import Iterable
 
+from symbiont.simulation import ARCHITECTURE as LEGACY_ARCHITECTURE
+
 from .stress import HeritageStressCondition, HeritageStressStudy, run_heritage_stress_study
+
+# Runs on the legacy Agent simulation, not on the canonical organism runtime.
+SUBJECT_ARCHITECTURE = LEGACY_ARCHITECTURE
+
 
 PERFORMANCE_METRICS = (
     "attention_recall",

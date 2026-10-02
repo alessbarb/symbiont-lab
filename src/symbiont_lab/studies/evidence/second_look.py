@@ -6,8 +6,12 @@ from hashlib import sha256
 from math import exp, log
 
 from symbiont.environment.rng import derive_seed
+from symbiont.simulation import ARCHITECTURE as LEGACY_ARCHITECTURE
 from symbiont.simulation import EventContext, run_simulation
 from symbiont_lab.studies.attention.retrospective import _score_events, _ScoredEvent
+
+# Runs on the legacy Agent simulation, not on the canonical organism runtime.
+SUBJECT_ARCHITECTURE = LEGACY_ARCHITECTURE
 
 
 @dataclass(slots=True, frozen=True)

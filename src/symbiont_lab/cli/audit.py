@@ -4,7 +4,11 @@ import argparse
 
 from symbiont.environment.rng import make_rng_streams
 from symbiont.environment.world import make_profiles
+from symbiont.simulation import ARCHITECTURE as LEGACY_ARCHITECTURE
 from symbiont.simulation import run_simulation
+
+# Runs on the legacy Agent simulation, not on the canonical organism runtime.
+SUBJECT_ARCHITECTURE = LEGACY_ARCHITECTURE
 
 
 def build_audit_parser(parser: argparse.ArgumentParser) -> None:

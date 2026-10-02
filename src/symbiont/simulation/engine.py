@@ -18,6 +18,11 @@ from .events import EventContext
 from .result import SimulationResult
 from .snapshots import SimulationSnapshot
 
+# Recorded in the run manifest of every protocol built on this stack; the
+# stack's own entry point (``simulate``) declares it too.
+ARCHITECTURE = "legacy-agent-simulation"
+SUBJECT_ARCHITECTURE = ARCHITECTURE
+
 
 @dataclass(slots=True, frozen=True)
 class SimulationConfig:
