@@ -184,3 +184,39 @@ def test_resident_budding_deposits_embryo_checkpoint(tmp_path) -> None:
     assert embryo["organism_id"].startswith(f"{runtime.organism_id}-child-")
     child = OrganismRuntime.from_checkpoint(embryo)
     assert child.organism_id == embryo["organism_id"]
+
+
+def test_resident_budding_charges_parent_only_when_embryo_is_deposited(
+    tmp_path, monkeypatch
+) -> None:
+    from symbiont.core.capsule import CapsuleKeyPair
+    from symbiont.core.local_habitat import LocalHabitat
+    from symbiont.core.runtime import OrganismRuntime
+
+    habitat = LocalHabitat(tmp_path / "habitat")
+    runtime = OrganismRuntime(
+        bootstrap_semantic_senses=True,
+        discover_senses=False,
+        min_samples=1,
+    )
+    runtime.tick()
+    resident = ResidentOrganism(
+        runtime,
+        state_file=tmp_path / "resident.json",
+        habitat=habitat,
+        keypair=CapsuleKeyPair.generate(),
+    )
+
+    def maintenance() -> float:
+        return runtime.metabolism.snapshot().reserve["maintenance"]
+
+    before = maintenance()
+    deposit = habitat.deposit_embryo
+    monkeypatch.setattr(habitat, "deposit_embryo", lambda payload, child_id: None)
+    resident._social_and_reproductive_step(20)
+    assert maintenance() == before
+
+    monkeypatch.setattr(habitat, "deposit_embryo", deposit)
+    resident._social_and_reproductive_step(20)
+    assert habitat.count_incubated() == 1
+    assert maintenance() < before
