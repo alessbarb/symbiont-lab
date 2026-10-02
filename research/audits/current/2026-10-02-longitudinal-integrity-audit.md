@@ -199,13 +199,13 @@ it changes repository enforcement, not organism science.
 ## 6. Required follow-up
 
 The runtime findings are governed by
-[Longitudinal Integrity v1](../../docs/design/core/longitudinal-integrity-v1.md).
+[Longitudinal Integrity v1](../../../docs/design/core/longitudinal-integrity-v1.md).
 
 Repository-side enforcement is proposed separately in
-[ADR-0057](../../docs/adr/ADR-0057-enforce-governed-main-publication.md).
+[ADR-0057](../../../docs/adr/ADR-0057-enforce-governed-main-publication.md).
 
 The planning index records both workstreams in
-[`docs/roadmap.md`](../../docs/roadmap.md).
+[`docs/roadmap.md`](../../../docs/roadmap.md).
 
 ## 7. Claims this audit does not make
 
