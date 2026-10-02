@@ -423,6 +423,90 @@ def _candidate_branch(commit: str) -> str:
     return f"agentctl/{int(time.time())}-{commit[:12]}"
 
 
+_GOVERNANCE_LABELS = {
+    ChangeClass.ORDINARY: (
+        "0075ca",
+        "Governance classification: ordinary maintenance or engineering.",
+    ),
+    ChangeClass.SCIENTIFIC: (
+        "d93f0b",
+        "Governance classification: scientific change; external review required.",
+    ),
+    ChangeClass.CONSTITUTIONAL: (
+        "5319e7",
+        "Governance classification: constitutional control-plane or invariant change; external review required.",
+    ),
+    ChangeClass.FROZEN: (
+        "6f42c1",
+        "Governance classification: frozen evidence; requires its governed versioning path.",
+    ),
+}
+
+
+def _create_candidate_pr(candidate: str, effective: ChangeClass) -> str:
+    """Open the review handoff and label it with its computed governance class."""
+    color, description = _GOVERNANCE_LABELS[effective]
+    # Labels are repository metadata and are not versioned in Git. Provision
+    # the required class label when absent; never alter an existing label.
+    listed = subprocess.run(
+        ["gh", "label", "list", "--json", "name"],
+        cwd=ROOT,
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if listed.returncode:
+        raise RuntimeError("cannot list GitHub labels; candidate was pushed but PR was not created")
+    labels = {item["name"] for item in json.loads(listed.stdout)}
+    if effective.value not in labels:
+        created = subprocess.run(
+            [
+                "gh",
+                "label",
+                "create",
+                effective.value,
+                "--color",
+                color,
+                "--description",
+                description,
+            ],
+            cwd=ROOT,
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        if created.returncode:
+            raise RuntimeError(
+                "cannot create governance label; candidate was pushed but PR was not created"
+            )
+
+    result = subprocess.run(
+        [
+            "gh",
+            "pr",
+            "create",
+            "--base",
+            "main",
+            "--head",
+            candidate,
+            "--fill",
+            "--label",
+            effective.value,
+        ],
+        cwd=ROOT,
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if result.returncode:
+        detail = result.stderr.strip() or "GitHub CLI failed"
+        raise RuntimeError(f"candidate pushed but PR creation failed: {detail}")
+    return result.stdout.strip()
+
+
 def publish(
     *,
     message: str,
@@ -486,8 +570,16 @@ def publish(
                 check=False,
             )
             if result.returncode == 0:
+                try:
+                    pr_url = _create_candidate_pr(candidate, effective)
+                except (RuntimeError, json.JSONDecodeError) as exc:
+                    print(f"candidate: {candidate}")
+                    print(f"commit: {commit}")
+                    print(f"BLOCKED — {exc}", file=sys.stderr)
+                    return 2
                 print(f"candidate: {candidate}")
                 print(f"commit: {commit}")
+                print(f"pull request: {pr_url}")
                 print("publication: awaiting GitHub Actions validation and promotion")
                 return 0
 
