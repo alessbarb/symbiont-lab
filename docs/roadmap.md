@@ -91,9 +91,9 @@ sources of truth.
 
 ### GOV-1 — Repository-enforced publication to main
 
-**Status:** PROPOSED — owner decision required.
+**Status:** ACCEPTED — implementation pending.
 
-**Governing proposal:**
+**Governing decision:**
 [adr/ADR-0057-enforce-governed-main-publication.md](adr/ADR-0057-enforce-governed-main-publication.md).
 
 The current agentctl/CI promotion path is governed, but GitHub does not yet make
