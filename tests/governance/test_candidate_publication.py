@@ -35,6 +35,7 @@ def test_precommit_is_feedback_not_governance_validation() -> None:
     precommit = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
     assert "agentctl.py verify" not in precommit
 
+
 def test_ci_exposes_one_stable_governed_required_gate() -> None:
     workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
 
