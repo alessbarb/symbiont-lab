@@ -49,8 +49,8 @@ record is
 
 ### LI-1 — Longitudinal integrity
 
-**Status:** OPEN — phases LI-P0 to LI-P6 implemented; awaiting owner review.
-The design's acceptance gate is closed by its owner, not by this index.
+**Status:** CLOSED — mechanical longitudinal continuity established within the
+documented scope; owner decision, 2026-10-02.
 
 **Priority:** P0 remediation.
 
@@ -72,7 +72,11 @@ This workstream covers:
 
 Dependencies and execution order live in the governing design. The roadmap does
 not restate its acceptance gate. Implementation evidence per gate item is
-listed in the design's implementation record.
+listed in the design's implementation record. Closure does not assert
+future-state equivalence after restart, retrospective identity verification for
+pre-schema-11 checkpoints, useful transfer, adaptive advantage, or scientific
+value of retained state. Apparatus-owned embodiment history remains protected by
+the portable bundle rather than checkpoint identity.
 
 ### ARCH-1 — Canonical social epistemology ownership
 
