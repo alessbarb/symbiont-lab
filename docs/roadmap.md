@@ -135,8 +135,8 @@ which also carries the resolution record per finding.
 
 ### LC-1 — Lifecycle continuity contract
 
-**Status:** IMPLEMENTED — awaiting owner review. Owner decisions listed in the
-record remain open.
+**Status:** IMPLEMENTED — merged 2026-10-02 (#266). The owner decisions listed
+in the record are tracked as issues #273, #274 and #276.
 
 **Record:**
 [design/core/lifecycle-continuity-contract-v1.md](design/core/lifecycle-continuity-contract-v1.md).
@@ -156,7 +156,7 @@ checkpoints stop being accepted, are owner decisions and are not made here.
 
 ### OBS-1 — Observatory is passive by construction
 
-**Status:** IMPLEMENTED — awaiting owner review.
+**Status:** IMPLEMENTED — merged 2026-10-02 (#266, #270).
 
 Covers audit findings F-07 and F-08. The resident and replay launchers moved out
 of the `observatory` package into `symbiont_lab.cli`; a test fails if any
@@ -170,7 +170,8 @@ their new location.
 
 ### WORLD-1 — World responsibility map
 
-**Status:** RECORDED — inventory complete; owner decisions pending.
+**Status:** RECORDED — inventory complete; the architectural decision is
+tracked as issue #280.
 
 **Record:**
 [design/world/world-responsibility-map-v1.md](design/world/world-responsibility-map-v1.md).
@@ -192,7 +193,7 @@ These are not opened or authorized experiments by this roadmap. They are
 planning reminders for questions already identified by the governed scientific
 programme and the longitudinal-integrity design.
 
-After LI-1 closes, the relevant scientific authorities may decide whether to
+LI-1 is closed. The relevant scientific authorities may decide whether to
 schedule work on:
 
 - functional transfer advantage after re-embodiment (unapproved preregistration
@@ -207,3 +208,18 @@ schedule work on:
 
 Mechanical preservation alone must not be presented as positive evidence for
 those capabilities.
+
+## Open follow-up issues
+
+Tracked on GitHub; listing them here does not authorize any experiment.
+
+| Issue | Subject | Relates to |
+| --- | --- | --- |
+| #273 | One enforced longitudinal contract for the reduced seed | LC-1 |
+| #274 | Run the re-embodiment functional transfer experiment | Evidence follow-ups |
+| #275 | Classify and isolate the legacy `Agent` simulation | ARCH-1, WORLD-1 |
+| #276 | Retirement boundary for unverified schema-10 checkpoints | LC-1 |
+| #277 | Workbench states for inactive, unavailable and broken telemetry | OBS-1 |
+| #278 | Causal-efficacy experiments for advanced cognition | Evidence follow-ups |
+| #279 | Cognitive scaling across organism age | Performance |
+| #280 | Canonical responsibility and naming of World | WORLD-1 |
