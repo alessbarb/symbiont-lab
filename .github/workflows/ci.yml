@@ -460,51 +460,51 @@ jobs:
       - protocol-mechanics
     runs-on: ubuntu-latest
     env:
-      PLAN_RESULT: \${{ needs.plan.result }}
-      QUALITY_RESULT: \${{ needs.quality.result }}
+      PLAN_RESULT: ${{ needs.plan.result }}
+      QUALITY_RESULT: ${{ needs.quality.result }}
 
-      DOCS_EXPECTED: \${{ needs.plan.outputs.docs }}
-      GOVERNANCE_EXPECTED: \${{ needs.plan.outputs.governance }}
-      GOVERNANCE_DOCS_RESULT: \${{ needs.governance-docs.result }}
+      DOCS_EXPECTED: ${{ needs.plan.outputs.docs }}
+      GOVERNANCE_EXPECTED: ${{ needs.plan.outputs.governance }}
+      GOVERNANCE_DOCS_RESULT: ${{ needs.governance-docs.result }}
 
-      SOFTWARE_CORE_EXPECTED: \${{ needs.plan.outputs.software_core }}
-      SOFTWARE_CORE_RESULT: \${{ needs.software-core.result }}
+      SOFTWARE_CORE_EXPECTED: ${{ needs.plan.outputs.software_core }}
+      SOFTWARE_CORE_RESULT: ${{ needs.software-core.result }}
 
-      PHYSICS3D_EXPECTED: \${{ needs.plan.outputs.physics3d }}
-      PHYSICS3D_RESULT: \${{ needs.physics3d-tests.result }}
+      PHYSICS3D_EXPECTED: ${{ needs.plan.outputs.physics3d }}
+      PHYSICS3D_RESULT: ${{ needs.physics3d-tests.result }}
 
-      MODELING_EXPECTED: \${{ needs.plan.outputs.modeling }}
-      MODELING_RESULT: \${{ needs.modeling-tests.result }}
+      MODELING_EXPECTED: ${{ needs.plan.outputs.modeling }}
+      MODELING_RESULT: ${{ needs.modeling-tests.result }}
 
-      WORLD_EXPECTED: \${{ needs.plan.outputs.world }}
-      WORLD_RESULT: \${{ needs.world-tests.result }}
+      WORLD_EXPECTED: ${{ needs.plan.outputs.world }}
+      WORLD_RESULT: ${{ needs.world-tests.result }}
 
-      OBSERVATORY_EXPECTED: \${{ needs.plan.outputs.observatory }}
-      OBSERVATORY_RESULT: \${{ needs.observatory-tests.result }}
+      OBSERVATORY_EXPECTED: ${{ needs.plan.outputs.observatory }}
+      OBSERVATORY_RESULT: ${{ needs.observatory-tests.result }}
 
-      ARCHITECTURE_EXPECTED: \${{ needs.plan.outputs.architecture_integrity }}
-      ARCHITECTURE_RESULT: \${{ needs.architecture-integrity.result }}
+      ARCHITECTURE_EXPECTED: ${{ needs.plan.outputs.architecture_integrity }}
+      ARCHITECTURE_RESULT: ${{ needs.architecture-integrity.result }}
 
-      RUNTIME_EXPECTED: \${{ needs.plan.outputs.runtime_contracts }}
-      RUNTIME_RESULT: \${{ needs.runtime-contracts.result }}
+      RUNTIME_EXPECTED: ${{ needs.plan.outputs.runtime_contracts }}
+      RUNTIME_RESULT: ${{ needs.runtime-contracts.result }}
 
-      EXPERIMENT_EXPECTED: \${{ needs.plan.outputs.experiment_mechanics }}
-      EXPERIMENT_RESULT: \${{ needs.experiment-mechanics.result }}
+      EXPERIMENT_EXPECTED: ${{ needs.plan.outputs.experiment_mechanics }}
+      EXPERIMENT_RESULT: ${{ needs.experiment-mechanics.result }}
 
-      CANONICAL_EXPECTED: \${{ needs.plan.outputs.canonical_full }}
-      CANONICAL_RESULT: \${{ needs.canonical-full.result }}
+      CANONICAL_EXPECTED: ${{ needs.plan.outputs.canonical_full }}
+      CANONICAL_RESULT: ${{ needs.canonical-full.result }}
 
-      PYTHON_COMPAT_EXPECTED: \${{ needs.plan.outputs.python_compat }}
-      PYTHON_COMPAT_RESULT: \${{ needs.python-compatibility.result }}
+      PYTHON_COMPAT_EXPECTED: ${{ needs.plan.outputs.python_compat }}
+      PYTHON_COMPAT_RESULT: ${{ needs.python-compatibility.result }}
 
-      HOST_PORTABILITY_EXPECTED: \${{ needs.plan.outputs.host_portability }}
-      HOST_PORTABILITY_RESULT: \${{ needs.host-portability.result }}
+      HOST_PORTABILITY_EXPECTED: ${{ needs.plan.outputs.host_portability }}
+      HOST_PORTABILITY_RESULT: ${{ needs.host-portability.result }}
 
-      ALPINE_EXPECTED: \${{ needs.plan.outputs.alpine }}
-      ALPINE_RESULT: \${{ needs.host-constrained.result }}
+      ALPINE_EXPECTED: ${{ needs.plan.outputs.alpine }}
+      ALPINE_RESULT: ${{ needs.host-constrained.result }}
 
-      PROTOCOL_EXPECTED: \${{ needs.plan.outputs.protocol_mechanics }}
-      PROTOCOL_RESULT: \${{ needs.protocol-mechanics.result }}
+      PROTOCOL_EXPECTED: ${{ needs.plan.outputs.protocol_mechanics }}
+      PROTOCOL_RESULT: ${{ needs.protocol-mechanics.result }}
     steps:
       - name: Verify governed validation plan completed
         shell: bash
