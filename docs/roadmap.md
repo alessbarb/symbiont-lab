@@ -187,6 +187,29 @@ W03 was closed by the owner on 2026-10-02
 constrains the legacy population path; that path is now held only by test code
 and one viewer script.
 
+## Active developmental and genetic architecture workstreams
+
+### GEN-1 — Phenotype expression and genome decoupling
+
+**Status:** PROPOSED — ADR-0064 (2026-10-03).
+
+**Governing design:**
+[design/genome/phenotype-expression-v1.md](design/genome/phenotype-expression-v1.md),
+[design/genome/genome-v3.md](design/genome/genome-v3.md).
+
+**Governing decision:**
+[adr/ADR-0064-phenotype-expression-and-genome-decoupling.md](adr/ADR-0064-phenotype-expression-and-genome-decoupling.md).
+
+This workstream establishes the canonical four-stage developmental architecture:
+`Genome` → `ExpressionProgram(Genome, DevelopmentalContext)` → `BiologicalPhenotype` → `MechanismBinding` → `RuntimeConfiguration`.
+
+Key architectural deliveries:
+- Ontological demarcation of organism constants into GENETIC, PHENOTYPIC, MECHANISTIC (physical, epistemic, numerical, semantic), INFRASTRUCTURE, and UNRESOLVED.
+- Pure deterministic developmental function with structural `DevelopmentalContext` (chassis affordances and ontogenic stage, strictly free of external semantic body labels).
+- Simplex geometry parameterization in latent space $\mathbb{R}^{K-1}$ to prevent neutral genetic drift and redundant degrees of freedom in Lab evolutionary search.
+- Separation of `MechanismBinding` so runtime algorithms and configs (`PhysiologyConfig`, forward models) can evolve or be replaced without mutating genotype or biological phenotype.
+- Phased implementation: Phase 1 implements Phenotype Expression v1 as an adapter over Genome v2; Phase 2 formalizes Genome v3 following empirical resolution of unresolved traits.
+
 ## Evidence follow-ups after integrity remediation
 
 These are not opened or authorized experiments by this roadmap. They are
