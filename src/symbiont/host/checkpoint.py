@@ -27,6 +27,12 @@ CHECKPOINT_SCHEMA_VERSION = 11
 IDENTITY_VERIFIED_SINCE_SCHEMA = 11
 IDENTITY_SCOPE = "organism-state-v1"
 UNVERIFIED_LEGACY_ORIGIN = "unverified_legacy_origin"
+# Owner policy of 2026-10-02 (issue #276): checkpoints saved before schema 11
+# stay admissible, marked, with no retirement date. The admission is not open
+# ended by default: when the checkpoint schema reaches this version the policy
+# must be decided again, and a test fails until this constant is moved or the
+# legacy path is removed.
+LEGACY_ADMISSION_REVIEW_AT_SCHEMA = 13
 # Save-event metadata and embodiment history written around the organism
 # checkpoint by the embodiment apparatus are not organism state identity.
 _IDENTITY_EXCLUDED_FIELDS = frozenset(
@@ -466,6 +472,26 @@ def lineage_history(payload: dict[str, Any]) -> dict[str, Any]:
     if lineage.get(UNVERIFIED_LEGACY_ORIGIN) is True or "identity_scope" not in lineage:
         history[UNVERIFIED_LEGACY_ORIGIN] = True
     return history
+
+
+def has_unverified_legacy_origin(payload: dict[str, Any]) -> bool:
+    """Whether this state, or an ancestor of it, was accepted without identity."""
+    return lineage_history(payload).get(UNVERIFIED_LEGACY_ORIGIN) is True
+
+
+def require_verified_origin(payload: dict[str, Any]) -> None:
+    """Fail closed for uses that need a subject of verifiable origin.
+
+    Confirmatory and held-out experiments must not start from a state whose
+    history includes a checkpoint that was never identity-checked
+    (research programme A2, subject provenance).
+    """
+    if has_unverified_legacy_origin(payload):
+        raise CheckpointError(
+            "checkpoint has an unverified legacy origin: an ancestor was saved "
+            "before state identity was verifiable, so it cannot be used where a "
+            "verified origin is required"
+        )
 
 
 def stamp_checkpoint_identity(payload: dict[str, Any], *, transform: str) -> dict[str, Any]:
