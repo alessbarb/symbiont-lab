@@ -134,7 +134,9 @@ programme and the longitudinal-integrity design.
 After LI-1 closes, the relevant scientific authorities may decide whether to
 schedule work on:
 
-- functional transfer advantage after re-embodiment;
+- functional transfer advantage after re-embodiment (unapproved preregistration
+  draft:
+  [design/experimentation/reembodiment-functional-transfer-v1.md](design/experimentation/reembodiment-functional-transfer-v1.md));
 - causal behavioral contribution of the private model;
 - matched-budget utility of model ancestry;
 - causal behavioral contribution of generative cognition.
