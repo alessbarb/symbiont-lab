@@ -1,7 +1,7 @@
 schema_version = 2
-updated = "2026-09-30"
+updated = "2026-10-02"
 canonical_roadmap = "docs/roadmap.md"
-current_gate = "e8-label-invariance"
+current_gate = "a4-generational-commits"
 
 [governance]
 mode = "proportional-context-v3"
@@ -39,8 +39,15 @@ state = "closed-bounded"
 generalisation = "not-established"
 
 [programmes.e8-label-invariance]
+state = "closed-bounded"
+priority = "P0"
+result = "governed-confirmation-passed"
+notes = "Research programme A8: governed confirmation campaign passed on candidate 0a901ea2, bounded to the preregistered protocol and seed set. External review of the evidence remains a publication requirement."
+
+[programmes.a4-generational-commits]
 state = "p0-open"
 priority = "P0"
+notes = "Research programme A4 (PARTIAL): the GenerationStore exists but the governed run/checkpoint path does not consume it yet. Last open P0 item."
 
 [programmes.world]
 state = "maintenance-only"
