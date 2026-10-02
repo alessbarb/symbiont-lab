@@ -4,7 +4,7 @@ import hashlib
 import math
 from collections import Counter, deque
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Self
 
 from ..core.embodiment.physiology import VitalState
 from ..core.orchestration.runtime import OrganismDeadError, OrganismRuntime
@@ -1685,7 +1685,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
         return payload
 
     @classmethod
-    def from_checkpoint(cls, payload: dict[str, Any], **kwargs: Any) -> "ModeledOrganismRuntime":
+    def from_checkpoint(cls, payload: dict[str, Any], **kwargs: Any) -> Self:
         raw_config = payload.get("private_model_config", {}) if isinstance(payload, dict) else {}
         if raw_config is not None and not isinstance(raw_config, dict):
             raise ValueError("invalid private model configuration checkpoint")

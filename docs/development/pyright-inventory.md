@@ -13,18 +13,18 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 ## Resumen
 
 - Archivos analizados: **585**
-- Archivos con diagnósticos: **91**
-- Errores: **411**
+- Archivos con diagnósticos: **90**
+- Errores: **386**
 - Warnings: **10**
 - Informaciones: **0**
-- Duración reportada: **31.396 s**
+- Duración reportada: **25.967 s**
 
 ## Reglas por severidad
 
 | Severidad | Regla | Casos |
 |---|---|---:|
-| error | `reportArgumentType` | 190 |
-| error | `reportAttributeAccessIssue` | 116 |
+| error | `reportArgumentType` | 183 |
+| error | `reportAttributeAccessIssue` | 98 |
 | error | `reportOptionalMemberAccess` | 57 |
 | error | `reportOperatorIssue` | 15 |
 | error | `reportGeneralTypeIssues` | 13 |
@@ -44,14 +44,13 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 |---:|---|
 | 33 | `src/symbiont_lab/studies/perception/sensory_specialisation.py` |
 | 28 | `src/symbiont_lab/physics3d/telemetry/v41.py` |
-| 25 | `src/symbiont_lab/physics3d/runtime.py` |
 | 21 | `src/symbiont_lab/studies/learning/emergent_symbol_grounding.py` |
 | 18 | `src/symbiont_lab/app/physics3d/monitor/viewer.py` |
+| 17 | `src/symbiont_lab/physics3d/runtime.py` |
 | 17 | `src/symbiont_lab/studies/learning/emergent_structured_communication.py` |
 | 12 | `observatory/resident.py` |
-| 12 | `src/symbiont_lab/physics3d/engine.py` |
-| 11 | `src/symbiont_lab/studies/learning/prospective_agency_embodied.py` |
 | 9 | `src/symbiont/modeling/runtime.py` |
+| 9 | `src/symbiont_lab/physics3d/engine.py` |
 | 9 | `src/symbiont_lab/physics3d/humanoid.py` |
 | 9 | `src/symbiont_lab/world/adapter.py` |
 | 8 | `src/symbiont/core/signals/knowledge.py` |
@@ -59,7 +58,6 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 | 7 | `src/symbiont/core/embodiment/body_schema.py` |
 | 7 | `src/symbiont_lab/studies/learning/independent_symbol_grounding.py` |
 | 7 | `src/symbiont_lab/studies/world/genesis_viability.py` |
-| 6 | `src/symbiont/modeling/private_runtime.py` |
 | 6 | `src/symbiont_lab/physics3d/resource.py` |
 | 6 | `src/symbiont_lab/physics3d/telemetry/binary.py` |
 | 6 | `src/symbiont_lab/studies/attention/retrospective.py` |
@@ -93,6 +91,7 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 | 2 | `src/symbiont/cognition/structure.py` |
 | 2 | `src/symbiont/core/cognition/bridge_checkpoint.py` |
 | 2 | `src/symbiont/genetics/migration.py` |
+| 2 | `src/symbiont/modeling/private_runtime.py` |
 | 2 | `src/symbiont/sensory/predictive_credit.py` |
 | 2 | `src/symbiont_lab/cli/world.py` |
 | 2 | `src/symbiont_lab/modeling/gateway.py` |
@@ -101,6 +100,7 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 | 2 | `src/symbiont_lab/studies/campaigns/comparative.py` |
 | 2 | `src/symbiont_lab/studies/campaigns/interpretation.py` |
 | 2 | `src/symbiont_lab/studies/heritage/stress.py` |
+| 2 | `src/symbiont_lab/studies/learning/prospective_agency_embodied.py` |
 | 2 | `src/symbiont_lab/studies/learning/temporal_private_model_controls.py` |
 | 2 | `src/symbiont_lab/studies/runtime_prediction_promotion.py` |
 | 2 | `src/symbiont_lab/studies/social_runtime_context_replay.py` |
@@ -128,7 +128,6 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 | 1 | `src/symbiont_lab/physics3d/equivalence.py` |
 | 1 | `src/symbiont_lab/physics3d/monitor.py` |
 | 1 | `src/symbiont_lab/physics3d/observer_semantics.py` |
-| 1 | `src/symbiont_lab/physics3d/private_model_training.py` |
 | 1 | `src/symbiont_lab/studies/heritage/ecological_shift.py` |
 | 1 | `src/symbiont_lab/studies/integrated_habitat_runtime.py` |
 | 1 | `src/symbiont_lab/studies/learning/cognitive_ecology_embodiment.py` |
@@ -159,7 +158,7 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 - `433:33` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "attach_private_model_bridge" for class "OrganismRuntime" Attribute "attach_private_model_bridge" is unknown
 - `456:28` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "autonomous_private_learning_plan" for class "OrganismRuntime" Attribute "autonomous_private_learning_plan" is unknown
 - `464:21` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "settle_private_model_training_compute" for class "OrganismRuntime" Attribute "settle_private_model_training_compute" is unknown
-- `468:31` · **error** · `reportArgumentType` — Argument of type "PrivateModelOrganismRuntime \| ModeledOrganismRuntime \| OrganismRuntime" cannot be assigned to parameter "runtime" of type "ModeledOrganismRuntime" in function "adopt" Type "PrivateModelOrganismRuntime \| ModeledOrganismRuntime \| OrganismRuntime" is not assignable to type "ModeledOrganismRuntime" "OrganismRuntime" is not assignable to "ModeledOrganismRuntime"
+- `468:31` · **error** · `reportArgumentType` — Argument of type "PrivateModelOrganismRuntime \| OrganismRuntime" cannot be assigned to parameter "runtime" of type "ModeledOrganismRuntime" in function "adopt" Type "PrivateModelOrganismRuntime \| OrganismRuntime" is not assignable to type "ModeledOrganismRuntime" "OrganismRuntime" is not assignable to "ModeledOrganismRuntime"
 - `469:30` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "model_registry" for class "OrganismRuntime" Attribute "model_registry" is unknown
 - `478:38` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "model_registry" for class "OrganismRuntime" Attribute "model_registry" is unknown
 - `482:25` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "attach_private_model_bridge" for class "OrganismRuntime" Attribute "attach_private_model_bridge" is unknown
@@ -306,14 +305,10 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 
 - `1225:17` · **error** · `reportArgumentType` — Argument of type "float" cannot be assigned to parameter "value" of type "int" in function "__setitem__" "float" is not assignable to "int"
 
-### `src/symbiont/modeling/private_runtime.py` (6)
+### `src/symbiont/modeling/private_runtime.py` (2)
 
 - `905:32` · **error** · `reportOptionalMemberAccess` — "get" is not a known attribute of "None"
 - `910:32` · **error** · `reportOptionalMemberAccess` — "get" is not a known attribute of "None"
-- `917:17` · **error** · `reportAttributeAccessIssue` — Cannot assign to attribute "_pending_private_frame" for class "ModeledOrganismRuntime" Attribute "_pending_private_frame" is unknown
-- `921:17` · **error** · `reportAttributeAccessIssue` — Cannot assign to attribute "_pending_outcome_value_credit" for class "ModeledOrganismRuntime" Attribute "_pending_outcome_value_credit" is unknown
-- `922:20` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "_prospective_agency" for class "ModeledOrganismRuntime" Attribute "_prospective_agency" is unknown
-- `936:25` · **error** · `reportAttributeAccessIssue` — Cannot assign to attribute "_prospective_agency" for class "ModeledOrganismRuntime" Attribute "_prospective_agency" is unknown
 
 ### `src/symbiont/modeling/runtime.py` (9)
 
@@ -406,9 +401,8 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 - `297:39` · **error** · `reportArgumentType` — Argument of type "Unknown \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "Unknown \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex" ...
 - `297:39` · **error** · `reportArgumentType` — Argument of type "Unknown \| None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "Unknown \| None" is not assignable to type "ConvertibleToFloat" Type "None" is not assignable to type "ConvertibleToFloat" "None" is not assignable to "str" "None" is incompatible with protocol "Buffer" "__buffer__" is not present "None" is incompatible with protocol "SupportsFloat" "__float__" is not present "None" is incompatible with protocol "SupportsIndex"
 
-### `src/symbiont_lab/physics3d/engine.py` (12)
+### `src/symbiont_lab/physics3d/engine.py` (9)
 
-- `493:13` · **error** · `reportArgumentType` — Argument of type "PrivateModelOrganismRuntime \| ModeledOrganismRuntime" cannot be assigned to parameter "runtime" of type "_PrivateModelRuntime" in function "attach_existing" Type "PrivateModelOrganismRuntime \| ModeledOrganismRuntime" is not assignable to type "_PrivateModelRuntime" "ModeledOrganismRuntime" is incompatible with protocol "_PrivateModelRuntime" "settle_private_model_training_compute" is an incompatible type Type "(*, request_id: str, steps_completed: int) -> bool" is not assignable to type "(*, request_id: str, steps_completed: int) -> None" Function return type "bool" is incompatible with type "None" "adopt_private_model" is an incompatible type Type "(artifact: ModelArtifactManifest, *, evaluation_summary: tuple[int, ...] = (), validation_loss: float \| None = None, baseline_loss: float \| None = None, vocabulary: tuple[str, ...] \| None = None) -> ModelRecord" is not assignable to type "(manifest: Any, *, evaluation_summary: tuple[int, ...], **lineage: Any) -> Any" Parameter name mismatch: "manifest" versus "artifact" ...
 - `597:38` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
 - `597:38` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 - `598:47` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__" Type "object" is not assignable to type "ConvertibleToInt" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsInt" "__int__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present ...
@@ -418,8 +412,6 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 - `600:53` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 - `601:58` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
 - `602:47` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__" Type "object" is not assignable to type "ConvertibleToFloat" "object" is not assignable to "str" "object" is incompatible with protocol "Buffer" "__buffer__" is not present "object" is incompatible with protocol "SupportsFloat" "__float__" is not present "object" is incompatible with protocol "SupportsIndex" "__index__" is not present
-- `647:55` · **error** · `reportArgumentType` — Argument of type "PrivateModelOrganismRuntime \| ModeledOrganismRuntime" cannot be assigned to parameter "runtime" of type "_PrivateModelRuntime" in function "maybe_schedule" Type "PrivateModelOrganismRuntime \| ModeledOrganismRuntime" is not assignable to type "_PrivateModelRuntime" "ModeledOrganismRuntime" is incompatible with protocol "_PrivateModelRuntime" "settle_private_model_training_compute" is an incompatible type Type "(*, request_id: str, steps_completed: int) -> bool" is not assignable to type "(*, request_id: str, steps_completed: int) -> None" Function return type "bool" is incompatible with type "None" "adopt_private_model" is an incompatible type Type "(artifact: ModelArtifactManifest, *, evaluation_summary: tuple[int, ...] = (), validation_loss: float \| None = None, baseline_loss: float \| None = None, vocabulary: tuple[str, ...] \| None = None) -> ModelRecord" is not assignable to type "(manifest: Any, *, evaluation_summary: tuple[int, ...], **lineage: Any) -> Any" Parameter name mismatch: "manifest" versus "artifact" ...
-- `651:60` · **error** · `reportArgumentType` — Argument of type "PrivateModelOrganismRuntime \| ModeledOrganismRuntime" cannot be assigned to parameter "runtime" of type "_PrivateModelRuntime" in function "wait_until_idle" Type "PrivateModelOrganismRuntime \| ModeledOrganismRuntime" is not assignable to type "_PrivateModelRuntime" "ModeledOrganismRuntime" is incompatible with protocol "_PrivateModelRuntime" "settle_private_model_training_compute" is an incompatible type Type "(*, request_id: str, steps_completed: int) -> bool" is not assignable to type "(*, request_id: str, steps_completed: int) -> None" Function return type "bool" is incompatible with type "None" "adopt_private_model" is an incompatible type Type "(artifact: ModelArtifactManifest, *, evaluation_summary: tuple[int, ...] = (), validation_loss: float \| None = None, baseline_loss: float \| None = None, vocabulary: tuple[str, ...] \| None = None) -> ModelRecord" is not assignable to type "(manifest: Any, *, evaluation_summary: tuple[int, ...], **lineage: Any) -> Any" Parameter name mismatch: "manifest" versus "artifact" ...
 
 ### `src/symbiont_lab/physics3d/environments.py` (1)
 
@@ -449,10 +441,6 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 
 - `36:32` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "name" for class "object" Attribute "name" is unknown
 
-### `src/symbiont_lab/physics3d/private_model_training.py` (1)
-
-- `517:25` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "note_retirement_deferred" for class "_PrivateModelRuntime" Attribute "note_retirement_deferred" is unknown
-
 ### `src/symbiont_lab/physics3d/reembodiment.py` (3)
 
 - `656:13` · **error** · `reportOptionalMemberAccess` — "append" is not a known attribute of "None"
@@ -468,31 +456,23 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 - `55:31` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "createMultiBody" for class "object" Attribute "createMultiBody" is unknown
 - `86:27` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "getContactPoints" for class "object" Attribute "getContactPoints" is unknown
 
-### `src/symbiont_lab/physics3d/runtime.py` (25)
+### `src/symbiont_lab/physics3d/runtime.py` (17)
 
 - `387:54` · **error** · `reportArgumentType` — Argument of type "tuple[float, ...]" cannot be assigned to parameter "point" of type "tuple[float, float, float]" in function "distance_to" "tuple[float, ...]" is not assignable to "tuple[float, float, float]" Tuple size mismatch; expected 3 but received indeterminate
 - `730:32` · **error** · `reportOptionalMemberAccess` — "get" is not a known attribute of "None"
 - `734:48` · **error** · `reportOptionalMemberAccess` — "get" is not a known attribute of "None"
 - `764:17` · **error** · `reportArgumentType` — Argument of type "Any \| Mapping[Unknown, Unknown] \| None" cannot be assigned to parameter "payload" of type "Mapping[str, Any]" in function "restore" Type "Any \| Mapping[Unknown, Unknown] \| None" is not assignable to type "Mapping[str, Any]" "None" is not assignable to "Mapping[str, Any]"
-- `1091:35` · **error** · `reportArgumentType` — Argument of type "object \| Any \| None" cannot be assigned to parameter "body_schema_prior" of type "Mapping[str, Any] \| None" in function "archive_episode_checkpoint" Type "object \| Any \| None" is not assignable to type "Mapping[str, Any] \| None" Type "object" is not assignable to type "Mapping[str, Any] \| None" "object" is not assignable to "Mapping[str, Any]" "object" is not assignable to "None"
-- `1094:29` · **error** · `reportArgumentType` — Argument of type "object \| Any \| None" cannot be assigned to parameter "living_body" of type "Mapping[str, Any] \| None" in function "archive_episode_checkpoint" Type "object \| Any \| None" is not assignable to type "Mapping[str, Any] \| None" Type "object" is not assignable to type "Mapping[str, Any] \| None" "object" is not assignable to "Mapping[str, Any]" "object" is not assignable to "None"
+- `1091:35` · **error** · `reportArgumentType` — Argument of type "object \| None" cannot be assigned to parameter "body_schema_prior" of type "Mapping[str, Any] \| None" in function "archive_episode_checkpoint" Type "object \| None" is not assignable to type "Mapping[str, Any] \| None" Type "object" is not assignable to type "Mapping[str, Any] \| None" "object" is not assignable to "Mapping[str, Any]" "object" is not assignable to "None"
+- `1094:29` · **error** · `reportArgumentType` — Argument of type "object \| None" cannot be assigned to parameter "living_body" of type "Mapping[str, Any] \| None" in function "archive_episode_checkpoint" Type "object \| None" is not assignable to type "Mapping[str, Any] \| None" Type "object" is not assignable to type "Mapping[str, Any] \| None" "object" is not assignable to "Mapping[str, Any]" "object" is not assignable to "None"
 - `1523:49` · **error** · `reportArgumentType` — Argument of type "tuple[float, ...]" cannot be assigned to parameter "point" of type "tuple[float, float, float]" in function "field_at" "tuple[float, ...]" is not assignable to "tuple[float, float, float]" Tuple size mismatch; expected 3 but received indeterminate
 - `1744:55` · **error** · `reportArgumentType` — Argument of type "tuple[float, ...]" cannot be assigned to parameter "point" of type "tuple[float, float, float]" in function "distance_to" "tuple[float, ...]" is not assignable to "tuple[float, float, float]" Tuple size mismatch; expected 3 but received indeterminate
 - `1863:76` · **error** · `reportOptionalMemberAccess` — "surface_fingerprint" is not a known attribute of "None"
 - `1905:15` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "value" for class "str" Attribute "value" is unknown
-- `1913:46` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "last_prospective_decision" for class "ModeledOrganismRuntime" Attribute "last_prospective_decision" is unknown
-- `1923:54` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "last_prospective_query_count" for class "ModeledOrganismRuntime" Attribute "last_prospective_query_count" is unknown
-- `1950:52` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "last_prospective_value_samples" for class "ModeledOrganismRuntime" Attribute "last_prospective_value_samples" is unknown
-- `1956:51` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "last_prospective_cost" for class "ModeledOrganismRuntime" Attribute "last_prospective_cost" is unknown
-- `1957:59` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "prospective_outcome_value_count" for class "ModeledOrganismRuntime" Attribute "prospective_outcome_value_count" is unknown
 - `1991:82` · **error** · `reportOptionalMemberAccess` — "items" is not a known attribute of "None"
 - `2000:77` · **error** · `reportOptionalMemberAccess` — "checkpoint" is not a known attribute of "None"
 - `2202:21` · **error** · `reportGeneralTypeIssues` — Expected mapping for dictionary unpack operator
 - `2273:27` · **error** · `reportArgumentType` — Argument of type "tuple[float, ...]" cannot be assigned to parameter "base_position" of type "tuple[float, float, float]" in function "__init__" "tuple[float, ...]" is not assignable to "tuple[float, float, float]" Tuple size mismatch; expected 3 but received indeterminate
 - `2274:30` · **error** · `reportArgumentType` — Argument of type "tuple[float, ...]" cannot be assigned to parameter "base_orientation" of type "tuple[float, float, float, float]" in function "__init__" "tuple[float, ...]" is not assignable to "tuple[float, float, float, float]" Tuple size mismatch; expected 4 but received indeterminate
-- `2346:54` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "last_prospective_query_count" for class "ModeledOrganismRuntime" Attribute "last_prospective_query_count" is unknown
-- `2365:57` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "last_prospective_value_samples" for class "ModeledOrganismRuntime" Attribute "last_prospective_value_samples" is unknown
-- `2369:50` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "last_prospective_cost" for class "ModeledOrganismRuntime" Attribute "last_prospective_cost" is unknown
 - `2459:26` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
 - `2462:49` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
 
@@ -702,19 +682,10 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 - `272:25` · **error** · `reportArgumentType` — Argument of type "object" cannot be assigned to parameter "success" of type "bool" in function "__init__" "object" is not assignable to "bool"
 - `274:31` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "report_symbol_reinforcement" for class "object" Attribute "report_symbol_reinforcement" is unknown
 
-### `src/symbiont_lab/studies/learning/prospective_agency_embodied.py` (11)
+### `src/symbiont_lab/studies/learning/prospective_agency_embodied.py` (2)
 
-- `132:33` · **error** · `reportArgumentType` — Argument of type "PrivateModelOrganismRuntime \| ModeledOrganismRuntime" cannot be assigned to parameter "runtime" of type "_PrivateModelRuntime" in function "attach_existing" Type "PrivateModelOrganismRuntime \| ModeledOrganismRuntime" is not assignable to type "_PrivateModelRuntime" "ModeledOrganismRuntime" is incompatible with protocol "_PrivateModelRuntime" "settle_private_model_training_compute" is an incompatible type Type "(*, request_id: str, steps_completed: int) -> bool" is not assignable to type "(*, request_id: str, steps_completed: int) -> None" Function return type "bool" is incompatible with type "None" "adopt_private_model" is an incompatible type Type "(artifact: ModelArtifactManifest, *, evaluation_summary: tuple[int, ...] = (), validation_loss: float \| None = None, baseline_loss: float \| None = None, vocabulary: tuple[str, ...] \| None = None) -> ModelRecord" is not assignable to type "(manifest: Any, *, evaluation_summary: tuple[int, ...], **lineage: Any) -> Any" Parameter name mismatch: "manifest" versus "artifact" ...
-- `143:22` · **error** · `reportAttributeAccessIssue` — Cannot assign to attribute "_prospective_agency" for class "ModeledOrganismRuntime" Attribute "_prospective_agency" is unknown
 - `155:33` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "predict_primitive_outcome" for class "PrivateModelOrganismRuntime" Attribute "predict_primitive_outcome" is unknown
-- `155:33` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "predict_primitive_outcome" for class "ModeledOrganismRuntime" Attribute "predict_primitive_outcome" is unknown
 - `161:22` · **error** · `reportAttributeAccessIssue` — Cannot assign to attribute "predict_primitive_outcome" for class "PrivateModelOrganismRuntime" Attribute "predict_primitive_outcome" is unknown
-- `161:22` · **error** · `reportAttributeAccessIssue` — Cannot assign to attribute "predict_primitive_outcome" for class "ModeledOrganismRuntime" Attribute "predict_primitive_outcome" is unknown
-- `185:22` · **error** · `reportAttributeAccessIssue` — Cannot assign to attribute "_pending_outcome_value_credit" for class "ModeledOrganismRuntime" Attribute "_pending_outcome_value_credit" is unknown
-- `190:22` · **error** · `reportAttributeAccessIssue` — Cannot assign to attribute "_schedule_observed_outcome_value_credit" for class "ModeledOrganismRuntime" Attribute "_schedule_observed_outcome_value_credit" is unknown
-- `362:49` · **error** · `reportArgumentType` — Argument of type "PrivateModelOrganismRuntime \| ModeledOrganismRuntime" cannot be assigned to parameter "runtime" of type "_PrivateModelRuntime" in function "poll" Type "PrivateModelOrganismRuntime \| ModeledOrganismRuntime" is not assignable to type "_PrivateModelRuntime" "ModeledOrganismRuntime" is incompatible with protocol "_PrivateModelRuntime" "settle_private_model_training_compute" is an incompatible type Type "(*, request_id: str, steps_completed: int) -> bool" is not assignable to type "(*, request_id: str, steps_completed: int) -> None" Function return type "bool" is incompatible with type "None" "adopt_private_model" is an incompatible type Type "(artifact: ModelArtifactManifest, *, evaluation_summary: tuple[int, ...] = (), validation_loss: float \| None = None, baseline_loss: float \| None = None, vocabulary: tuple[str, ...] \| None = None) -> ModelRecord" is not assignable to type "(manifest: Any, *, evaluation_summary: tuple[int, ...], **lineage: Any) -> Any" Parameter name mismatch: "manifest" versus "artifact" ...
-- `453:25` · **error** · `reportArgumentType` — Argument of type "PrivateModelOrganismRuntime \| ModeledOrganismRuntime" cannot be assigned to parameter "runtime" of type "_PrivateModelRuntime" in function "maybe_schedule" Type "PrivateModelOrganismRuntime \| ModeledOrganismRuntime" is not assignable to type "_PrivateModelRuntime" "ModeledOrganismRuntime" is incompatible with protocol "_PrivateModelRuntime" "settle_private_model_training_compute" is an incompatible type Type "(*, request_id: str, steps_completed: int) -> bool" is not assignable to type "(*, request_id: str, steps_completed: int) -> None" Function return type "bool" is incompatible with type "None" "adopt_private_model" is an incompatible type Type "(artifact: ModelArtifactManifest, *, evaluation_summary: tuple[int, ...] = (), validation_loss: float \| None = None, baseline_loss: float \| None = None, vocabulary: tuple[str, ...] \| None = None) -> ModelRecord" is not assignable to type "(manifest: Any, *, evaluation_summary: tuple[int, ...], **lineage: Any) -> Any" Parameter name mismatch: "manifest" versus "artifact" ...
-- `460:64` · **error** · `reportArgumentType` — Argument of type "PrivateModelOrganismRuntime \| ModeledOrganismRuntime" cannot be assigned to parameter "runtime" of type "_PrivateModelRuntime" in function "wait_until_idle" Type "PrivateModelOrganismRuntime \| ModeledOrganismRuntime" is not assignable to type "_PrivateModelRuntime" "ModeledOrganismRuntime" is incompatible with protocol "_PrivateModelRuntime" "settle_private_model_training_compute" is an incompatible type Type "(*, request_id: str, steps_completed: int) -> bool" is not assignable to type "(*, request_id: str, steps_completed: int) -> None" Function return type "bool" is incompatible with type "None" "adopt_private_model" is an incompatible type Type "(artifact: ModelArtifactManifest, *, evaluation_summary: tuple[int, ...] = (), validation_loss: float \| None = None, baseline_loss: float \| None = None, vocabulary: tuple[str, ...] \| None = None) -> ModelRecord" is not assignable to type "(manifest: Any, *, evaluation_summary: tuple[int, ...], **lineage: Any) -> Any" Parameter name mismatch: "manifest" versus "artifact" ...
 
 ### `src/symbiont_lab/studies/learning/structured_communication_characterization.py` (4)
 
