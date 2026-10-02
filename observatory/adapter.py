@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import argparse
-import json
 import math
-import sys
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
@@ -1659,71 +1656,3 @@ def write_replay(path: str | Path, snapshots: Iterable[dict[str, Any]]) -> None:
         raise ValueError(f"replay must contain between 1 and {MAX_TICKS} snapshots")
     payload = {"schema_version": 1, "snapshots": items}
     durable_atomic_write_json(target, payload, sort_keys=False, ensure_ascii=False, sync_dir=True)
-
-
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        description="Record bounded real Symbiont ticks for the passive Observatory"
-    )
-    parser.add_argument(
-        "--ticks", type=int, default=20, help="finite tick budget (1-10000; default 20)"
-    )
-    parser.add_argument("--output", type=Path, default=Path("symbiont-replay.json"))
-    parser.add_argument(
-        "--display-id", default="local-symbiont", help="non-identifying display label"
-    )
-    parser.add_argument(
-        "--checkpoint", type=Path, help="optional durable abstract runtime checkpoint"
-    )
-    parser.add_argument(
-        "--stdout",
-        action="store_true",
-        help="also emit one postMessage-compatible JSON envelope per line",
-    )
-    args = parser.parse_args(argv)
-    if not 1 <= args.ticks <= MAX_TICKS:
-        parser.error(f"--ticks must be between 1 and {MAX_TICKS}")
-
-    from symbiont.core.orchestration.governor import GovernedOrganism
-    from symbiont.core.orchestration.runtime import OrganismRuntime
-
-    runtime = (
-        OrganismRuntime.load_or_create(args.checkpoint) if args.checkpoint else OrganismRuntime()
-    )
-    organism = GovernedOrganism(runtime, max_ticks=args.ticks)
-    revision_counts: dict[str, int] = {}
-    snapshots = []
-    for _ in range(args.ticks):
-        result = organism.tick()
-        snapshot = project_tick(
-            result,
-            acclimation=runtime.acclimation,
-            display_id=args.display_id,
-            ticks_remaining=organism.ticks_remaining,
-            revision_counts=revision_counts,
-            body_schema=runtime.body_schema.export_representation(current_tick=runtime.tick_count),
-            signal_knowledge=result.signal_knowledge,
-            knowledge_events=result.knowledge_events,
-            signal_references=result.signal_references,
-            social_relations=runtime.social_ledger.relations,
-            social_resource_evidence=runtime.social_resource_ledger.evidence,
-            cultural_observations=(
-                runtime.cultural_observations()
-                if hasattr(runtime, "cultural_observations")
-                else None
-            ),
-        )
-        snapshots.append(snapshot)
-        if args.stdout:
-            print(
-                json.dumps(envelope(snapshot), ensure_ascii=False, separators=(",", ":")),
-                flush=True,
-            )
-    write_replay(args.output, snapshots)
-    if args.checkpoint:
-        runtime.save(args.checkpoint)
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())

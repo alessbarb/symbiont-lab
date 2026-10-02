@@ -2,7 +2,7 @@
 
 Mirrors the derivation scheme of symbiont.environment.rng.derive_seed
 (sha256 of "<prefix>:<seed>:<namespace>") without importing it, per
-docs/design/symbiont-world-v1.md §2: symbiont_world imports nothing.
+docs/design/archive/symbiont-world-v1.md §2: symbiont_world imports nothing.
 Independent namespacing keeps world randomness from perturbing the
 existing same-seed reproducibility of synthetic experiments (§3, inv. 2).
 """

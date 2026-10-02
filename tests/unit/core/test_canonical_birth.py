@@ -69,3 +69,49 @@ def test_generic_runtime_restore_remains_exact_for_historical_reproduction():
 
     assert restored.genome is None
     assert restored.cognitive_bridge is None
+
+
+def test_adoption_is_one_recorded_transform_for_every_runtime_layer():
+    from symbiont.modeling.private_runtime import PrivateModelOrganismRuntime
+
+    legacy = PrivateModelOrganismRuntime(bootstrap_semantic_senses=False).checkpoint()
+    assert legacy["genome"] is None
+
+    restored = restore_resident_with_canonical_cognition(
+        as_legacy(legacy),
+        runtime_class=PrivateModelOrganismRuntime,
+        bootstrap_semantic_senses=False,
+    )
+
+    assert isinstance(restored, PrivateModelOrganismRuntime)
+    assert restored.genome is not None
+    # The adoption outlives the in-memory payload: every later save records it.
+    restored.checkpoint()
+    lineage = restored.checkpoint()["checkpoint_lineage"]
+    assert lineage["transforms"] == ["canonical-cognition-adoption"]
+    assert lineage["unverified_legacy_origin"] is True
+
+
+def test_historical_restore_of_the_same_checkpoint_adopts_nothing():
+    legacy = as_legacy(OrganismRuntime(bootstrap_semantic_senses=False).checkpoint())
+
+    historical = OrganismRuntime.from_checkpoint(dict(legacy), bootstrap_semantic_senses=False)
+    adopted = restore_resident_with_canonical_cognition(
+        dict(legacy), bootstrap_semantic_senses=False
+    )
+
+    assert historical.genome is None
+    assert historical.cognitive_bridge is None
+    assert adopted.genome is not None
+    lineage = historical.checkpoint()["checkpoint_lineage"]
+    assert "transforms" not in lineage
+    assert lineage["unverified_legacy_origin"] is True
+
+
+def test_an_organism_born_under_the_current_schema_records_no_legacy_origin():
+    born = OrganismRuntime(bootstrap_semantic_senses=False)
+    restarted = OrganismRuntime.from_checkpoint(born.checkpoint(), bootstrap_semantic_senses=False)
+
+    lineage = restarted.checkpoint()["checkpoint_lineage"]
+    assert "unverified_legacy_origin" not in lineage
+    assert "transforms" not in lineage

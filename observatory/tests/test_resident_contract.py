@@ -24,7 +24,8 @@ class ResidentContractTests(unittest.TestCase):
             result = subprocess.run(
                 [
                     sys.executable,
-                    "resident.py",
+                    "-m",
+                    "symbiont_lab.cli.observed_resident",
                     "--state-file",
                     str(state_file),
                     "--max-ticks",
@@ -34,7 +35,7 @@ class ResidentContractTests(unittest.TestCase):
                     "--checkpoint-every",
                     "1",
                 ],
-                cwd=ROOT,
+                cwd=REPO_ROOT,
                 capture_output=True,
                 text=True,
                 timeout=30,
@@ -69,7 +70,8 @@ class ResidentContractTests(unittest.TestCase):
             result = subprocess.run(
                 [
                     sys.executable,
-                    "resident.py",
+                    "-m",
+                    "symbiont_lab.cli.observed_resident",
                     "--state-file",
                     str(state_file),
                     "--observatory-dir",
@@ -81,7 +83,7 @@ class ResidentContractTests(unittest.TestCase):
                     "--checkpoint-every",
                     "1",
                 ],
-                cwd=ROOT,
+                cwd=REPO_ROOT,
                 capture_output=True,
                 text=True,
                 timeout=30,
@@ -117,7 +119,8 @@ class ResidentContractTests(unittest.TestCase):
             result = subprocess.run(
                 [
                     sys.executable,
-                    "resident.py",
+                    "-m",
+                    "symbiont_lab.cli.observed_resident",
                     "--state-file",
                     str(state_file),
                     "--observatory-dir",
@@ -134,7 +137,7 @@ class ResidentContractTests(unittest.TestCase):
                     "--checkpoint-every",
                     "1",
                 ],
-                cwd=ROOT,
+                cwd=REPO_ROOT,
                 capture_output=True,
                 text=True,
                 timeout=30,
@@ -153,7 +156,8 @@ class ResidentContractTests(unittest.TestCase):
             result = subprocess.run(
                 [
                     sys.executable,
-                    "resident.py",
+                    "-m",
+                    "symbiont_lab.cli.observed_resident",
                     "--state-file",
                     str(state_file),
                     "--observatory-dir",
@@ -166,7 +170,7 @@ class ResidentContractTests(unittest.TestCase):
                     "--checkpoint-every",
                     "1",
                 ],
-                cwd=ROOT,
+                cwd=REPO_ROOT,
                 capture_output=True,
                 text=True,
                 timeout=30,

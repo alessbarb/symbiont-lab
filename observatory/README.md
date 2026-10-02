@@ -21,14 +21,19 @@ observatory/
 ├── ui/            # controls, dialogs, drawers and profiles
 ├── schemas/      # closed JSON contracts
 ├── tests/        # Python contract and integration tests
-├── adapter.py    # finite runtime-to-replay projection
-├── resident.py   # transparent owner-run publisher
+├── adapter.py    # tick-to-snapshot projection
 └── server.py     # loopback-only static/SSE server
 ```
 
+Nothing in this package constructs, restores or drives an organism. The two
+launchers that do live in the Lab and only hand ticks to the projection here:
+`symbiont_lab.cli.observed_resident` (resident publisher) and
+`symbiont_lab.cli.observed_replay` (bounded replay recorder).
+`tests/experimental_integrity/test_observatory_passive_boundary.py` enforces it.
+
 `projection/` is the boundary that prevents renderer code from receiving raw host
 values or private checkpoint state. `transport/` only reads bounded local artifacts;
-`resident.py` is the sole runtime publisher.
+`symbiont_lab.cli.observed_resident` is the sole runtime publisher.
 
 ## Run locally
 
@@ -253,12 +258,12 @@ from the accessible table or inspector.
 ## Record the real organism
 
 `adapter.py` projects each public `OrganismRuntime` tick into the bounded display
-contract. It drops raw values, timestamps, provider identity and host identity. The
+contract; `symbiont_lab.cli.observed_replay` owns the organism it records. It drops raw values, timestamps, provider identity and host identity. The
 run is finite, governed by a hard tick budget and creates no daemon or network
 listener:
 
 ```bash
-python observatory/adapter.py --ticks 20 --output symbiont-replay.json
+python -m symbiont_lab.cli.observed_replay --ticks 20 --output symbiont-replay.json
 ```
 
 Open the result with **Open replay**. Add `--checkpoint .symbiont/organism.json` to
@@ -271,12 +276,14 @@ cognitive channel membership/evidence.
 
 ## Resident, Fleet and cognition
 
-`observatory/resident.py` runs the same `OrganismRuntime` lifecycle and publishes
-passive Observatory artifacts. On a first cognitive launch it accepts the same
+`symbiont_lab.cli.observed_resident` runs the same `OrganismRuntime` lifecycle and
+publishes passive Observatory artifacts. A capture manifest that cannot be written
+is reported on stderr and makes the launcher exit non-zero after the organism has
+been saved; the organism is never stopped by an observer failure. On a first cognitive launch it accepts the same
 owner-authored inputs as the main organism CLI:
 
 ```bash
-python observatory/resident.py \
+python -m symbiont_lab.cli.observed_resident \
   --genome-file examples/cognition/genome.json \
   --graph-file examples/cognition/graph.json \
   --semantic-bootstrap
@@ -314,7 +321,7 @@ and accepts the new run's `sequence == 0` immediately.
 
 The organism's durable checkpoint is separate and is never read by Observatory.
 
-`resident.py` stays label-free by default — opaque, self-developed senses only. An
+The resident launcher stays label-free by default — opaque, self-developed senses only. An
 owner-authored graph that declares semantic `SENSE` node ids such as `system_load`
 or `storage_pressure` needs `--semantic-bootstrap` to opt in to the legacy aliases
 those ids expect. Without it, such a graph is legitimately not fed by those aliases.

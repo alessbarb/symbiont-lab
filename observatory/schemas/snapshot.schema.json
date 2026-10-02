@@ -2194,6 +2194,57 @@
           }
         }
       }
+    },
+    "apparatus": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "slm_service": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "enabled",
+            "available",
+            "last_success_tick",
+            "consecutive_failures",
+            "last_error_class",
+            "last_error"
+          ],
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "available": {
+              "type": "boolean"
+            },
+            "last_success_tick": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "consecutive_failures": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "last_error_class": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "maxLength": 128
+            },
+            "last_error": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "maxLength": 512
+            }
+          }
+        }
+      }
     }
   }
 }

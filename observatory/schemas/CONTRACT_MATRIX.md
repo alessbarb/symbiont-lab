@@ -23,6 +23,9 @@ validation when it exceeds its defensive bounds.
   salts.
 - `signal_knowledge` is limited to 64 profiles, with at most four claims per profile
   and bounded identifiers/text as defined in `snapshot.schema.json`.
+- `apparatus.slm_service` is the optional launcher-side status of the Private SLM
+  service (availability, last success tick, failure count, bounded error text). It
+  describes the apparatus, never the organism.
 - Replay envelopes are bounded independently by `replay.schema.json` (1–10,000
   snapshots and a 5 MiB file limit in the browser loader).
 

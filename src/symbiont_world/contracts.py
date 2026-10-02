@@ -1,5 +1,5 @@
 """WorldObservation / WorldAction: the only two types that cross the
-organism boundary (docs/design/symbiont-world-v1.md §4).
+organism boundary (docs/design/archive/symbiont-world-v1.md §4).
 
 Both are immutable by construction, not just by convention: mapping fields
 are coerced into MappingProxyType so a caller cannot mutate them after

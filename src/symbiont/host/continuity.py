@@ -173,6 +173,17 @@ REGISTER: tuple[ContinuityEntry, ...] = (
         _KEEP,
         migration="absent before lineage tracking: the restored organism starts a new root",
     ),
+    _core(
+        "_lineage_history",
+        "checkpoint lineage",
+        _P,
+        "checkpoint_lineage",
+        _KEEP,
+        migration=(
+            "a checkpoint without a verifiable identity marks every later save "
+            "unverified_legacy_origin"
+        ),
+    ),
     # --- genome and expression -----------------------------------------------------
     _core("_genome", "genetics", _P, "genome", _KEEP),
     _core(
@@ -711,17 +722,100 @@ def entries_for(layer: str) -> tuple[ContinuityEntry, ...]:
     return tuple(entry for entry in REGISTER if entry.layer in visible)
 
 
+class Transplant(StrEnum):
+    """What a Body transplant does to one attribute of the reduced seed."""
+
+    PRESERVED = "preserved"
+    RESET = "reset_to_naive"
+    DETACHED = "kept_without_current_body_grounding"
+    REBOUND = "rebound_to_the_new_body"
+
+
+@dataclass(frozen=True, slots=True)
+class ReducedSeedEntry:
+    """One attribute of ``core.orchestration.symbiont.Symbiont`` under transplant.
+
+    ``canonical`` names the ``OrganismRuntime`` register entry that owns the
+    same kind of state. ``diverges`` is true where the reduced seed discards or
+    ungrounds knowledge that canonical re-embodiment keeps.
+    """
+
+    attribute: str
+    owner: str
+    transplant: Transplant
+    canonical: str | None = None
+    diverges: bool = False
+
+
+_T_KEEP = Transplant.PRESERVED
+_T_RESET = Transplant.RESET
+
+# The reduced seed is the apparatus of the clean-embodiment studies. On a Body
+# transplant it keeps identity, time, genotype and expression and starts
+# embodiment-specific inference again from naive. Canonical re-embodiment
+# (``REGISTER``) keeps that inference as knowledge and withdraws only its
+# authority over the Body. The two are different longitudinal semantics; every
+# attribute where they differ is marked ``diverges`` so the difference is a
+# declared contract instead of an accident of two implementations.
+REDUCED_SEED_REGISTER: tuple[ReducedSeedEntry, ...] = (
+    ReducedSeedEntry("symbiont_id", "organism identity", _T_KEEP, "_organism_id"),
+    ReducedSeedEntry("total_ticks", "organism time", _T_KEEP, "_tick_count"),
+    ReducedSeedEntry("genome", "genetics", _T_KEEP, "_genome"),
+    ReducedSeedEntry("germline", "genetics", _T_KEEP),
+    ReducedSeedEntry(
+        "gene_expression_state", "genetics.expression", _T_KEEP, "_gene_expression_state"
+    ),
+    ReducedSeedEntry(
+        "_expression_regulator", "genetics.expression", _T_KEEP, "_expression_regulator"
+    ),
+    ReducedSeedEntry("learning_rate", "genetics.expression", _T_KEEP),
+    ReducedSeedEntry("exploration_rate", "genetics.expression", _T_KEEP),
+    ReducedSeedEntry("expressed_loci", "genetics.expression", _T_KEEP),
+    ReducedSeedEntry("last_epigenetic_capture", "genetics (passive telemetry)", _T_KEEP),
+    ReducedSeedEntry("epigenetic_capture_count", "genetics (passive telemetry)", _T_KEEP),
+    ReducedSeedEntry("self_model", "identity continuity model", _T_KEEP, "_self_model"),
+    ReducedSeedEntry("_rng", "exploration randomness", _T_KEEP),
+    ReducedSeedEntry("_last_prediction_error", "last observed error", _T_KEEP),
+    ReducedSeedEntry("historical_output_channels", "embodiment history", _T_KEEP),
+    ReducedSeedEntry(
+        "competence_library",
+        "actuation.competence",
+        Transplant.DETACHED,
+        "_action_domain",
+        diverges=True,
+    ),
+    ReducedSeedEntry(
+        "sensorimotor_model", "embodiment.dynamics", _T_RESET, "_action_domain", diverges=True
+    ),
+    ReducedSeedEntry(
+        "body_schema", "embodiment.body_schema", _T_RESET, "_body_schema", diverges=True
+    ),
+    ReducedSeedEntry(
+        "action_domain", "core.domains.action", _T_RESET, "_action_domain", diverges=True
+    ),
+    ReducedSeedEntry("_current_surface_fingerprint", "execution authority", _T_RESET),
+    ReducedSeedEntry("_channel_outputs", "execution authority", _T_RESET),
+    ReducedSeedEntry("_signal_to_input", "current-Body signal mapping", _T_RESET),
+    ReducedSeedEntry("last_inputs", "in-flight tick state", _T_RESET),
+    ReducedSeedEntry("last_activations", "in-flight tick state", _T_RESET),
+    ReducedSeedEntry("current_output_channels", "execution authority", Transplant.REBOUND),
+)
+
+
 __all__ = [
     "APPARATUS_FIELDS",
     "CONDITIONAL_FIELDS",
     "ENVELOPE_FIELDS",
     "LAYERS",
+    "REDUCED_SEED_REGISTER",
     "REGISTER",
     "ApparatusField",
     "ContinuityClass",
     "ContinuityEntry",
     "EnvelopeField",
+    "ReducedSeedEntry",
     "Reembodiment",
+    "Transplant",
     "entries_for",
     "required_checkpoint_fields",
 ]

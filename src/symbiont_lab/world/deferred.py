@@ -1,4 +1,4 @@
-"""Deferred-damage resource effect (docs/design/symbiont-world-v2.md §6):
+"""Deferred-damage resource effect (docs/design/archive/symbiont-world-v2.md §6):
 the "immediate benefit, delayed damage" resource v1 §7 required but never
 modeled. Lives entirely in symbiont_lab -- no new API in symbiont_world or
 symbiont; fires through the existing apply_environmental_damage.

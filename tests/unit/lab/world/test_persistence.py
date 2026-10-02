@@ -1,4 +1,4 @@
-"""Tests for Phase P1: Durable World & Persistence (docs/design/symbiont-world-v3.md §6, §7, §8, §12, §37).
+"""Tests for Phase P1: Durable World & Persistence (docs/design/world/symbiont-world-v3.md §6, §7, §8, §12, §37).
 
 Verifies the Phase P1 technical gate:
 1. Checkpoint/replay equivalence:

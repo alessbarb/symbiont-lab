@@ -1,6 +1,6 @@
 """Tests for Phase P0: IntegratedWorldTickTransaction and state integrity.
 
-Verifies the Phase P0 technical gate from docs/design/symbiont-world-v3.md §39:
+Verifies the Phase P0 technical gate from docs/design/world/symbiont-world-v3.md §39:
 "forced failure at every phase -> exact state restoration (failed_tick(state_n) == state_n)"
 """
 

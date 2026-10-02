@@ -2,7 +2,7 @@
 
 W0 scope only: package boundary, constitution, contracts, topology, state,
 events, RNG and checkpoint. No fields, resources, hazards or organisms yet.
-See docs/design/symbiont-world-v1.md for the normative spec.
+See docs/design/archive/symbiont-world-v1.md for the normative spec.
 """
 
 from __future__ import annotations

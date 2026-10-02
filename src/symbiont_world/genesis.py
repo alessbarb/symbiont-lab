@@ -1,5 +1,5 @@
 """GroundTruth container and WorldEnvironment: real field/resource dynamics
-(docs/design/symbiont-world-v1.md §13).
+(docs/design/archive/symbiont-world-v1.md §13).
 
 symbiont_world never loads TOML or knows about `experiments/`; a caller
 (symbiont_lab, in a later increment) constructs GroundTruth from
@@ -30,7 +30,7 @@ def _freeze_nested(mapping: Mapping) -> Mapping:
 class GroundTruth:
     """Fields stay global (uniform temporal signal). Resources/hazards have
     a base law (fallback) plus optional per-region overrides
-    (docs/design/symbiont-world-v2.md §3) -- additive: a GroundTruth built
+    (docs/design/archive/symbiont-world-v2.md §3) -- additive: a GroundTruth built
     without region_of/regional_* behaves exactly as it did in v1."""
 
     fields: Mapping[FieldId, PeriodicFieldLaw] = field(default_factory=dict)

@@ -259,11 +259,15 @@ class ObservatoryContractTests(unittest.TestCase):
         self.assertIn("Structural cognition not configured", app)
 
     def test_resident_prioritizes_active_and_probing_states(self) -> None:
-        resident = (ROOT / "resident.py").read_text(encoding="utf-8")
+        resident = (ROOT.parent / "src/symbiont_lab/cli/observed_resident.py").read_text(
+            encoding="utf-8"
+        )
         self.assertIn("active_states + probing_states + dormant_states", resident)
 
     def test_resident_publishes_only_observer_safe_body_schema(self) -> None:
-        resident = (ROOT / "resident.py").read_text(encoding="utf-8")
+        resident = (ROOT.parent / "src/symbiont_lab/cli/observed_resident.py").read_text(
+            encoding="utf-8"
+        )
         self.assertIn("runtime.body_schema.export_representation", resident)
         self.assertNotIn("runtime.body_schema.export(current_tick", resident)
 

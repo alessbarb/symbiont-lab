@@ -164,3 +164,59 @@ def test_a_transformed_legacy_checkpoint_is_still_identity_protected() -> None:
 
     with pytest.raises(CheckpointError, match="does not match its recorded checkpoint_id"):
         OrganismRuntime.from_checkpoint(body_free, **PLAIN_KWARGS)
+
+
+def test_lineage_history_survives_consecutive_boundaries() -> None:
+    """legacy -> adoption -> save -> re-embodiment -> restore -> save -> restart -> save."""
+    legacy = _load("genomeless_runtime")
+    body_a = CausalBody(actuator_count=3, seed=127)
+    adopted = restore_resident_with_canonical_cognition(
+        legacy, runtime_class=PrivateModelOrganismRuntime, **_embodied_kwargs(body_a)
+    )
+    saved = json.loads(json.dumps(adopted.checkpoint()))
+    assert saved["checkpoint_lineage"]["transforms"] == ["canonical-cognition-adoption"]
+    assert saved["checkpoint_lineage"]["unverified_legacy_origin"] is True
+
+    body_b = CausalBody(actuator_count=4, seed=311)
+    fresh = json.loads(
+        json.dumps(
+            build_subject(
+                body_b,
+                organism_id=legacy["organism_id"],
+                runtime_class=PrivateModelOrganismRuntime,
+                factorized_effects=True,
+            ).checkpoint()
+        )
+    )
+    transformed = prepare_fresh_embodiment_checkpoint(
+        saved,
+        fresh,
+        contract=PhysicsEmbodimentDescriptor(
+            body_kind="causal-body-b", receptor_count=4, effector_count=4
+        ),
+        canonical_contract_fingerprint=body_b.surface.contract_fingerprint,
+    )
+    reembodied = PrivateModelOrganismRuntime.from_checkpoint(
+        json.loads(json.dumps(transformed)), **_embodied_kwargs(body_b)
+    )
+
+    expected = ["canonical-cognition-adoption", "re-embodiment"]
+    lineages = [transformed["checkpoint_lineage"]]
+    for _ in range(3):
+        reembodied.tick()
+        lineages.append(json.loads(json.dumps(reembodied.checkpoint()))["checkpoint_lineage"])
+    restarted = PrivateModelOrganismRuntime.from_checkpoint(
+        json.loads(json.dumps(reembodied.checkpoint())), **_embodied_kwargs(body_b)
+    )
+    lineages.append(restarted.checkpoint()["checkpoint_lineage"])
+    lineages.append(restarted.checkpoint()["checkpoint_lineage"])
+
+    for lineage in lineages:
+        assert lineage["transforms"] == expected
+        assert lineage["unverified_legacy_origin"] is True
+    assert reembodied.organism_id == legacy["organism_id"]
+    # The chain itself stays verifiable from the first current-schema save on.
+    assert all(lineage["identity_scope"] == IDENTITY_SCOPE for lineage in lineages)
+    assert (
+        lineages[1]["parent_checkpoint_hash"] == transformed["checkpoint_lineage"]["checkpoint_id"]
+    )
