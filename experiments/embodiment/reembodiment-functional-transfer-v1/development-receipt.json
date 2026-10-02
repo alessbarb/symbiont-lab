@@ -1,0 +1,37 @@
+{
+  "command": [
+    "<scientific-python>",
+    "-m",
+    "symbiont_lab.experiments.verified_child",
+    "code",
+    "import os, sys; from symbiont_lab.studies.embodiment.reembodiment_functional_transfer import main; sys.exit(main(['development', '--output', os.path.join(os.environ['SYMBIONT_RUN_WORK'], 'horizons.json')]))"
+  ],
+  "commit": "40c6801d8a6c957926c0e2e556c2767f6934a14d",
+  "cpu_threads": 1,
+  "dependency_extras": [],
+  "elapsed_seconds": 89.57344818115234,
+  "ended_at": "2026-10-02T18:37:14.233633+00:00",
+  "execution_fingerprint": {
+    "dependency_lock_hash": "9ca56bd1c6103c0cec3d5933fff4a8416cc05027c54896f2a927d8b664cf43b1",
+    "effective_config_hash": "079f854c719ccc9d407e791cd292e479f4d5bb534b167d75732e18760642b418",
+    "experiment_id": "embodiment.reembodiment-functional-transfer-v1",
+    "git_commit": "40c6801d8a6c957926c0e2e556c2767f6934a14d",
+    "is_dirty": false,
+    "python_version": "3.12.13",
+    "seed": 101
+  },
+  "experiment_id": "embodiment.reembodiment-functional-transfer-v1",
+  "governance_ref": "40c6801d8a6c957926c0e2e556c2767f6934a14d",
+  "id": "rft-v1-development-20261002-r2",
+  "memory_gb": 2.0,
+  "returncode": 0,
+  "scientific_input": {
+    "external_state": false,
+    "mode": "protocol-generated"
+  },
+  "scope": "development",
+  "seed": 101,
+  "started_at": "2026-10-02T18:35:44.655151+00:00",
+  "state": "complete",
+  "wall_minutes": 60
+}
