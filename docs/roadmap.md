@@ -204,7 +204,13 @@ schedule work on:
 - matched-budget utility of model ancestry (unapproved preregistration draft:
   [design/experimentation/model-ancestry-matched-budget-v1.md](design/experimentation/model-ancestry-matched-budget-v1.md));
 - causal behavioral contribution of generative cognition (unapproved preregistration draft:
-  [design/experimentation/generative-cognition-causal-contribution-v1.md](design/experimentation/generative-cognition-causal-contribution-v1.md)).
+  [design/experimentation/generative-cognition-causal-contribution-v1.md](design/experimentation/generative-cognition-causal-contribution-v1.md));
+- causal contribution of executive outcome evidence (unapproved preregistration draft:
+  [design/experimentation/executive-outcome-learning-causal-contribution-v1.md](design/experimentation/executive-outcome-learning-causal-contribution-v1.md)).
+
+The five drafts, their interventions, content controls and common rules are
+grouped in
+[design/experimentation/advanced-cognition-causal-efficacy-programme-v1.md](design/experimentation/advanced-cognition-causal-efficacy-programme-v1.md).
 
 Mechanical preservation alone must not be presented as positive evidence for
 those capabilities.
