@@ -36,3 +36,14 @@ Milestone R (Resident Observatory).
 ## Evidence
 
 `observatory/resident.py`, `tests/unit/test_resident.py`, `tests/unit/host/test_lifecycle.py`.
+
+## Amendment — 2026-10-02
+
+The decision is unchanged. The resident launcher named under Evidence moved from
+`observatory/resident.py` to `src/symbiont_lab/cli/observed_resident.py`
+(`python -m symbiont_lab.cli.observed_resident`) when the `observatory` package
+was made passive by construction: it projects and serves, and no module in it
+constructs, restores or drives an organism. Every lifecycle requirement above
+applies to the launcher at its new location. The Evidence line is kept as
+originally written.
+

@@ -22,7 +22,9 @@ paths = ["src/symbiont_world/**", "src/symbiont_lab/world/**"]
 
 [observatory]
 ci_lanes = ["observatory", "architecture_integrity"]
-paths = ["observatory/**"]
+# The launchers that publish to the Observatory live in the Lab; their contract
+# suite is observatory/tests, so a change to them must select this lane too.
+paths = ["observatory/**", "src/symbiont_lab/cli/observed_*.py"]
 
 [experiment_protocol]
 ci_lanes = ["experiment_mechanics", "architecture_integrity"]

@@ -185,3 +185,20 @@ def test_constitutional_change_runs_broad_behavioral_sentinels(monkeypatch) -> N
     assert plan.alpine
     assert plan.protocol_mechanics
     assert plan.performance
+
+
+def test_observed_launchers_select_the_observatory_lane() -> None:
+    import tomllib
+
+    matrix = tomllib.loads(
+        (ROOT / "docs" / "governance" / "validation-matrix.toml").read_text(encoding="utf-8")
+    )
+    launchers = sorted((ROOT / "src" / "symbiont_lab" / "cli").glob("observed_*.py"))
+
+    assert launchers
+    for launcher in launchers:
+        path = launcher.relative_to(ROOT).as_posix()
+        assert any(ci_plan._matches(path, pattern) for pattern in matrix["observatory"]["paths"]), (
+            path
+        )
+    assert "observatory" in matrix["observatory"]["ci_lanes"]
