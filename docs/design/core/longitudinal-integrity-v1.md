@@ -3,7 +3,7 @@ id: design.core.longitudinal-integrity-v1
 title: "Longitudinal Integrity v1"
 document_type: design
 domain: core
-status: proposed
+status: closed
 canonical: false
 implementation_status: implemented
 date: 2026-10-02
@@ -437,6 +437,21 @@ Longitudinal Integrity v1 is closed only when all of the following are true:
 10. historical temporal contamination remains explicitly bounded rather than
     being presented as repaired physiology.
 
+**Disposition — CLOSED (positive), 2026-10-02, by owner decision.** Mechanical
+longitudinal continuity is established within this specification's documented
+scope. Focused validation on `main@032ebd35` ran the gate-mapped restore,
+continuity, restart, communication, configuration, persistence, re-embodiment,
+and experimental-integrity suites: `280 passed`. This is not a full-suite claim.
+
+The closure does not assert:
+
+- future-state equivalence after restart; one-tick causal traces reset and
+  reacclimation resumes;
+- retrospective identity verification for checkpoints before schema 11;
+- checkpoint-identity coverage of apparatus-owned embodiment history, whose
+  integrity depends on the portable bundle;
+- useful transfer, adaptive advantage, or scientific value of retained state.
+
 ## 16. Implementation order
 
 ~~~text
@@ -473,8 +488,9 @@ Those questions remain outside this specification.
 
 ## 18. Implementation record
 
-This section records where each gate item is implemented and tested. It does not
-close the gate or change this document's status; that remains an owner decision.
+This section records where each gate item is implemented and tested. The owner
+closure and its limits are recorded in §15; implementation status does not imply
+scientific acceptance.
 
 | Gate item | Implementation | Evidence |
 | --- | --- | --- |
