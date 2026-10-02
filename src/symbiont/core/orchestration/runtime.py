@@ -9,7 +9,7 @@ import uuid
 from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Self, cast
 
 from ...actuation.acquisition import AgencyAcquisition
 from ...actuation.action import MotorCommand
@@ -2592,7 +2592,7 @@ class OrganismRuntime:
         save_checkpoint_atomic(payload, path)
 
     @classmethod
-    def from_checkpoint(cls, payload: dict[str, Any], **kwargs: Any) -> "OrganismRuntime":
+    def from_checkpoint(cls, payload: dict[str, Any], **kwargs: Any) -> Self:
         actuator_constitution_override = kwargs.pop(
             "actuator_constitution_override",
             None,

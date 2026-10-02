@@ -60,9 +60,15 @@ class _PrivateModelRuntime(Protocol):
     def autonomous_private_learning_plan(self) -> Any: ...
     def settle_private_model_training_compute(
         self, *, request_id: str, steps_completed: int
-    ) -> None: ...
+    ) -> bool: ...
     def adopt_private_model(
-        self, manifest: Any, *, evaluation_summary: tuple[int, ...], **lineage: Any
+        self,
+        artifact: Any,
+        *,
+        evaluation_summary: tuple[int, ...] = (),
+        validation_loss: float | None = None,
+        baseline_loss: float | None = None,
+        vocabulary: tuple[str, ...] | None = None,
     ) -> Any: ...
     def activate_private_model(
         self,
@@ -72,6 +78,7 @@ class _PrivateModelRuntime(Protocol):
         evaluation_summary: tuple[int, ...],
     ) -> Any: ...
     def retire_private_model(self, model_id: str) -> Any: ...
+    def note_retirement_deferred(self, model_id: str) -> None: ...
 
 
 def _tokenizer_path(models_dir: str | Path, model_id: str) -> Path:
