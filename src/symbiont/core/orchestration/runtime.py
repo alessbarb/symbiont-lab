@@ -3041,9 +3041,20 @@ class OrganismRuntime:
             if normalized.get("social_resource_ledger")
             else ResourceEvidenceLedger()
         )
-        exchange_guard = ExchangeReplayGuard()
-        if "exchange_guard" in normalized:
-            exchange_guard._seen = normalized["exchange_guard"]
+        # Anti-replay and outbound sequencing are acquired communication state:
+        # a restored organism must keep rejecting envelopes it already accepted
+        # and must not reuse sequence numbers it already emitted.
+        try:
+            exchange_guard = ExchangeReplayGuard.restore(normalized.get("exchange_guard", {}))
+        except ValueError as exc:
+            raise CheckpointError(f"invalid exchange guard checkpoint: {exc}") from exc
+        exchange_sequence = normalized.get("exchange_sequence", 0)
+        if (
+            isinstance(exchange_sequence, bool)
+            or not isinstance(exchange_sequence, int)
+            or exchange_sequence < 0
+        ):
+            raise CheckpointError("invalid exchange_sequence checkpoint")
         degradation_queue = (
             DegradationQueue.from_checkpoint(normalized["degradation"])
             if normalized.get("degradation")
@@ -3097,6 +3108,8 @@ class OrganismRuntime:
             constructor_kwargs["conflict_z"] = conflict_z
         constructor_kwargs.pop("explicit_metabolism", None)
         constructor_kwargs.pop("auto_promote_predictors", None)
+        constructor_kwargs.pop("exchange_guard", None)
+        constructor_kwargs.pop("exchange_sequence", None)
         raw_generative = normalized.get("generative_cognition")
         try:
             generative_cognition = (
@@ -3144,6 +3157,8 @@ class OrganismRuntime:
             physiology_config=resolved_physiology_config,
             social_ledger=social_ledger,
             social_resource_ledger=social_resource_ledger,
+            exchange_guard=exchange_guard,
+            exchange_sequence=exchange_sequence,
             explicit_metabolism=bool(
                 kwargs.get("explicit_metabolism", effective.get("explicit_metabolism", False))
             ),
