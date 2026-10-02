@@ -397,8 +397,8 @@ def test_v2_checkpoint_still_imports_cleanly_through_migration():
     assert acclimation.baseline("x") is not None
 
 
-def test_current_schema_version_is_ten():
-    assert CHECKPOINT_SCHEMA_VERSION == 10
+def test_current_schema_version_is_eleven():
+    assert CHECKPOINT_SCHEMA_VERSION == 11
 
 
 def test_v6_checkpoint_migrates_through_signal_knowledge_to_current():
@@ -455,7 +455,8 @@ def test_v7_checkpoint_migrates_to_v8_without_inventing_sensory_phenotype():
             "effective_config": {"discover_senses": True},
         }
     )
-    assert migrated["schema_version"] == 10  # migrates through the ADR-0042 rhythm step
+    # migrates through the ADR-0042 rhythm step and the v11 identity tightening
+    assert migrated["schema_version"] == CHECKPOINT_SCHEMA_VERSION
     assert migrated["sensory_system"] is None
     assert migrated["effective_config"]["sensory_plasticity"] is False
 

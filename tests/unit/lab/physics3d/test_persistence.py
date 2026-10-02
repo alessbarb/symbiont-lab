@@ -321,3 +321,76 @@ def test_portable_bundle_rejects_export_invariant_violations():
     }
     with pytest.raises(ValueError, match="Export invariant violated: manifest.checkpoint_hash"):
         validate_bundle_export_invariants(bad_manifest3, payload, fake_sha)
+
+
+def test_runtime_checkpoint_references_artifacts_that_only_the_bundle_carries(tmp_path):
+    """Longitudinal Integrity v1 §10: two persistence products, two contracts.
+
+    The runtime checkpoint is organism state and names its private model; the
+    weights live outside it. Only the portable bundle is a complete organism,
+    and its byte integrity is independent of the checkpoint's state identity.
+    """
+    import pytest
+
+    from symbiont.host.checkpoint import CheckpointError, verify_checkpoint_identity
+    from symbiont.modeling import (
+        ArchitectureId,
+        ModelArtifactManifest,
+        ModeledOrganismRuntime,
+        ModelObjective,
+        TrainingRequest,
+    )
+
+    runtime = ModeledOrganismRuntime(organism_id="portable-subject")
+    request = TrainingRequest(
+        organism_id=runtime.organism_id,
+        corpus_hash="a" * 64,
+        tokenizer_hash="b" * 64,
+        architecture_id=ArchitectureId.GRU_V1,
+        objective=ModelObjective.NEXT_TOKEN,
+        seed=7,
+        context_window=32,
+        requested_parameters=1_000_000,
+        requested_epochs=4,
+        requested_steps=100,
+        created_tick_class=0,
+    )
+    artifact = ModelArtifactManifest.build(
+        request=request, parameter_count=100_000, weights_hash="c" * 64, artifact_bytes=7
+    )
+    model_id = runtime.adopt_private_model(artifact, evaluation_summary=(0, 1)).model_id
+    checkpoint = json.loads(json.dumps(runtime.checkpoint()))
+
+    # Runtime checkpoint: names the model, carries no weights.
+    serialized = json.dumps(checkpoint)
+    assert model_id in serialized
+    assert "weights" not in {key for key in checkpoint}
+    assert b"model-weights".decode() not in serialized
+
+    models = tmp_path / "models"
+    models.mkdir()
+    (models / f"{model_id}.json").write_text('{"manifest":true}', encoding="utf-8")
+    (models / f"{model_id}.pt").write_bytes(b"model-weights")
+    (models / f"{model_id}.tokenizer.json").write_text(
+        json.dumps({"vocabulary": ["<PAD>", "<UNK>", "<BOS>", "<EOS>", "<SEP>"]}),
+        encoding="utf-8",
+    )
+    bundle = save_symbiont_bundle(checkpoint, models, tmp_path / "subject.symbiont")
+
+    # Portable bundle: the same checkpoint plus the artifacts it references.
+    restored_models = tmp_path / "restored-models"
+    restored = load_symbiont_bundle(bundle, restored_models)
+    assert restored == checkpoint
+    assert (restored_models / f"{model_id}.pt").read_bytes() == b"model-weights"
+
+    # State identity is checked by restore, independently of the bundle hashes.
+    verify_checkpoint_identity(restored)
+    ModeledOrganismRuntime.from_checkpoint(restored)
+    restored["generation"] += 1
+    with pytest.raises(CheckpointError, match="does not match its recorded checkpoint_id"):
+        ModeledOrganismRuntime.from_checkpoint(restored)
+
+    # A bundle that lacks a referenced artifact is not a portable organism.
+    (models / f"{model_id}.pt").unlink()
+    with pytest.raises((ValueError, FileNotFoundError)):
+        save_symbiont_bundle(checkpoint, models, tmp_path / "incomplete.symbiont")

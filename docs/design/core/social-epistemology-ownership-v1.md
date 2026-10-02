@@ -5,7 +5,7 @@ document_type: design
 domain: core
 status: proposed
 canonical: false
-implementation_status: analysis-only
+implementation_status: implemented
 date: 2026-10-02
 depends_on:
   - docs/governance/constitution.md
@@ -188,7 +188,57 @@ independently.
 
 | Field | Value |
 | --- | --- |
-| Decision | _pending owner_ |
-| Chosen option | _pending_ |
-| Date | _pending_ |
-| Follow-up | LI-P2 scope is fixed by the chosen option |
+| Decision | The modeled ledger is the single canonical owner of social epistemology in the organism runtime |
+| Chosen option | A |
+| Decided by | project owner |
+| Date | 2026-10-02 |
+| Follow-up | Implemented together with Longitudinal Integrity v1 LI-P2; see §8 |
+
+Sections 2 to 6 describe the code at `main@60eb9a04`, before the decision was
+implemented. They are kept as the record of what was decided on.
+
+## 8. Implementation of Option A
+
+Removed from `OrganismRuntime`:
+
+- the core ledger (`_epistemic_ledger`) and its broadcast bookkeeping, together
+  with the `epistemic_ledger` and `cultural_heritage` constructor arguments;
+- `broadcast_claims` and the per-tick broadcast attempt that charged cognition
+  without ever emitting a message;
+- `export_cultural_heritage`, and the heritage argument `ResidentOrganism`
+  budding passed from it (it was always empty);
+- `RuntimeTickResult.messages` and the world population's delivery loop, which
+  only ever carried the output of `broadcast_claims`.
+
+Kept:
+
+- `symbiont.core.social.ledger` itself, unchanged, as the model of the legacy
+  `Agent` simulation and its studies. It is no longer part of any organism
+  runtime and has no checkpoint contract.
+- Envelope transport state (`_communication_channel`, `_exchange_guard`,
+  `_exchange_sequence`) and `receive_communication`, which now accepts or
+  rejects an envelope at the transport level and returns that verdict. It does
+  not ingest the envelope's claims: the legacy format carries an opaque payload
+  and cannot express the ancestry the modeled ledger requires, so no truthful
+  conversion exists. It no longer charges cognition for a message it does not
+  learn from.
+
+Consequences:
+
+- No `epistemic_ledger` checkpoint field was ever introduced on `main`. The
+  interim persistence considered in §6 was not needed: the decision landed
+  before the Longitudinal Integrity candidate did.
+- Longitudinal Integrity v1 gate item 4 is met by the second branch of its
+  wording: active social knowledge lives in its accepted canonical owner, the
+  modeled ledger, which round-trips and is inside checkpoint identity.
+- Constitution §17 item 129 holds for this capability on organism runtimes.
+
+Left open, deliberately:
+
+- After this change nothing in an organism runtime *emits* an exchange
+  envelope, so `_exchange_sequence` is preserved but never advanced. Whether
+  the envelope transport is retired from the runtime or re-expressed over the
+  modeled ledger is a separate decision; retiring it would also change what
+  Longitudinal Integrity v1 §8 applies to.
+- Cultural inheritance to offspring has no path: reproduction gives a child an
+  empty modeled ledger, as before.

@@ -5,7 +5,7 @@ document_type: design
 domain: core
 status: proposed
 canonical: false
-implementation_status: not-started
+implementation_status: implemented
 date: 2026-10-02
 depends_on:
   - docs/governance/constitution.md
@@ -470,3 +470,63 @@ After this gate closes, separate preregistered work may test:
 - whether generative cognition contributes causal behavioral value.
 
 Those questions remain outside this specification.
+
+## 18. Implementation record
+
+This section records where each gate item is implemented and tested. It does not
+close the gate or change this document's status; that remains an owner decision.
+
+| Gate item | Implementation | Evidence |
+| --- | --- | --- |
+| 1. Lineage identity verified or fail closed | `host/checkpoint.py`: `checkpoint_state_hash`, `verify_checkpoint_identity`, `stamp_checkpoint_identity`; schema 11 | `tests/unit/host/test_strict_restore.py`, `tests/compatibility/migrations/test_host_checkpoint_v10_identity_migration.py` |
+| 2. No silent fresh subsystem on current-schema loss | `host/checkpoint.py`: `require_current_schema_fields` | `tests/unit/host/test_strict_restore.py` |
+| 3. Every field has a continuity class | `host/continuity.py` | `tests/unit/host/test_continuity_register.py` |
+| 4. Active social epistemic knowledge round-trips or lives in its canonical owner | ARCH-1 Option A: the core ledger is removed from the organism runtime; the modeled ledger is the single owner, persisted and inside checkpoint identity | `tests/integration/test_restart_equivalence.py`, `tests/integration/test_communication_restart.py`, `tests/unit/host/test_continuity_register.py` |
+| 5. Exchange replay protection and sequence survive | `core/social/exchange.py`: `ExchangeReplayGuard.restore`; runtime restore | `tests/integration/test_communication_restart.py` |
+| 6. Runtime-only configuration recorded and reapplied | `runtime_provenance.session_controls`, `changed_since_restore` | `tests/integration/test_restart_configuration.py` |
+| 7. Checkpoint and bundle semantics documented and tested | `docs/glossary.md`, `docs/symbiont/11-persistence-provenance-and-reembodiment.md` | `tests/unit/lab/physics3d/test_persistence.py` |
+| 8. Cold restart equivalence with developed cognition | — | `tests/integration/test_restart_equivalence.py` |
+| 9. Re-embodiment continuity, Body authority withdrawn | transforms re-identify their output | `tests/integration/test_reembodiment_continuity.py` |
+| 10. Temporal contamination stays bounded | `physics3d/reembodiment.py`: `migrate_temporal_domains` | `tests/unit/lab/physics3d/test_reembodiment.py` |
+
+Experimental-integrity tier: `tests/experimental_integrity/test_longitudinal_integrity.py`.
+
+### Decisions taken during implementation
+
+- **Hash boundary (§4.1).** Identity is verified on the payload as loaded,
+  before normalization. It covers the complete organism payload of the saving
+  runtime and excludes `checkpoint_lineage`, `runtime_provenance` and the
+  embodiment history written by the apparatus. Schema 10 and earlier covered
+  only base-runtime fields and were never checked; they are accepted
+  unverified.
+- **Authorized transforms.** Re-embodiment, temporal decontamination and
+  canonical-cognition adoption re-identify the state they produce, chaining to
+  the identifier they replace and naming the transform.
+- **Which checkpoints are "current" (§5).** Strictness follows the schema the
+  saving runtime declared, recorded in both the lineage block and
+  `runtime_provenance` and carried unchanged through transforms. A transform
+  gives a schema-10 checkpoint a verifiable identity but never makes it a
+  current one: it still lacks the fields only schema 11 writes and keeps its
+  migration defaults. Real schema-10 payloads are kept under
+  `tests/compatibility/checkpoint_v10/` and exercised through every transform.
+- **Runtime configuration (§9).** Recorded as provenance rather than organism
+  state, so it does not enter state identity.
+
+### What gate item 8 does and does not establish
+
+A cold restart is identical at the boundary. Its future is not identical to an
+uninterrupted run once cognition is developed, for two deliberate resets:
+one-tick causal traces are not carried across a process boundary (§3.2), and
+every restore opens the reacclimation gate. The test fixes the fields that may
+differ and requires every other field to stay identical. Narrowing that surface
+— carrying one-tick traces, or skipping the gate on a same-Body restart — would
+be a design change and is not made here.
+
+### Open
+
+- Apparatus-owned embodiment history is outside checkpoint identity; its
+  integrity relies on the portable bundle manifest.
+- After ARCH-1 Option A no organism runtime emits exchange envelopes, so the
+  preserved outbound sequence is never advanced. Whether the envelope transport
+  stays in the runtime is recorded as open in
+  [Social Epistemology Ownership v1](social-epistemology-ownership-v1.md) §8.

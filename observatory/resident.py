@@ -194,7 +194,11 @@ def main(argv: list[str] | None = None) -> int:
         from symbiont.cognition.limits import KernelLimits
         from symbiont.core.cognition.bridge import CognitiveBridge
         from symbiont.core.orchestration.canonical_birth import _running_version
-        from symbiont.host.checkpoint import normalize_checkpoint
+        from symbiont.host.checkpoint import (
+            normalize_checkpoint,
+            stamp_checkpoint_identity,
+            verify_checkpoint_identity,
+        )
         from symbiont.modeling.private_runtime import PrivateModelOrganismRuntime
 
         if existing_payload is None:
@@ -204,6 +208,7 @@ def main(argv: list[str] | None = None) -> int:
                 parser.error(str(exc))
             runtime = PrivateModelOrganismRuntime(**runtime_kwargs)
         else:
+            verify_checkpoint_identity(existing_payload)
             normalized = normalize_checkpoint(existing_payload)
             if normalized.get("genome") is None:
                 kernel_limits = runtime_kwargs.get("kernel_limits") or KernelLimits()
@@ -218,6 +223,9 @@ def main(argv: list[str] | None = None) -> int:
                 )
                 normalized["genome"] = export_genome_checkpoint(genome)
                 normalized["cognitive_bridge"] = bridge.export_checkpoint()
+                normalized = stamp_checkpoint_identity(
+                    normalized, transform="canonical-cognition-adoption"
+                )
                 runtime_kwargs["kernel_limits"] = kernel_limits
             runtime = PrivateModelOrganismRuntime.from_checkpoint(normalized, **runtime_kwargs)
     else:

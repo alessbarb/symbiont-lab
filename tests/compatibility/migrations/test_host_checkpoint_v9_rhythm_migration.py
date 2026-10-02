@@ -46,7 +46,7 @@ def _v9_payload() -> dict:
 
 def test_v9_wall_clock_rhythms_are_discarded_not_rekeyed() -> None:
     migrated = normalize_checkpoint(_v9_payload())
-    assert migrated["schema_version"] == CHECKPOINT_SCHEMA_VERSION == 10
+    assert migrated["schema_version"] == CHECKPOINT_SCHEMA_VERSION == 11
     assert "rhythms" not in migrated
     assert "rhythms_replay" not in migrated
     assert migrated["acclimation"] == _v9_payload()["acclimation"]
