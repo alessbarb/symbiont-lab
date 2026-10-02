@@ -5,6 +5,7 @@
  * force layout, 2D/3D rendering, interaction, inspector and summary.
  */
 import { el } from '../shared/dom.js';
+import { classifyObservability } from '../shared/observability-state.js';
 import { augmentLearnedGraph } from './learning-graph.js';
 import { cartographicGraph } from './cartographic-view.js';
 import { fetchCausalProvenance, provenanceRefForNode } from './causal-provenance.js';
@@ -43,7 +44,15 @@ import {
   compactSelfLabel,
   sensorySemantic,
 } from './semantics.js';
-import { graph, historySnapshots, mindHistory, observerUsage, snap, tel } from './state.js';
+import {
+  graph,
+  historySnapshots,
+  mindHistory,
+  observerUsage,
+  snap,
+  streamState,
+  tel,
+} from './state.js';
 import { forEachNearbyPair2D } from './spatial-index.js';
 import {
   classRatio,
@@ -2774,10 +2783,28 @@ export function createCognitionController({
     panel.replaceChildren();
 
     const tick = finiteNumber(source?.tick ?? tel.tick, 0);
-    const generative = source?.cognition?.generative ?? null;
+    const rawGenerative = source?.cognition?.generative ?? null;
+    // What the panel may claim is decided once, from organism facts and the
+    // stream's own health, not from whether a snapshot happens to be present.
+    const observability = classifyObservability({
+      status: source?.cognition?.generativeStatus ?? source?.cognition?.generative_status ?? null,
+      payload: rawGenerative,
+      stream: streamState,
+      frameTick: tick,
+      replay: Boolean(graph.replaySnapshot),
+      hasContent: (payload) =>
+        finiteNumber(payload.transitionCount ?? payload.transition_count, 0) > 0 ||
+        finiteNumber(payload.hypothesisCount ?? payload.hypothesis_count, 0) > 0 ||
+        finiteNumber(payload.stateCount ?? payload.state_count, 0) > 1,
+    });
+    panel.dataset.observability = observability.state;
+    const generative =
+      rawGenerative !== null && typeof rawGenerative === 'object' && !Array.isArray(rawGenerative)
+        ? rawGenerative
+        : null;
     graph.generativeHistory ??= [];
 
-    if (generative) {
+    if (generative && observability.current) {
       const read = (camel, snake, fallback = null) =>
         generative?.[camel] ?? generative?.[snake] ?? fallback;
       const sample = {
@@ -2803,23 +2830,27 @@ export function createCognitionController({
     const lastObserved = history.at(-1) ?? null;
 
     const presence = el('div', 'mind-generative-presence');
-    const orb = el('div', `mind-generative-orb ${generative ? 'observed' : lastObserved ? 'historical' : 'unseen'}`);
+    const orbTone =
+      observability.state === 'active' || observability.state === 'empty'
+        ? 'observed'
+        : lastObserved
+          ? 'historical'
+          : 'unseen';
+    const orb = el('div', `mind-generative-orb ${orbTone} state-${observability.state}`);
     const orbCore = el('span', 'mind-generative-orb-core');
     const orbRing = el('span', 'mind-generative-orb-ring');
     orb.append(orbRing, orbCore);
     const presenceCopy = el('div', 'mind-generative-presence-copy');
     const status = el('strong', '');
-    status.textContent = generative
-      ? 'Generative resident observed'
-      : lastObserved
-        ? 'Generative activity observed earlier'
-        : 'Generative resident not observed';
+    status.textContent = observability.label;
     const sub = el('small', '');
-    sub.textContent = generative
-      ? `live at t${tick}`
-      : lastObserved
-        ? `last observed at t${lastObserved.tick}`
-        : `no generative frame captured through t${tick}`;
+    sub.textContent = [
+      observability.detail,
+      observability.current ? `t${tick}` : null,
+      !observability.current && lastObserved ? `last activity seen at t${lastObserved.tick}` : null,
+    ]
+      .filter(Boolean)
+      .join(' · ');
     presenceCopy.append(status, sub);
     presence.append(orb, presenceCopy);
     panel.appendChild(presence);
@@ -2853,11 +2884,13 @@ export function createCognitionController({
     }
     panel.appendChild(timeline);
 
-    if (!generative) {
+    if (!generative || !observability.current || observability.state !== 'active') {
+      // Counters are shown only for a current, active pass. Anything else is
+      // named above; zeros here would read as a measurement.
       const note = el('div', 'mind-generative-note');
       note.textContent = lastObserved
-        ? 'No generative observation in the current frame. The history above preserves what was previously seen.'
-        : 'The Atlas is receiving cognition, but no generative snapshot has reached the observer yet.';
+        ? 'The history above preserves the activity seen earlier in this session.'
+        : 'No generative activity has been seen in this session.';
       panel.appendChild(note);
       return;
     }

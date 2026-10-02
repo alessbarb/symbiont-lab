@@ -5,6 +5,7 @@
  * back to the Mind coordinator through an explicit callback.
  */
 import { el, svgEl } from '../shared/dom.js';
+import { applyEmptyState } from '../shared/observability-state.js';
 import { PAL } from './config.js';
 import { observerContextForNode, sensorySemantic } from './semantics.js';
 import {
@@ -13,6 +14,7 @@ import {
   selfRegionHistory,
   snap,
   tel,
+  streamState,
 } from './state.js';
 import {
   classRatio,
@@ -69,7 +71,7 @@ export function createIdentitySensoryRenderer({
     const sensors = sensoryFacts();
     if (!sensors.length) {
       const empty = el('p', 'mind-senses-empty');
-      empty.textContent = 'No sensory phenotype yet.';
+      applyEmptyState(empty, 'No sensory phenotype yet.', streamState);
       list.appendChild(empty);
       return;
     }
@@ -444,7 +446,7 @@ export function createIdentitySensoryRenderer({
 
     if (!senses.length && !topoNodes.length) {
       const msg = svgEl('text', { x: '550', y: '320', 'text-anchor': 'middle', fill: PAL.muted, 'font-size': '14' });
-      msg.textContent = 'No sensory topology yet — awaiting snapshot…';
+      applyEmptyState(msg, 'No sensory topology yet — awaiting snapshot…', streamState);
       mapSvg.appendChild(msg);
       if (detail) detail.textContent = 'Sensory funnel: awaiting live body-derived sensory channels.';
       if (inspector) renderSensoryInspector(inspector, null, topology, []);
@@ -804,7 +806,7 @@ export function createIdentitySensoryRenderer({
     const relations = [...incoming.slice(0,4).map(edge => ['←', edge.sourceId, edge.kind]), ...outgoing.slice(0,5).map(edge => ['→', edge.targetId, edge.kind])];
     if (!relations.length) {
       const none = el('div', 'mind-sensory-inspector-empty');
-      none.textContent = 'No learned cognitive path yet.';
+      applyEmptyState(none, 'No learned cognitive path yet.', streamState);
       container.appendChild(none);
     } else {
       for (const [arrow,id,edgeKind] of relations) {
@@ -1002,7 +1004,7 @@ export function createIdentitySensoryRenderer({
       const h = el('h2', 'mind-self-heading');
       h.textContent = 'Self-model not yet developed';
       const p = el('p', 'mind-self-body');
-      p.textContent = 'No organism-owned body representation is available yet.';
+      applyEmptyState(p, 'No organism-owned body representation is available yet.', streamState);
       panel.append(h, p);
       return;
     }
