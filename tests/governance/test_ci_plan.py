@@ -202,3 +202,49 @@ def test_observed_launchers_select_the_observatory_lane() -> None:
             path
         )
     assert "observatory" in matrix["observatory"]["ci_lanes"]
+
+
+def test_constitutional_markdown_only_change_skips_heavy_lanes(monkeypatch) -> None:
+    plan = _plan(
+        monkeypatch,
+        ChangeClass.CONSTITUTIONAL,
+        [".agents/skills/architecture-decision/SKILL.md"],
+        sections=("governance",),
+        lanes={"governance"},
+    )
+
+    assert plan.governance
+    assert plan.docs
+    assert not plan.software_core
+    assert not plan.observatory
+    assert not plan.architecture_integrity
+    assert not plan.runtime_contracts
+    assert not plan.experiment_mechanics
+    assert not plan.physics3d
+    assert not plan.modeling
+    assert not plan.python_compat
+    assert not plan.host_portability
+    assert not plan.alpine
+    assert not plan.protocol_mechanics
+    assert not plan.performance
+
+
+def test_scientific_markdown_only_change_skips_heavy_lanes(monkeypatch) -> None:
+    plan = _plan(
+        monkeypatch,
+        ChangeClass.SCIENTIFIC,
+        ["docs/design/core/example.md"],
+        sections=("docs", "experiment_protocol"),
+        lanes={"docs", "experiment_mechanics", "architecture_integrity"},
+    )
+
+    assert plan.docs
+    assert not plan.software_core
+    assert not plan.architecture_integrity
+    assert not plan.runtime_contracts
+    assert not plan.experiment_mechanics
+    assert not plan.physics3d
+    assert not plan.modeling
+    assert not plan.python_compat
+    assert not plan.protocol_mechanics
+    assert not plan.performance

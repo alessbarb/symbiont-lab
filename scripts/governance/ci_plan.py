@@ -129,6 +129,8 @@ def build_plan(base: str, head: str) -> CIPlan:
     sections = _selected_matrix_sections(base, paths)
     lanes = _lanes_for_sections(base, sections)
 
+    markdown_only = bool(paths) and all(path.endswith((".md", ".markdown")) for path in paths)
+
     constitutional = classification in {ChangeClass.CONSTITUTIONAL, ChangeClass.FROZEN}
     scientific = classification in {
         ChangeClass.SCIENTIFIC,
@@ -136,59 +138,72 @@ def build_plan(base: str, head: str) -> CIPlan:
         ChangeClass.FROZEN,
     }
 
-    host_related = any(
-        _matches_prefix(
-            path,
-            (
-                "src/symbiont/host/",
-                "tests/unit/host/",
-                "src/symbiont_lab/physics3d/",
-            ),
+    host_related = (
+        any(
+            _matches_prefix(
+                path,
+                (
+                    "src/symbiont/host/",
+                    "tests/unit/host/",
+                    "src/symbiont_lab/physics3d/",
+                ),
+            )
+            for path in paths
         )
-        for path in paths
+        and not markdown_only
     )
-    physics_related = any(
-        _matches_prefix(
-            path,
-            (
-                "src/symbiont_lab/physics3d/",
-                "tests/unit/lab/physics3d/",
-                "tests/integration/test_physics3d",
-            ),
+    physics_related = (
+        any(
+            _matches_prefix(
+                path,
+                (
+                    "src/symbiont_lab/physics3d/",
+                    "tests/unit/lab/physics3d/",
+                    "tests/integration/test_physics3d",
+                ),
+            )
+            for path in paths
         )
-        for path in paths
+        and not markdown_only
     )
-    modeling_related = any(
-        _matches_prefix(
-            path,
-            (
-                "src/symbiont_lab/modeling/",
-                "tests/unit/modeling/",
-                "tests/unit/lab/modeling/",
-                "tests/integration/test_private_model",
-                "tests/integration/test_training_ancestry",
-            ),
+    modeling_related = (
+        any(
+            _matches_prefix(
+                path,
+                (
+                    "src/symbiont_lab/modeling/",
+                    "tests/unit/modeling/",
+                    "tests/unit/lab/modeling/",
+                    "tests/integration/test_private_model",
+                    "tests/integration/test_training_ancestry",
+                ),
+            )
+            for path in paths
         )
-        for path in paths
+        and not markdown_only
     )
 
-    performance_related = any(
-        _matches_prefix(
-            path,
-            (
-                "src/symbiont/",
-                "src/symbiont_lab/physics3d/",
-                "src/symbiont_lab/modeling/",
-                "observatory/",
-                "src/symbiont_lab/workbench/",
-            ),
+    performance_related = (
+        any(
+            _matches_prefix(
+                path,
+                (
+                    "src/symbiont/",
+                    "src/symbiont_lab/physics3d/",
+                    "src/symbiont_lab/modeling/",
+                    "observatory/",
+                    "src/symbiont_lab/workbench/",
+                ),
+            )
+            for path in paths
         )
-        for path in paths
+        and not markdown_only
     )
 
     # Constitutional changes validate the CI/governance mechanism itself, so
-    # keep broad behavioral sentinels during this rollout.
-    if constitutional:
+    # keep broad behavioral sentinels during this rollout unless the diff is
+    # strictly limited to Markdown documentation.
+    if constitutional and not markdown_only:
         lanes.update(
             {
                 "software_core",
@@ -201,22 +216,24 @@ def build_plan(base: str, head: str) -> CIPlan:
 
     return CIPlan(
         classification=str(classification),
-        docs="docs" in lanes,
+        docs="docs" in lanes or markdown_only,
         governance="governance" in lanes,
-        software_core="software_core" in lanes,
-        world="world" in lanes and "software_core" not in lanes,
-        observatory="observatory" in lanes,
-        architecture_integrity="architecture_integrity" in lanes or scientific,
-        runtime_contracts="runtime_contracts" in lanes or scientific,
-        experiment_mechanics="experiment_mechanics" in lanes,
-        canonical_full="canonical_full" in lanes,
-        physics3d=constitutional or physics_related,
-        modeling=constitutional or modeling_related,
-        python_compat=scientific,
-        host_portability=constitutional or host_related,
-        alpine=constitutional or host_related,
-        protocol_mechanics=scientific,
-        performance=constitutional or performance_related,
+        software_core="software_core" in lanes and not markdown_only,
+        world="world" in lanes and "software_core" not in lanes and not markdown_only,
+        observatory="observatory" in lanes and not markdown_only,
+        architecture_integrity=(
+            ("architecture_integrity" in lanes or scientific) and not markdown_only
+        ),
+        runtime_contracts=("runtime_contracts" in lanes or scientific) and not markdown_only,
+        experiment_mechanics="experiment_mechanics" in lanes and not markdown_only,
+        canonical_full="canonical_full" in lanes and not markdown_only,
+        physics3d=(constitutional or physics_related) and not markdown_only,
+        modeling=(constitutional or modeling_related) and not markdown_only,
+        python_compat=scientific and not markdown_only,
+        host_portability=(constitutional or host_related) and not markdown_only,
+        alpine=(constitutional or host_related) and not markdown_only,
+        protocol_mechanics=scientific and not markdown_only,
+        performance=(constitutional or performance_related) and not markdown_only,
         changed_paths=paths,
         matrix_sections=sections,
         reasons=assessment.reasons,
