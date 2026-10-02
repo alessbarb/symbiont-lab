@@ -1,6 +1,6 @@
 # ADR-0058 — Impact-Based CI Test Selection
 
-- **Status:** Proposed
+- **Status:** Approved
 - **Date:** 2026-10-02
 - **Decision owner:** project owner
 - **Relates to:** ADR-0050, ADR-0051, ADR-0057, docs/governance/validation-matrix.toml
