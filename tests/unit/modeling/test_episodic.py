@@ -194,6 +194,33 @@ def test_reinterpretation_indexes_old_family_without_rewriting_projection() -> N
     assert memory.interpretations_for(memory.episodes[0].episode_id) == ("concept.new",)
 
 
+def test_batched_reinterpretation_matches_one_call_per_representation() -> None:
+    """A factual index taken once gives exactly the per-call result (#279)."""
+    requests = (
+        ("concept.new", ("sensor.identity.alpha", "sensor.identity.beta")),
+        ("concept.other", ("sensor.identity.alpha", "concept.new")),
+        ("concept.miss", ("sensor.identity.gamma",)),
+    )
+
+    def build() -> EpisodicExperienceMemory:
+        memory = EpisodicExperienceMemory(ORG)
+        for tick in (0, 10):
+            memory.observe(record(tick), projection(concepts=()))
+            memory.flush()
+        return memory
+
+    single, batched = build(), build()
+    index = batched.factual_index()
+    for representation, support in requests:
+        assert single.reinterpret(representation, support) == batched.reinterpret(
+            representation, support, factual_index=index
+        )
+    for episode in single.episodes:
+        assert single.interpretations_for(episode.episode_id) == batched.interpretations_for(
+            episode.episode_id
+        )
+
+
 def test_prediction_is_conditioned_on_sparse_cognitive_state() -> None:
     memory = EpisodicExperienceMemory(ORG)
     for index in range(4):
