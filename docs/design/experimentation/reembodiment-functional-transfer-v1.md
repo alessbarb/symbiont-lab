@@ -85,15 +85,39 @@ Body, whose actuator-to-receptor mapping is evaluator-controlled:
 | Level | Relation of B to A | Preregistered expectation |
 | --- | --- | --- |
 | **R1** same structure | same contract and same causal mapping, new Body identity | largest advantage of T over S and N |
-| **R2** partial | same interface, half of the actuator-to-receptor mapping permuted | smaller advantage |
-| **R3** unrelated | same interface, mapping fully permuted | no advantage; negative transfer is a reportable outcome |
-
-Body A′ (arm S) is a Body whose mapping is fully permuted relative to **B** at
-every level, so S never has relevant prior content.
+| **R2** partial | same interface, exactly half of the actuator-to-receptor pairs shared with B | smaller advantage |
+| **R3** unrelated | same interface, no pair shared with B | no advantage; negative transfer is a reportable outcome |
 
 A dose-ordered result (R1 > R2 > R3) is evidence that content, not maturity,
 carries the effect. An advantage of equal size at all three levels would
 indicate a maturity effect and is **not** transfer.
+
+### 4.2.1 Balanced construction of A, A′ and B
+
+A difference in how hard two Bodies are to learn would look like transfer. The
+three Bodies are therefore members of one family and differ only in *which*
+mapping they realise:
+
+- identical actuator count, receptor count, receptors per actuator, inert
+  actuators and drifting receptors;
+- every mapping is a bijection between actuators and driven receptors, so
+  fan-in and fan-out are 1 for every Body;
+- the relation to B is defined by the number of shared actuator-to-receptor
+  pairs `k` out of `n`, with `n` even: R1 `k = n`, R2 `k = n / 2`, R3 `k = 0`;
+- Body A′ (arm S) always shares `k = 0` pairs with B, at every level;
+- at R3, Body A also shares `k = 0` pairs with B. Arms T and S are then
+  exchangeable by construction, which makes R3 a negative control: any
+  systematic T–S difference there is an apparatus asymmetry, not transfer;
+- which of two `k = 0` mappings plays A and which plays A′ at R3 is swapped on
+  alternate confirmation seeds.
+
+Learning difficulty is checked, not assumed. On the development seeds a naive
+organism is run in A, A′ and B as stand-alone Bodies; if the median ticks to
+the first `VALID` binding differ by more than 15% between any two of them, the
+family is rejected and rebuilt before any confirmation seed is run.
+
+The synthetic Body currently offers a normal and a fully permuted mapping; a
+mapping with a chosen number of shared pairs must be added to it.
 
 ### 4.3 Held fixed across arms
 
@@ -102,17 +126,38 @@ indicate a maturity effect and is **not** transfer.
   arm must report `changed_since_restore == []` at the end of the B phase.
 - No private-model inference bridge is attached in any arm.
 - Body B: same seed, same fresh physiology, same host readings per seed.
-- Ticks: `D` development ticks (arms T, S), `H` measurement ticks in B (all).
+- Ticks: `D` development ticks (arms T, S), `H` measurement ticks in B (all),
+  both fixed by the rule in §4.5.
 
 ### 4.4 Seeds
 
-Development seeds, used only to fix `D`, `H` and to check that milestones are
-reachable at all, are disjoint from confirmation seeds. Confirmation seeds are
-not run until this document is approved and frozen.
+Seeds are fixed in this document and are not chosen after any run.
 
-- Development: 3 seeds.
-- Confirmation: 12 seeds, each run for all three arms at all three relation
-  levels (108 runs), paired by seed.
+- Development: `101, 127, 149`.
+- Confirmation: `173, 211, 257, 307, 353, 401, 457, 503, 557, 601, 653, 701`.
+
+Each confirmation seed is run for all three arms at all three relation levels
+(108 runs), paired by seed. Confirmation seeds are not run until this document
+is approved and frozen. Development seeds are used only for §4.2.1 and §4.5.
+
+### 4.5 Fixing `D` and `H`
+
+Both horizons are computed by rule from the development seeds. Nobody chooses
+them, and neither rule looks at arm T.
+
+- **`D`** — the smallest multiple of 100 ticks, up to `D_max = 1000`, at which
+  all three development organisms in source Body A hold at least one `VALID`
+  execution binding and meet the reacclimation-completion criteria of §5. If
+  that does not happen by `D_max`, the study is **not runnable** and is
+  reported as such.
+- **`H`** — twice the median M1 of **arm N at R1** over the three development
+  seeds, rounded up to a multiple of 50 ticks, capped at `H_max = D`. If arm N
+  fails to reach M1 within `H_max` on two or more development seeds, the
+  milestone is unreachable in the target Body and the study is **not
+  runnable**.
+
+`D`, `H`, the Body family and the swap order of §4.2.1 are written into the
+experiment record before the first confirmation run and are not revised.
 
 ## 5. Outcome measures
 
@@ -122,6 +167,20 @@ Primary:
 
 - **M1** — ticks to the first execution binding that reaches `VALID` in B.
 
+A binding counts for M1 only if it is evidence acquired in B:
+
+- its `surface_fingerprint` is Body B's contract fingerprint;
+- its `valid_from_tick` is later than the tick of entry into B;
+- every one of its `evidence_refs` was produced after entry into B.
+
+Integrity condition 1 already requires zero `VALID` bindings at B tick 0, so a
+preserved structure cannot satisfy M1 by being carried over. Because a binding
+could still be reached sooner merely by acting more, the number of actuations
+issued before M1 is recorded per run; a T advantage accompanied by a
+proportionally higher actuation count than S is reported as **activity, not
+transfer**, and does not support the claim. Arm S controls for the alternative
+that a larger or older graph validates faster.
+
 Secondary, using the existing `EmbodimentAdaptation` convergence criteria
 unchanged (causal confidence ≥ 0.45, controllability ≥ 0.35, schema uncertainty
 ≤ 0.35, prediction shock ≤ 0.20):
@@ -129,8 +188,9 @@ unchanged (causal confidence ≥ 0.45, controllability ≥ 0.35, schema uncertai
 - **M2** — ticks to reacclimation completion.
 - **M3** — ticks to causal confidence ≥ 0.45.
 
-Descriptive only: number of valid bindings at `H`, cumulative metabolic cost in
-B, number of Body A competences revalidated versus retired.
+Descriptive only: number of valid bindings at `H`, actuations before M1,
+cumulative metabolic cost in B, number of Body A competences revalidated versus
+retired.
 
 ## 6. Integrity conditions
 
@@ -145,35 +205,65 @@ these fails:
 4. Symbiont-owned state at B tick 0 equals the state saved in the source Body
    for every field the continuity register marks as preserved.
 5. `changed_since_restore` is empty.
-6. Observer density does not differ between arms.
+6. **Observer schedule is identical across the three arms of a seed.** The
+   apparatus is deterministic, so this is exact equality, not a tolerance: the
+   same number of observer reads (`checkpoint(advance_lineage=False)`,
+   `state_hash()`, telemetry snapshots) at the same embodiment ticks.
+7. **Body B is the same Body across the three arms of a seed**: same
+   construction seed, same mapping and same evaluator ground-truth hash. The
+   Body is closed-loop, so the reading *streams* legitimately differ through
+   each organism's own actuations; what must be identical is the Body and the
+   response of every receptor that no actuator drives, which is compared by
+   hash.
 
 If more than 2 of 12 seeds are contaminated at any relation level, that level
 is **not assessable** and no claim is made for it.
 
 ## 7. Decision rule
 
-Fixed before confirmation runs. For each relation level, on primary measure M1,
-paired by seed:
+Fixed before confirmation runs. All comparisons are on primary measure M1,
+paired by seed. A censored-versus-censored pair is a tie.
 
-- **Transfer supported** at that level if arm T reaches M1 earlier than **both**
-  S and N in at least 10 of 12 seeds (one-sided sign test, p ≈ 0.019 per
-  comparison) **and** the median paired reduction relative to S is at least
-  20%.
-- **Negative transfer** if T reaches M1 later than N in at least 10 of 12
-  seeds.
-- **No transfer** otherwise. A censored-versus-censored pair is a tie.
+### 7.1 Per-level outcomes
 
-Overall claim:
+These are components of one claim, not separate claims.
 
-- **Functional transfer established within scope** only if transfer is
-  supported at R1 **and** the median paired reduction is ordered R1 ≥ R2 ≥ R3
-  **and** transfer is not supported at R3.
-- If T beats N but not S at R1, the result is **maturity effect, not transfer**.
-- Anything else is reported as no-transfer or not-assessable. No measure,
-  threshold, seed or exclusion is added after the confirmation runs start.
+- **Advantage** at a level: arm T reaches M1 earlier than **both** S and N in at
+  least 10 of 12 seeds (one-sided sign test, p ≈ 0.019 per comparison) **and**
+  the median paired reduction relative to S is at least 20%.
+- **Practically null** at a level: the median paired relative difference
+  between T and S is within ±10% **and** neither arm is earlier in 10 or more
+  of 12 seeds.
+- **Negative transfer** at a level: T reaches M1 later than N in at least 10 of
+  12 seeds.
+- **Inconclusive** otherwise.
 
-Secondary measures are reported alongside and cannot rescue a primary
-no-transfer result.
+"Practically null" is a positive finding with its own margin. Failing to show
+an advantage is not the same thing and is recorded as inconclusive.
+
+### 7.2 The single confirmatory claim
+
+There is one confirmatory claim, a conjunction, so there is no multiplicity to
+correct for:
+
+> **Functional transfer established within scope** if and only if there is an
+> advantage at R1, **and** the median paired reduction is ordered
+> R1 ≥ R2 ≥ R3, **and** R3 is practically null, **and** the R1 advantage is not
+> accompanied by a proportionally higher actuation count (§5).
+
+Other preregistered outcomes:
+
+- T beats N but not S at R1 → **maturity effect, not transfer**.
+- Advantage at R1 but R3 inconclusive → **advantage at R1, dose pattern not
+  established**. No transfer claim.
+- Advantage at R3 → **apparatus asymmetry**; the study is invalid, because T
+  and S are exchangeable there by construction.
+- Anything else → no-transfer or not-assessable.
+
+R2 contributes only to the ordering. Secondary measures M2 and M3 are reported
+alongside and cannot rescue or strengthen the confirmatory claim. No measure,
+threshold, margin, seed or exclusion is added after the confirmation runs
+start.
 
 ## 8. Draft experiment record
 
@@ -189,15 +279,22 @@ protocol_version = 1
 [design]
 arms = ["transfer", "sham_experience", "naive"]
 relations = ["same_structure", "partial", "unrelated"]
-development_seeds = "3, fixed at approval"
-confirmation_seeds = "12, fixed at approval, disjoint from development"
-development_ticks = "D, fixed from development seeds"
-measurement_ticks = "H, fixed from development seeds"
+shared_pairs_fraction = { same_structure = 1.0, partial = 0.5, unrelated = 0.0 }
+sham_shared_pairs_fraction = 0.0
+swap_unrelated_source_on_alternate_seeds = true
+development_seeds = [101, 127, 149]
+confirmation_seeds = [173, 211, 257, 307, 353, 401, 457, 503, 557, 601, 653, 701]
 naive_arm_is_restored = true
 private_model_bridge = false
 
+[horizons]
+development_ticks_rule = "smallest multiple of 100 <= 1000 with a VALID binding and reacclimation complete on all development seeds"
+measurement_ticks_rule = "2 x median naive M1 at same_structure, rounded up to 50, capped at development_ticks"
+max_body_difficulty_spread = 0.15
+
 [metrics]
 primary = "ticks_to_first_valid_binding"
+primary_requires_target_body_evidence = true
 causal_confidence_threshold = 0.45
 controllability_threshold = 0.35
 schema_uncertainty_threshold = 0.35
@@ -206,7 +303,9 @@ prediction_shock_threshold = 0.20
 [decision]
 min_seeds_improved = 10
 min_median_paired_reduction = 0.20
+practically_null_margin = 0.10
 max_contaminated_seeds = 2
+confirmatory_claim = "advantage at same_structure AND ordered reductions AND unrelated practically null AND no activity excess"
 ```
 
 ## 9. Relation to existing evidence
@@ -225,13 +324,25 @@ max_contaminated_seeds = 2
 
 1. Whether to schedule this follow-up at all, and when relative to the other
    three.
-2. The apparatus: synthetic causal Body (cheap, mapping exactly controlled) or
-   Physics3D (realistic, mapping only approximately controllable). The
-   synthetic Body currently offers a normal and a fully permuted mapping; the
-   partial level R2 needs a partially permuted condition added to it.
-3. The primary measure and the two decision thresholds in §7.
-4. Seed counts, and who fixes `D` and `H` from the development seeds.
+2. The apparatus. **Proposed default: the synthetic causal Body**, because the
+   question is whether learned content causes the advantage and only that
+   apparatus controls the mapping exactly. A Physics3D replication for external
+   validity would follow a positive result and would be its own preregistration.
+3. The numbers proposed in this draft: the 20% reduction, the ±10% null
+   margin, the 15% Body-difficulty spread, `D_max`, and the 10-of-12 criterion.
+4. The seed lists in §4.4.
 5. Whether a maturity-only outcome should trigger a follow-up design.
+
+## 10.1 Revision history
+
+- **r2, 2026-10-02.** After external review: `D` and `H` are computed by rule
+  instead of chosen; seeds are listed; R3 requires a practically-null finding
+  with its own margin instead of a mere failure to show an advantage; Bodies A,
+  A′ and B are constructed as a balanced family with a difficulty check and R3
+  as a negative control; observer-schedule and same-Body conditions are defined
+  exactly; M1 must rest on evidence acquired in the target Body and is guarded
+  against an activity explanation; one conjunctive confirmatory claim replaces
+  per-level claims.
 
 ## 11. What approval would start
 
