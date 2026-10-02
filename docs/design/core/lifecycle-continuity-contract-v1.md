@@ -130,6 +130,41 @@ Consequences:
 Tests: `tests/unit/core/test_canonical_birth.py`,
 `tests/compatibility/checkpoint_v10/`.
 
+### 6.1 Legacy admission policy (owner, 2026-10-02; issue #276)
+
+1. **Admission.** Checkpoints saved by schema 10 and earlier remain restorable.
+   No retirement date is set.
+2. **Marking.** Every later save of such an organism carries
+   `unverified_legacy_origin`; it cannot be shed by saving, transforming or
+   re-embodying.
+3. **Refusal where origin matters.** `require_verified_origin(payload)` fails
+   closed. The governed launcher applies it to scientific inputs:
+   `agentctl run start` refuses `confirmation` and `held-out` scopes when the
+   snapshot organism has an unverified origin, and also when its origin cannot
+   be determined. Only an explicit verified origin passes.
+4. **Evidence.** A snapshot manifest records `unverified_legacy_origin`, and the
+   run receipt (`execution.json`, `scientific_input.snapshot`) carries it, so any
+   result can be traced to a verified or an unverified subject.
+5. **No indefinite admission by accident.** `LEGACY_ADMISSION_REVIEW_AT_SCHEMA`
+   (currently 13) names the checkpoint schema at which this policy must be
+   decided again. A test fails when the schema reaches it, until the legacy path
+   is retired or the review version is deliberately moved.
+
+Retirement, when decided, is an explicit import step: a one-time migration that
+produces a current-schema checkpoint still marked `unverified_legacy_origin`,
+after which direct restore of schema 10 can be removed. It is not designed
+further here because nothing has been retired.
+
+Inventory at the time of the decision (this workstation, repository state
+directories and `~/.local/state/symbiont`): one real organism of schema 10,
+`org-2df92a9d8fda` (saved at tick 16366), with its bundle and five retained
+checkpoints. The fixtures under `tests/compatibility/checkpoint_v10/` are real
+schema-10 payloads kept for the compatibility tests.
+
+Tests: `tests/unit/host/test_legacy_admission_policy.py`,
+`tests/unit/lab/experiments/test_snapshot_origin.py`,
+`tests/unit/test_checkout_isolation.py::test_run_start_requires_a_verified_origin_for_confirmatory_scopes`.
+
 ## 7. Two transplant semantics
 
 Canonical re-embodiment and the reduced seed's transplant answer the question
@@ -162,8 +197,9 @@ name which of the two it used.
    semantics, stay as a deliberately clean-slate apparatus, or be retired.
    Changing it alters the apparatus of the embodiment falsification studies and
    is not a mechanical change.
-2. **Legacy sunset.** Whether, and from when, checkpoints of unverified legacy
-   origin stop being accepted.
+2. **Legacy sunset.** Decided 2026-10-02: admitted without a date, refused
+   where a verified origin is required, and reviewed at a named schema version;
+   see §6.1.
 3. **Functional transfer.** Preservation is established; usefulness is not. The
    unapproved preregistration draft is
    [Re-embodiment Functional Transfer v1](../experimentation/reembodiment-functional-transfer-v1.md).

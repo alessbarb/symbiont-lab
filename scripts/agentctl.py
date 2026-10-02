@@ -84,6 +84,9 @@ ALLOWED_PROGRAMME_STATES = {
     "blocked-by-P2",
 }
 SCIENTIFIC_SCOPES = {"development", "held-out", "confirmation", "replication", "mechanical"}
+# Research programme A2, subject provenance: these scopes must not start from an
+# organism whose history includes a checkpoint that was never identity-checked.
+VERIFIED_ORIGIN_SCOPES = {"held-out", "confirmation"}
 
 
 class ScientificInput:
@@ -123,6 +126,7 @@ def _snapshot_input(manifest: dict[str, Any]) -> ScientificInput:
         "bundle_models_tree_sha256",
         "models_tree_sha256",
         "body_kind",
+        "unverified_legacy_origin",
     )
     return ScientificInput("snapshot", {key: manifest.get(key) for key in fields})
 
@@ -870,6 +874,19 @@ def run_pinned(
             existing_manifest = verify_snapshot(snapshot_source)
         except ValueError as exc:
             print(f"BLOCKED — invalid archived snapshot: {exc}", file=sys.stderr)
+            return 3
+
+    if snapshot_source is not None and scope in VERIFIED_ORIGIN_SCOPES:
+        origin = (existing_manifest or inspect_snapshot_source(snapshot_source)).get(
+            "unverified_legacy_origin"
+        )
+        # Only an explicit False is a verified origin; unknown is a refusal.
+        if origin is not False:
+            print(
+                f"BLOCKED — {scope} runs require a subject of verified origin; "
+                "the snapshot organism has an unverified or undetermined legacy origin",
+                file=sys.stderr,
+            )
             return 3
 
     input_source_commit = snapshot_source_commit if input_mode == "snapshot" else None
