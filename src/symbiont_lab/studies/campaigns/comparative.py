@@ -4,8 +4,13 @@ from dataclasses import asdict, dataclass, replace
 from statistics import mean, pstdev
 from typing import Callable, Iterable
 
+from symbiont.simulation import ARCHITECTURE as LEGACY_ARCHITECTURE
 from symbiont.simulation import SimulationResult, run_simulation
 from symbiont_lab.experiments.spec import ExperimentSpec
+
+# Runs on the legacy Agent simulation, not on the canonical organism runtime.
+SUBJECT_ARCHITECTURE = LEGACY_ARCHITECTURE
+
 
 COMPARABLE_PARAMETERS: dict[str, tuple[float, float]] = {
     "threat_rate": (0.0, 1.0),

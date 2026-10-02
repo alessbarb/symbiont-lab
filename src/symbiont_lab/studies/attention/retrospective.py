@@ -6,7 +6,12 @@ from math import sqrt
 from typing import Iterable
 
 from symbiont.environment.rng import derive_seed
+from symbiont.simulation import ARCHITECTURE as LEGACY_ARCHITECTURE
 from symbiont.simulation import EventContext, SimulationResult, run_simulation
+
+# Runs on the legacy Agent simulation, not on the canonical organism runtime.
+SUBJECT_ARCHITECTURE = LEGACY_ARCHITECTURE
+
 
 THREAT_FAMILIES = (
     "pathogen:ransom_sim",

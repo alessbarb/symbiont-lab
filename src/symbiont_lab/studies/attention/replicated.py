@@ -4,7 +4,13 @@ from dataclasses import asdict, dataclass
 from statistics import mean, pstdev
 from typing import Iterable
 
+from symbiont.simulation import ARCHITECTURE as LEGACY_ARCHITECTURE
+
 from .causal import STRATEGIES, CausalSelection, run_causal_attention_budget
+
+# Runs on the legacy Agent simulation, not on the canonical organism runtime.
+SUBJECT_ARCHITECTURE = LEGACY_ARCHITECTURE
+
 
 CAUSAL_METRICS = (
     "threat_recall",

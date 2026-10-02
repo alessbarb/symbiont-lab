@@ -4,6 +4,7 @@ from dataclasses import asdict, dataclass
 from typing import Iterable
 
 from symbiont.environment.rng import derive_seed
+from symbiont.simulation import ARCHITECTURE as LEGACY_ARCHITECTURE
 from symbiont.simulation import EventContext, run_simulation
 from symbiont_lab.studies.common.causal_selection import (
     online_indices as _causal_online_indices,
@@ -16,6 +17,10 @@ from .retrospective import (
     _score_events,
     _ScoredEvent,
 )
+
+# Runs on the legacy Agent simulation, not on the canonical organism runtime.
+SUBJECT_ARCHITECTURE = LEGACY_ARCHITECTURE
+
 
 STRATEGIES = ("risk", "novelty", "risk_novelty", "random")
 NOVELTY_MIN_HISTORY = 6

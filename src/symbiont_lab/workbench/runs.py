@@ -7,6 +7,7 @@ from collections import deque
 from threading import Lock, Thread
 from typing import Any
 
+from symbiont.simulation import ARCHITECTURE as LEGACY_ARCHITECTURE
 from symbiont.simulation import SimulationSnapshot, run_simulation
 from symbiont_lab.archive.runs import ExperimentArchive, ExperimentRecord
 from symbiont_lab.archive.studies import StudyArchive, StudyRecord
@@ -14,6 +15,9 @@ from symbiont_lab.experiments.spec import ExperimentSpec, spec_from_payload
 from symbiont_lab.studies.campaigns.campaign import analyze_campaign
 from symbiont_lab.studies.campaigns.comparative import StudyResult, run_comparative_study
 from symbiont_lab.studies.campaigns.interpretation import StudyInterpretation, interpret_study
+
+# Runs on the legacy Agent simulation, not on the canonical organism runtime.
+SUBJECT_ARCHITECTURE = LEGACY_ARCHITECTURE
 
 
 class RunCoordinator:

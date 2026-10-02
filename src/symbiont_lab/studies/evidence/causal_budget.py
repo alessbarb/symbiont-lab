@@ -7,6 +7,7 @@ from statistics import mean, pstdev
 from typing import Iterable
 
 from symbiont.environment.rng import derive_seed
+from symbiont.simulation import ARCHITECTURE as LEGACY_ARCHITECTURE
 from symbiont.simulation import EventContext, run_simulation
 from symbiont_lab.studies.attention.causal import NOVELTY_MIN_HISTORY
 from symbiont_lab.studies.attention.retrospective import (
@@ -21,6 +22,10 @@ from .second_look import (
     posterior_probability,
     second_look_measurement,
 )
+
+# Runs on the legacy Agent simulation, not on the canonical organism runtime.
+SUBJECT_ARCHITECTURE = LEGACY_ARCHITECTURE
+
 
 DIRECTED_STRATEGIES = ("risk", "novelty", "risk_novelty")
 REFERENCE_STRATEGY = "random"
