@@ -90,7 +90,8 @@ stays in the runtime is recorded as open in that document.
 
 ### GOV-1 — Repository-enforced publication to main
 
-**Status:** ACTIVE — stable aggregate CI gate implementation in progress.
+**Status:** ACTIVE — stable aggregate CI gate and main ruleset are deployed;
+end-to-end acceptance remains incomplete.
 
 **Governing decision:**
 [adr/ADR-0057-enforce-governed-main-publication.md](adr/ADR-0057-enforce-governed-main-publication.md).
@@ -98,11 +99,11 @@ stays in the runtime is recorded as open in that document.
 GitHub enforces a validated-commit boundary on `main` with deletion and
 non-fast-forward protection and no bypass actors. PR #239 exposed that requiring
 all dynamic CI contexts individually can deadlock when a conditional matrix is
-skipped before expansion. ADR-0057 therefore moves the repository boundary to one
-always-present `governed-ci-gate` that certifies the validation plan. After that
-workflow change merges, the ruleset must be switched to require only this stable
-context, followed by end-to-end verification of unchecked rejection and ordinary
-candidate promotion.
+skipped before expansion. The stable `governed-ci-gate` is now present in CI, and
+the active ruleset requires that context. Remaining acceptance work is to verify
+that an unchecked update is rejected and that a fresh ORDINARY candidate is
+promoted through the governed path. Do not infer either property from the
+workflow or ruleset configuration alone.
 
 ### DOC-1 — Persistence terminology and legacy cleanup
 
