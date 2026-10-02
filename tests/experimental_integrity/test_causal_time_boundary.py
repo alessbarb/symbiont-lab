@@ -32,6 +32,7 @@ _CLOCK_NAMES = {
 DECLARED_EXCEPTIONS = {
     "host/providers/interoception.py": (1, "apparatus reading timestamp"),
     "host/providers/linux_surfaces.py": (1, "apparatus reading timestamp"),
+    "host/providers/portable_surfaces.py": (1, "apparatus reading timestamp"),
     "host/providers/stdlib_readings.py": (1, "apparatus reading timestamp"),
     "host/readings.py": (2, "profiling clock -> observed_elapsed_s only"),
     "host/lifecycle.py": (1, "profiling clock -> observed_elapsed_s only"),
