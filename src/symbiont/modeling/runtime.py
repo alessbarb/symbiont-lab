@@ -774,6 +774,10 @@ class ModeledOrganismRuntime(OrganismRuntime):
             return 0
         changed = 0
         lineages = bridge.concept_lineage
+        # Reinterpretation only extends the interpretation index; the episodes
+        # themselves do not change during this refresh, so each episode's
+        # factual projection is built once rather than once per lineage (#279).
+        factual_index = self._episodic_memory.factual_index() if lineages else None
         # Concept lineage may contain concepts built from older concepts.
         # Iterate to a fixed point so retrospective indexing can propagate
         # through the hierarchy without depending on lexical concept IDs.
@@ -793,6 +797,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
                     lineage.concept_id,
                     tuple(support),
                     min_overlap=0.5,
+                    factual_index=factual_index,
                 )
             changed += pass_changed
             if pass_changed == 0:

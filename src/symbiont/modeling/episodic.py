@@ -1145,7 +1145,16 @@ class EpisodicExperienceMemory:
         support_tokens: Sequence[str],
         *,
         min_overlap: float = 0.5,
+        factual_index: Mapping[str, frozenset[str]] | None = None,
     ) -> int:
+        """Index episodes whose facts support ``representation_id``.
+
+        ``factual_index`` (from :meth:`factual_index`) lets a caller that
+        reinterprets for many representations in a row build each episode's
+        projection once instead of once per representation. It must have been
+        taken after the last change to the episodes; interpretations do not
+        invalidate it, because they are not part of the factual core.
+        """
         if not _valid_token(representation_id):
             raise EpisodicMemoryError("invalid representation id")
         if not 0.0 < min_overlap <= 1.0:
@@ -1165,8 +1174,11 @@ class EpisodicExperienceMemory:
                 representation_id in existing or len(existing) >= capacity
             ):
                 continue
-            projection = episode.projection
-            factual = set(projection.context_tokens) | set(projection.effect_features)
+            factual = (
+                factual_index[episode.episode_id]
+                if factual_index is not None
+                else self._factual_tokens(episode)
+            )
             indexed = factual | (existing or set())
             if len(indexed & support) / len(support) < min_overlap:
                 continue
@@ -1174,6 +1186,15 @@ class EpisodicExperienceMemory:
             bucket.add(representation_id)
             changed += 1
         return changed
+
+    @staticmethod
+    def _factual_tokens(episode: ExperienceEpisode) -> frozenset[str]:
+        projection = episode.projection
+        return frozenset(projection.context_tokens) | frozenset(projection.effect_features)
+
+    def factual_index(self) -> dict[str, frozenset[str]]:
+        """Each episode's factual tokens, for a batch of :meth:`reinterpret` calls."""
+        return {episode.episode_id: self._factual_tokens(episode) for episode in self._episodes}
 
     def consolidate(self) -> tuple[ConsolidatedContingency, ...]:
         consolidated: dict[str, ConsolidatedContingency] = {}

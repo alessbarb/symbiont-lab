@@ -1,6 +1,6 @@
 # #279 — Cognitive cost scaling with organism age
 
-Status: measured and attributed; no optimization applied  
+Status: measured and attributed; one neutral optimization applied (see Follow-up)  
 Issue: [#279](https://github.com/alessbarb/symbiont-lab/issues/279)  
 Apparatus: `scripts/bench_age_scaling.py` at base `a91b93d7`
 
@@ -21,7 +21,8 @@ another with the observer on; the Body step is timed apart from the organism
 tick.
 
 The subject is the organism as constructed before the canonical organism
-profile (ADR-0062): no sensory plasticity, no predictor auto-promotion. The
+profile (ADR-0062): no sensory plasticity, no predictor auto-promotion, and,
+like the study apparatus it was copied from, factorized effects on. The
 mechanisms attributed here do not depend on those options.
 
 ## Results
@@ -115,3 +116,27 @@ change with equivalence evidence. The third is for the owner.
 - **Pre-profile subject:** measured before the canonical organism profile `v1`.
   Re-measure after that profile lands to confirm it adds no new growing term,
   for example receptor-driven drift baselines, which are now bounded.
+
+## Follow-up: one projection build per episode per refresh
+
+Applied after the report: `_refresh_episodic_interpretations` takes the factual
+tokens of every episode once (`EpisodicExperienceMemory.factual_index`) and every
+lineage's `reinterpret` reuses them. Episodes do not change during a refresh;
+only the interpretation index does, and it is not part of the factual core.
+
+Equivalence: from the age-5000 checkpoint, 30 ticks on `main` and on the change
+produce the identical `state_hash()` at every tick (the code on `main` is itself
+deterministic across runs). A unit test checks that batched and per-call
+reinterpretation record the same interpretations.
+
+| From age 5000, 30 ticks | `main` | With the change |
+| --- | --- | --- |
+| Projection builds per tick | 42,762 | 2,202 |
+| Organism tick (mean) | 540 ms | 226 ms |
+
+The remaining per-tick cost is linear in episodes × lineages over cheap set
+operations. Reinterpreting only what changed since the last pass was not applied:
+with this change the projection rebuild, which dominated, is gone, and the
+remaining scan does not justify change tracking. Whether retrospective
+reinterpretation should fire at all stays an owner decision.
+
