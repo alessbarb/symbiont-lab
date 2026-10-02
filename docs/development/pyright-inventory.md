@@ -14,17 +14,17 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 
 - Archivos analizados: **585**
 - Archivos con diagnósticos: **90**
-- Errores: **386**
+- Errores: **384**
 - Warnings: **10**
 - Informaciones: **0**
-- Duración reportada: **25.967 s**
+- Duración reportada: **25.772 s**
 
 ## Reglas por severidad
 
 | Severidad | Regla | Casos |
 |---|---|---:|
 | error | `reportArgumentType` | 183 |
-| error | `reportAttributeAccessIssue` | 98 |
+| error | `reportAttributeAccessIssue` | 96 |
 | error | `reportOptionalMemberAccess` | 57 |
 | error | `reportOperatorIssue` | 15 |
 | error | `reportGeneralTypeIssues` | 13 |
@@ -65,7 +65,6 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 | 5 | `src/symbiont_lab/studies/learning/canonical_sensorimotor_counterfactual.py` |
 | 5 | `src/symbiont_lab/studies/learning/generative_recombination_construction.py` |
 | 4 | `src/symbiont/actuation/acquisition.py` |
-| 4 | `src/symbiont/core/orchestration/resident.py` |
 | 4 | `src/symbiont/modeling/culture.py` |
 | 4 | `src/symbiont_lab/app/run_controller.py` |
 | 4 | `src/symbiont_lab/observation/physics3d.py` |
@@ -90,6 +89,7 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 | 2 | `observatory/server.py` |
 | 2 | `src/symbiont/cognition/structure.py` |
 | 2 | `src/symbiont/core/cognition/bridge_checkpoint.py` |
+| 2 | `src/symbiont/core/orchestration/resident.py` |
 | 2 | `src/symbiont/genetics/migration.py` |
 | 2 | `src/symbiont/modeling/private_runtime.py` |
 | 2 | `src/symbiont/sensory/predictive_credit.py` |
@@ -259,12 +259,10 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 
 - `127:44` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "port_id" for class "str" Attribute "port_id" is unknown
 
-### `src/symbiont/core/orchestration/resident.py` (4)
+### `src/symbiont/core/orchestration/resident.py` (2)
 
 - `91:43` · **error** · `reportOptionalMemberAccess` — "state" is not a known attribute of "None"
 - `98:43` · **error** · `reportOptionalMemberAccess` — "state" is not a known attribute of "None"
-- `149:48` · **error** · `reportAttributeAccessIssue` — "load_base_graph" is unknown import symbol
-- `165:48` · **error** · `reportAttributeAccessIssue` — Cannot access attribute "export_checkpoint" for class "OrganismRuntime" Attribute "export_checkpoint" is unknown
 
 ### `src/symbiont/core/orchestration/runtime.py` (1)
 
