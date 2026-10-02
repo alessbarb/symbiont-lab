@@ -46,7 +46,7 @@ surface that predates the kernel.
 | --- | --- | --- | --- | --- | --- |
 | World kernel | `src/symbiont_world/` | World | Constitution, hex topology, movement, local observation, generic laws, events, RNG, checkpoint. Semantically opaque. | World | Active, maintenance-only |
 | World adapter | `src/symbiont_lab/world/` | Lab | The only package that knows what a field, resource or hazard means: genesis ground truth, organism↔World adapter, population runtime, persistence, tick transaction, terrain | Lab connection of World and Symbiont | Active, maintenance-only |
-| `PopulationGenesisRuntime(experimental_clean=False)` | `src/symbiont_lab/world/population.py` | Lab | Pre-decontamination population path | Legacy apparatus kept so the locked W03 study stays reproducible; the canonical live World refuses it | Legacy, retained on purpose |
+| `PopulationGenesisRuntime(experimental_clean=False)` | `src/symbiont_lab/world/population.py` | Lab | Pre-decontamination population path | Legacy apparatus. The canonical live World refuses it. W03, the study it backed, is closed | Legacy; no study depends on it |
 | Physics3D | `src/symbiont_lab/physics3d/` | Lab | PyBullet Body and physical environment recipes (`environments.py`), embodiment runtime, re-embodiment | Embodiment apparatus: Body plus its physical surroundings. Not the constitutional World. | Active |
 | `CausalBody` | `src/symbiont_lab/studies/learning/agency_acquisition_body.py` | Lab | Deterministic opaque synthetic Body behind the host discovery/reading boundary | Experimental apparatus (a Body, not a World) | Active in the agency-acquisition studies |
 | Standard clean Body | `src/symbiont/core/embodiment/body.py` (`create_standard_body`) with `Individual` | Organism package | Minimal Body for the reduced seed | Experimental apparatus of the clean-embodiment studies | Active in the embodiment falsification studies |
@@ -115,10 +115,17 @@ classifies them as process handles (`_habitat`, `_resource_habitats`,
    location is nevertheless in tension with Constitution §1 item 1 ("`src/symbiont/`
    must contain only state, capabilities, and processes belonging to the
    organism") and item 3. The same holds for `symbiont.environment`.
-4. **Two legacy environments are still consumed.** The contaminated population
-   path backs the locked W03 study, and `symbiont.environment` backs the legacy
-   `Agent` simulation and several studies. Neither can be removed without
-   retiring those consumers first.
+4. **Two legacy environments are still consumed.** `symbiont.environment` backs
+   the legacy `Agent` simulation and several studies. The contaminated population
+   path no longer backs any study: W03 was closed by the owner on 2026-10-02 and
+   its lock test retired (`research/studies/ecology/w03-closure.md`). What still
+   constructs that path is test code and one viewer script: the World unit tests
+   that build `PopulationGenesisRuntime` without `experimental_clean=True`
+   (`test_population`, `test_persistence`, `test_cli_view`,
+   `test_terrain_and_movement`, `test_actuation_end_to_end`,
+   `test_transaction_integrity`, `tests/unit/observatory/test_world_integration`)
+   and `experiments/world/genesis-v1/view_world.py`. Removing the path means
+   migrating or retiring those, not a study.
 5. **Stale specification paths.** World docstrings pointed at
    `docs/design/symbiont-world-v*.md`, which moved during the 2026-09-25
    documentation migration. They now point at

@@ -182,6 +182,11 @@ habitat classes, the status of Physics3D surroundings, retirement of the two
 legacy environments and the reserved meaning of "World" are owner decisions. The
 World programme stays maintenance-only.
 
+W03 was closed by the owner on 2026-10-02
+([w03-closure.md](../research/studies/ecology/w03-closure.md)) and no longer
+constrains the legacy population path; that path is now held only by test code
+and one viewer script.
+
 ## Evidence follow-ups after integrity remediation
 
 These are not opened or authorized experiments by this roadmap. They are
