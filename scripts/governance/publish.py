@@ -443,8 +443,8 @@ _GOVERNANCE_LABELS = {
 }
 
 
-def _create_candidate_pr(candidate: str, effective: ChangeClass) -> str:
-    """Open the review handoff and label it with its computed governance class."""
+def _create_candidate_pr(candidate: str, commit: str, effective: ChangeClass) -> str:
+    """Open the review handoff using metadata from the pushed candidate commit."""
     color, description = _GOVERNANCE_LABELS[effective]
     # Labels are repository metadata and are not versioned in Git. Provision
     # the required class label when absent; never alter an existing label.
@@ -482,6 +482,11 @@ def _create_candidate_pr(candidate: str, effective: ChangeClass) -> str:
                 "cannot create governance label; candidate was pushed but PR was not created"
             )
 
+    title = _git("show", "-s", "--format=%s", commit)
+    body = _git("show", "-s", "--format=%b", commit)
+    if not body:
+        body = f"Governed candidate `{candidate}` created by agentctl."
+
     result = subprocess.run(
         [
             "gh",
@@ -491,7 +496,10 @@ def _create_candidate_pr(candidate: str, effective: ChangeClass) -> str:
             "main",
             "--head",
             candidate,
-            "--fill",
+            "--title",
+            title,
+            "--body",
+            body,
             "--label",
             effective.value,
         ],
@@ -571,7 +579,7 @@ def publish(
             )
             if result.returncode == 0:
                 try:
-                    pr_url = _create_candidate_pr(candidate, effective)
+                    pr_url = _create_candidate_pr(candidate, commit, effective)
                 except (RuntimeError, json.JSONDecodeError) as exc:
                     print(f"candidate: {candidate}")
                     print(f"commit: {commit}")
