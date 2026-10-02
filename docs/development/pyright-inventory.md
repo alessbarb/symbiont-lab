@@ -13,11 +13,11 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 ## Resumen
 
 - Archivos analizados: **585**
-- Archivos con diagnósticos: **92**
+- Archivos con diagnósticos: **91**
 - Errores: **411**
-- Warnings: **22**
+- Warnings: **10**
 - Informaciones: **0**
-- Duración reportada: **23.451 s**
+- Duración reportada: **31.396 s**
 
 ## Reglas por severidad
 
@@ -34,8 +34,8 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 | error | `reportOptionalSubscript` | 3 |
 | error | `reportAssignmentType` | 1 |
 | error | `reportReturnType` | 1 |
-| warning | `reportUnsupportedDunderAll` | 14 |
 | warning | `reportMissingImports` | 7 |
+| warning | `reportUnsupportedDunderAll` | 2 |
 | warning | `reportUnusedExpression` | 1 |
 
 ## Archivos por volumen
@@ -49,7 +49,6 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 | 18 | `src/symbiont_lab/app/physics3d/monitor/viewer.py` |
 | 17 | `src/symbiont_lab/studies/learning/emergent_structured_communication.py` |
 | 12 | `observatory/resident.py` |
-| 12 | `src/symbiont/core/__init__.py` |
 | 12 | `src/symbiont_lab/physics3d/engine.py` |
 | 11 | `src/symbiont_lab/studies/learning/prospective_agency_embodied.py` |
 | 9 | `src/symbiont/modeling/runtime.py` |
@@ -209,21 +208,6 @@ Versión ejecutada: **Pyright 1.1.414**. La configuración aplicada es `pyrightc
 
 - `315:49` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
 - `400:30` · **error** · `reportGeneralTypeIssues` — "object" is not iterable "__iter__" method not defined
-
-### `src/symbiont/core/__init__.py` (12)
-
-- `230:5` · **warning** · `reportUnsupportedDunderAll` — "LivingBodyState" is specified in __all__ but is not present in module
-- `231:5` · **warning** · `reportUnsupportedDunderAll` — "PhysiologyController" is specified in __all__ but is not present in module
-- `232:5` · **warning** · `reportUnsupportedDunderAll` — "PhysiologySnapshot" is specified in __all__ but is not present in module
-- `233:5` · **warning** · `reportUnsupportedDunderAll` — "VitalState" is specified in __all__ but is not present in module
-- `234:5` · **warning** · `reportUnsupportedDunderAll` — "InteractionOutcome" is specified in __all__ but is not present in module
-- `235:5` · **warning** · `reportUnsupportedDunderAll` — "RelationLedger" is specified in __all__ but is not present in module
-- `236:5` · **warning** · `reportUnsupportedDunderAll` — "RelationValence" is specified in __all__ but is not present in module
-- `237:5` · **warning** · `reportUnsupportedDunderAll` — "SocialHabitat" is specified in __all__ but is not present in module
-- `238:5` · **warning** · `reportUnsupportedDunderAll` — "SocialInteractionEngine" is specified in __all__ but is not present in module
-- `239:5` · **warning** · `reportUnsupportedDunderAll` — "SocialRelation" is specified in __all__ but is not present in module
-- `240:5` · **warning** · `reportUnsupportedDunderAll` — "SocialPresence" is specified in __all__ but is not present in module
-- `241:5` · **warning** · `reportUnsupportedDunderAll` — "SocialCompetitionRequest" is specified in __all__ but is not present in module
 
 ### `src/symbiont/core/cognition/agent.py` (1)
 
