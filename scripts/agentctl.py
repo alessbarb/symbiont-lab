@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import fnmatch
+import hashlib
 import json
 import os
 import re
@@ -31,6 +32,7 @@ from governance.classify import assess as assess_change
 from governance.publish import publish as publish_changes
 
 from symbiont_lab.experiments.execution_workspace import pinned_worktree
+from symbiont_lab.experiments.generations import GenerationStore
 from symbiont_lab.experiments.resource_guard import ResourceRequest, assess_resources
 from symbiont_lab.experiments.snapshot_archive import (
     archive_snapshot,
@@ -1152,12 +1154,91 @@ def run_pinned(
             "elapsed_seconds": time.time() - started,
             "returncode": returncode,
         }
+        if "child_pid" in payload:
+            # ADR-0061: the outputs of a run and its receipt become visible
+            # together, as one committed generation, or not at all.
+            receipt, commit_failed = _commit_run_generation(run_root, work_dir, receipt)
+            if commit_failed and returncode == 0:
+                returncode = 1
+                receipt["returncode"] = returncode
         _atomic_json_write(run_root / "execution.json", receipt)
         _run_lock_path().unlink(missing_ok=True)
         if "child_pid" not in payload:
             for transient in ("input", "work", "environment", "home"):
                 shutil.rmtree(run_root / transient, ignore_errors=True)
     return returncode
+
+
+RUN_GENERATIONS_DIR = "generations"
+
+
+def _commit_run_generation(
+    run_root: Path,
+    work_dir: Path,
+    receipt: dict[str, Any],
+    *,
+    _fault_point: Any = None,
+) -> tuple[dict[str, Any], bool]:
+    """Publish a finished run as one generation (ADR-0061).
+
+    The work directory and the receipt are sealed under a digest-bearing
+    ``COMPLETE`` marker and made visible by ``CURRENT`` in one step. Returns the
+    receipt to write at the run root and whether the commit failed. On failure
+    there is no ``CURRENT``: the run has no result a consumer may open, and the
+    work directory is kept for inspection.
+    """
+    store = GenerationStore(run_root / RUN_GENERATIONS_DIR)
+    sealed = {**receipt, "state": "complete"}
+    try:
+        committed = store.commit_directory(
+            0,
+            work_dir,
+            extra_files={
+                "execution.json": json.dumps(sealed, indent=2, sort_keys=True) + "\n",
+            },
+            _fault_point=_fault_point,
+        )
+    except Exception as exc:
+        # A crash after CURRENT was replaced leaves a complete, valid generation.
+        if store.has_current():
+            try:
+                committed = store.open_current()
+            except (OSError, ValueError):
+                committed = None
+            if committed is not None:
+                return _receipt_with_generation(sealed, committed, work_dir), False
+        return (
+            {
+                **receipt,
+                "state": "COMMIT_FAILED",
+                "generation": None,
+                "commit_error": f"{exc.__class__.__name__}: {exc}",
+            },
+            True,
+        )
+    return _receipt_with_generation(sealed, committed, work_dir), False
+
+
+def _receipt_with_generation(
+    receipt: dict[str, Any], committed: Any, work_dir: Path
+) -> dict[str, Any]:
+    marker = committed.path / GenerationStore.COMPLETE
+    # The committed generation is now the only place the outputs live.
+    shutil.rmtree(work_dir, ignore_errors=True)
+    return {
+        **receipt,
+        "generation": {
+            "name": committed.path.name,
+            "path": f"{RUN_GENERATIONS_DIR}/{committed.path.name}",
+            "file_count": len(committed.files),
+            "complete_sha256": hashlib.sha256(marker.read_bytes()).hexdigest(),
+        },
+    }
+
+
+def open_run_generation(run_root: Path) -> Any:
+    """The committed result of a governed run; raises if none was published."""
+    return GenerationStore(run_root / RUN_GENERATIONS_DIR).open_current()
 
 
 def run_status() -> int:

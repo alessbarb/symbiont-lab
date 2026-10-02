@@ -493,6 +493,12 @@ def test_agentctl_run_start_records_verified_child_receipt(
     assert receipt["seed"] == 59
     assert Path(receipt["environment_path"]).is_dir()
     assert Path(fingerprint["python_executable"]).is_absolute()
+    # ADR-0061: the launcher publishes the run as one committed generation.
+    generation = agentctl.open_run_generation(run_root / "runs" / f"launcher-{mode}")
+    assert receipt["state"] == "complete"
+    assert receipt["generation"]["name"] == generation.path.name == "generation-000000"
+    assert "execution.json" in generation.files
+    assert not (run_root / "runs" / f"launcher-{mode}" / "work").exists()
 
 
 def test_scientific_sync_command_is_locked_and_keeps_compatibility_dependencies_out() -> None:
@@ -906,3 +912,84 @@ def test_run_start_requires_a_verified_origin_for_confirmatory_scopes(
     assert ("require a subject of verified origin" in err) is blocked
     assert ("snapshot source commit is unavailable" in err) is not blocked
     assert not (tmp_path / "runs").exists()
+
+
+def _load_agentctl(name: str):
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(name, REPO_ROOT / "scripts/agentctl.py")
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _finished_run(tmp_path):
+    run_root = tmp_path / "runs" / "generation-test"
+    work = run_root / "work"
+    (work / "nested").mkdir(parents=True)
+    (work / "results.json").write_text('{"value": 1}', encoding="utf-8")
+    (work / "nested" / "trace.bin").write_bytes(b"\x00\x01")
+    return run_root, work, {"id": "generation-test", "returncode": 0, "state": "complete"}
+
+
+def test_a_finished_run_is_published_as_one_committed_generation(tmp_path) -> None:
+    import json
+
+    agentctl = _load_agentctl("agentctl_generation_ok")
+    run_root, work, receipt = _finished_run(tmp_path)
+
+    published, failed = agentctl._commit_run_generation(run_root, work, receipt)
+
+    assert failed is False
+    generation = agentctl.open_run_generation(run_root)
+    assert set(generation.files) == {"results.json", "nested/trace.bin", "execution.json"}
+    assert published["generation"]["name"] == "generation-000000"
+    assert published["generation"]["file_count"] == 3
+    assert len(published["generation"]["complete_sha256"]) == 64
+    sealed = json.loads((generation.path / "execution.json").read_text(encoding="utf-8"))
+    assert sealed["id"] == "generation-test" and sealed["returncode"] == 0
+    # The committed generation is the only place the outputs live.
+    assert not work.exists()
+
+
+@pytest.mark.parametrize(
+    "fault_point",
+    ["before_generation_publish", "after_generation_publish", "current.before_replace"],
+)
+def test_a_run_whose_commit_crashes_has_no_visible_result(tmp_path, fault_point) -> None:
+    agentctl = _load_agentctl(f"agentctl_generation_fail_{fault_point.replace('.', '_')}")
+    run_root, work, receipt = _finished_run(tmp_path)
+
+    def crash(point: str) -> None:
+        if point == fault_point:
+            raise OSError(f"simulated crash at {point}")
+
+    published, failed = agentctl._commit_run_generation(run_root, work, receipt, _fault_point=crash)
+
+    assert failed is True
+    assert published["state"] == "COMMIT_FAILED" and published["generation"] is None
+    assert "simulated crash" in published["commit_error"]
+    with pytest.raises(FileNotFoundError):
+        agentctl.open_run_generation(run_root)
+    # Outputs are kept for inspection; nothing was published half-way.
+    assert (work / "results.json").is_file()
+
+
+def test_a_crash_after_current_is_replaced_still_yields_the_complete_generation(tmp_path) -> None:
+    agentctl = _load_agentctl("agentctl_generation_late_crash")
+    run_root, work, receipt = _finished_run(tmp_path)
+
+    def crash(point: str) -> None:
+        if point == "current.after_replace":
+            raise OSError("simulated crash after CURRENT was replaced")
+
+    published, failed = agentctl._commit_run_generation(run_root, work, receipt, _fault_point=crash)
+
+    assert failed is False
+    assert published["generation"]["name"] == "generation-000000"
+    assert set(agentctl.open_run_generation(run_root).files) == {
+        "results.json",
+        "nested/trace.bin",
+        "execution.json",
+    }
