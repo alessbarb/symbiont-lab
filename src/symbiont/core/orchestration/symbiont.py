@@ -3,6 +3,14 @@
 The reduced Symbiont used by clean embodiment studies intentionally reuses the
 same canonical sensorimotor inference components as OrganismRuntime.  It is not
 an alternate BodySchema/agency architecture.
+
+It does have a different longitudinal contract. On a Body transplant this seed
+starts embodiment-specific inference again from naive, whereas canonical
+re-embodiment of an OrganismRuntime keeps that inference as knowledge and
+withdraws only its authority over the Body. The difference is declared per
+attribute in ``symbiont.host.continuity.REDUCED_SEED_REGISTER``; a result
+obtained with this seed says nothing about retained knowledge after canonical
+re-embodiment, and the reverse.
 """
 
 from __future__ import annotations
@@ -50,10 +58,12 @@ from .continuity import SymbiontContinuityModel
 class Symbiont:
     """Minimal autonomous seed used by clean embodiment studies.
 
-    Body-specific state is canonical Embodiment state: low-level dynamics,
-    causal evidence, effect grounding, controllability, agency and BodySchema.
-    A transplant resets those facts while preserving Symbiont identity,
-    historical time, genotype and gene-expression continuity.
+    In this seed, low-level dynamics, causal evidence, effect grounding,
+    controllability, agency and BodySchema are treated as Embodiment state. A
+    transplant resets those facts while preserving Symbiont identity,
+    historical time, genotype and gene-expression continuity. Competences
+    survive without their effect grounding. OrganismRuntime treats the same
+    state as Symbiont-owned knowledge; see ``REDUCED_SEED_REGISTER``.
     """
 
     def __init__(

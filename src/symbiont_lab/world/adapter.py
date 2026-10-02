@@ -693,7 +693,7 @@ def _act(rig: _OrganismRig) -> ActionExecutionResult:
 class SingleOrganismGenesisRuntime:
     """Runs exactly one ModeledOrganismRuntime inside a Genesis v1 world.
 
-    v1 scope only (docs/design/symbiont-world-v1.md §15): the organism
+    v1 scope only (docs/design/archive/symbiont-world-v1.md §15): the organism
     never issues WorldAction.move; occupancy never changes after
     construction. No communication, no reproduction.
     """

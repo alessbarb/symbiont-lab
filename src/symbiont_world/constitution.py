@@ -1,6 +1,6 @@
 """WorldConstitution: the fingerprint that identifies a reproducible world.
 
-docs/design/symbiont-world-v1.md §9. A world_seed alone does not identify a
+docs/design/archive/symbiont-world-v1.md §9. A world_seed alone does not identify a
 reproducible universe across implementations or code revisions; the
 fingerprint of this frozen structure does.
 """

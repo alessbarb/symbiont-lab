@@ -32,6 +32,8 @@ def _running_version() -> tuple[int, int, int]:
 
 def restore_resident_with_canonical_cognition(
     payload: dict[str, Any],
+    *,
+    runtime_class: type[OrganismRuntime] = OrganismRuntime,
     **runtime_kwargs: Any,
 ) -> OrganismRuntime:
     """Restore one resident, adopting canonical cognition only when absent.
@@ -40,11 +42,13 @@ def restore_resident_with_canonical_cognition(
     policy: laboratory code may need to reproduce a historical genome-less
     individual exactly. The main live CLI and Observatory resident opt in
     because their product contract is now "every resident has cognition".
+    ``runtime_class`` selects the runtime layer; the adoption itself is the
+    same transform for every layer and is recorded in the checkpoint lineage.
     """
     verify_checkpoint_identity(payload)
     normalized = normalize_checkpoint(payload)
     if normalized.get("genome") is not None:
-        return OrganismRuntime.from_checkpoint(normalized, **runtime_kwargs)
+        return runtime_class.from_checkpoint(normalized, **runtime_kwargs)
 
     kernel_limits = runtime_kwargs.get("kernel_limits") or KernelLimits()
     genome, graph = load_base_cognition(
@@ -64,4 +68,4 @@ def restore_resident_with_canonical_cognition(
 
     kwargs = dict(runtime_kwargs)
     kwargs["kernel_limits"] = kernel_limits
-    return OrganismRuntime.from_checkpoint(adopted, **kwargs)
+    return runtime_class.from_checkpoint(adopted, **kwargs)

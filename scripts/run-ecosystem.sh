@@ -165,7 +165,7 @@ echo "Pulsa Ctrl-C para detener todos los procesos."
 
 for ((index = 1; index <= COUNT; index++)); do
   name="symbiont-$(printf '%03d' "$index")"
-  cmd=("$PYTHON_BIN" observatory/resident.py \
+  cmd=("$PYTHON_BIN" -m symbiont_lab.cli.observed_resident \
     --display-id "$name" \
     --state-file "$STATE_DIR/$name.json" \
     --observatory-dir "$OBS_DIR" \
@@ -233,7 +233,7 @@ while true; do
         child_filename="$(basename "$embryo")"
         child_name="${child_filename%.json}"
         mv "$embryo" "$STATE_DIR/$child_filename"
-        child_cmd=("$PYTHON_BIN" observatory/resident.py \
+        child_cmd=("$PYTHON_BIN" -m symbiont_lab.cli.observed_resident \
           --display-id "$child_name" \
           --state-file "$STATE_DIR/$child_filename" \
           --observatory-dir "$OBS_DIR" \

@@ -1,4 +1,4 @@
-"""W1 movement resolution (docs/design/symbiont-world-v1.md §12.2, §5).
+"""W1 movement resolution (docs/design/archive/symbiont-world-v1.md §12.2, §5).
 
 Must run inside a WorldState.begin_tick() transaction: any inconsistency
 raises TickAborted so the caller's transaction rolls back the whole tick,

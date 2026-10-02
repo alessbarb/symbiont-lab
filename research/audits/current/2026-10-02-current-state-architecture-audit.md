@@ -5,9 +5,10 @@ document_type: audit
 domain: core
 status: current
 canonical: false
-implementation_status: findings-open
+implementation_status: findings-resolved-pending-owner-decisions
 date: 2026-10-02
 source_commit: 2ac4296dfcd5b3f1f250a47b9cf00f84a4d3627c
+follow_up_base_commit: 3246a39d05b2fd75452d804c50e43acc2b110265
 language: en
 ---
 
@@ -32,7 +33,8 @@ birth
 The forensic source is `main@2ac4296d`, read on 2026-10-02.
 
 No code was modified during the audit. The audit is kept separate from any
-correction.
+correction: sections 2 to 12 are the audit as taken and are not rewritten.
+Section 13 records what was done afterwards for each finding.
 
 It follows the
 [Longitudinal Integrity Audit](2026-10-02-longitudinal-integrity-audit.md)
@@ -475,7 +477,8 @@ stored the same day already contains findings that are resolved at
 | GOV-01 | resolved — see §6 |
 
 That audit must be updated or have those findings marked resolved so later
-readers do not work from an outdated photograph.
+readers do not work from an outdated photograph. Done: it now carries a
+resolution record per finding.
 
 ## 10. Required follow-up
 
@@ -531,3 +534,45 @@ This audit does not establish:
 
 Those remain implementation or experimental questions and require separate
 evidence.
+
+## 13. Resolution record
+
+Recorded after the audit, against `main@3246a39d`. "Resolved" means the code or
+contract change exists with a test that fails if it regresses; it is not owner
+acceptance. Decisions that are the owner's are listed, not taken.
+
+| ID | Resolution | Evidence | Left to the owner |
+| --- | --- | --- | --- |
+| F-01 | The reduced seed's transplant semantics are declared per attribute in `REDUCED_SEED_REGISTER`; each attribute where it discards or ungrounds what canonical re-embodiment keeps is marked. The module and class docstrings no longer present the seed as the same longitudinal contract. | `tests/unit/host/test_reduced_seed_register.py`; [Lifecycle Continuity Contract v1](../../../docs/design/core/lifecycle-continuity-contract-v1.md) §7 | Whether the two semantics converge. Changing the seed changes the apparatus of the embodiment falsification studies. |
+| F-02 | No action: resolved-positive. | `tests/integration/test_reembodiment_continuity.py` | — |
+| F-03 | No action: resolved-positive. | `tests/unit/host/test_strict_restore.py` | — |
+| F-04 | Acceptance of an unverified legacy checkpoint is now recorded durably: every later save carries `checkpoint_lineage.unverified_legacy_origin`. | `tests/unit/core/test_canonical_birth.py`; contract §6 | Whether and when legacy checkpoints stop being accepted. |
+| F-05 | The discontinuity is stated in one place as part of the contract and stays pinned by the restart test. | `tests/integration/test_restart_equivalence.py`; contract §5 | — |
+| F-06 | One adoption path for every runtime layer (`runtime_class`); the resident launcher's hand-inlined copy is removed. `checkpoint_lineage.transforms` is carried into every later save, so an adopted organism stays identifiable after its next checkpoint. Before this the transform existed only on the in-memory payload. | `tests/unit/core/test_canonical_birth.py`; `tests/compatibility/checkpoint_v10/test_real_v10_checkpoints.py::test_lineage_history_survives_consecutive_boundaries` (legacy → adoption → save → re-embodiment → restore → saves → restart); contract §4 and §6 | — |
+| F-07 | The resident and replay launchers moved to `symbiont_lab.cli.observed_resident` and `symbiont_lab.cli.observed_replay`. No `observatory` module constructs, restores or drives an organism. A second launcher found during the fix (`main` inside `observatory/adapter.py`) was moved as well. | `tests/experimental_integrity/test_observatory_passive_boundary.py` | — |
+| F-08 | A manifest write failure is reported on stderr and makes the launcher exit non-zero after the organism is saved. The organism is not stopped by an observer failure. | `tests/unit/lab/test_observed_resident_manifest.py` | — |
+| F-09 | Every environment family is inventoried with owner, role, consumers and state. Nothing was removed. Stale World specification paths in docstrings were corrected. | [World Responsibility Map v1](../../../docs/design/world/world-responsibility-map-v1.md) | Location of the habitat classes, status of Physics3D surroundings, retirement of legacy environments, reserved meaning of "World". |
+
+Follow-up items of §10:
+
+| Item | State |
+| --- | --- |
+| 1. Unify the longitudinal contract | Contract written and executable; convergence is the owner's decision. |
+| 2. Close the Observatory/runtime boundary | Done (F-07, F-08). |
+| 3. Executable continuity matrix | Done: `test_the_whole_lifecycle_holds_per_register_entry` checks state → checkpoint → restore → checkpoint → re-embodiment → restore → checkpoint per register entry. |
+| 4. Functional transfer | Not run. The preregistration draft exists and is unapproved: [Re-embodiment Functional Transfer v1](../../../docs/design/experimentation/reembodiment-functional-transfer-v1.md). Running it needs owner approval of the apparatus and numbers. |
+| 5. Audit World | Done as an inventory (F-09). |
+| 6. Simplify legacy | Not started, by design: it follows the owner decisions above. |
+
+One further defect of the F-08 kind was found while fixing it: with
+`--enable-slm` the resident launcher added an `apparatus` block to the snapshot
+that the closed snapshot schema rejected, so a schema-validating consumer would
+have dropped every snapshot of such a run. The block is now part of the closed
+contract (`apparatus.slm_service`, bounded) and checked by
+`tests/unit/lab/test_observed_resident_manifest.py`.
+
+Two entry points changed as a consequence of F-07: `python observatory/resident.py`
+and `python observatory/adapter.py` no longer exist; the launchers are
+`python -m symbiont_lab.cli.observed_resident` and
+`python -m symbiont_lab.cli.observed_replay`. Accepted ADR-0018 still names the
+old path and is not edited here.

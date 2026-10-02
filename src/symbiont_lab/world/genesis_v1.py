@@ -1,4 +1,4 @@
-"""Canonical Genesis v1 ground truth (docs/design/symbiont-world-v1.md §7,
+"""Canonical Genesis v1 ground truth (docs/design/archive/symbiont-world-v1.md §7,
 §13, §14). This is the one place in the repo allowed to know what a field,
 resource or hazard *means* -- symbiont_world never sees GENESIS_V1_METADATA,
 only the opaque ids it labels.

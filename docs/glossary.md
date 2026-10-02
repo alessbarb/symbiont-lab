@@ -60,6 +60,27 @@ language: en
 - **Observer reconstruction:** State rebuilt for display from telemetry or
   replay. It is explicitly marked as reconstructed and is never organism
   state.
+- **Restart:** The same organism resumed from its runtime checkpoint on the
+  same Body. It preserves consolidated state; it is not an uninterrupted run:
+  the transition spanning the process boundary is not recorded and
+  reacclimation follows.
+- **Historical restore / owner-facing restore:** `from_checkpoint` reproduces
+  the individual exactly as saved. The owner-facing restore additionally adopts
+  canonical cognition when a legacy checkpoint lacks it, and records that
+  transform in the lineage.
+- **Re-embodiment:** The canonical move of a Symbiont into a fresh Body:
+  knowledge is carried, Body state is replaced, execution authority is
+  withdrawn.
+- **Transplant (reduced seed):** The clean-embodiment apparatus's Body change.
+  Embodiment-specific inference restarts from naive. Not the same contract as
+  re-embodiment.
+- **Unverified legacy origin:** Lineage marker carried by every save of an
+  organism whose history includes a checkpoint accepted without a verifiable
+  identity (schema 10 and earlier).
+- **World:** The `symbiont_world` kernel and nothing else. Physics3D and
+  synthetic Bodies are embodiment apparatus; habitats and host providers are
+  boundaries the launcher supplies. See
+  `docs/design/world/world-responsibility-map-v1.md`.
 - **Continuity class:** What must happen to a piece of runtime state across a
   restart: `MUST_PRESERVE`, `MUST_RESET`, `MAY_RECOMPUTE`,
   `MUST_REAPPLY_CONFIG` or `MUST_INVALIDATE_AUTHORITY`. Every runtime field

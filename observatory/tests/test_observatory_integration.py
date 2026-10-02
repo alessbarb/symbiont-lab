@@ -14,6 +14,7 @@ from pathlib import Path
 from observatory.registry import read_registry
 
 ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = ROOT.parent
 
 
 def _run_resident(
@@ -22,7 +23,8 @@ def _run_resident(
     return subprocess.run(
         [
             sys.executable,
-            "resident.py",
+            "-m",
+            "symbiont_lab.cli.observed_resident",
             "--state-file",
             str(state_file),
             "--observatory-dir",
@@ -36,7 +38,7 @@ def _run_resident(
             "--checkpoint-every",
             "1",
         ],
-        cwd=ROOT,
+        cwd=REPO_ROOT,
         capture_output=True,
         text=True,
         timeout=30,

@@ -1,0 +1,187 @@
+---
+id: design.core.lifecycle-continuity-contract-v1
+title: "Lifecycle Continuity Contract v1"
+document_type: design
+domain: core
+status: proposed
+canonical: false
+implementation_status: implemented
+date: 2026-10-02
+depends_on:
+  - docs/governance/constitution.md
+  - docs/design/core/longitudinal-integrity-v1.md
+source_audit: research/audits/current/2026-10-02-current-state-architecture-audit.md
+language: en
+---
+
+# Lifecycle Continuity Contract v1
+
+## 1. Purpose
+
+[Longitudinal Integrity v1](longitudinal-integrity-v1.md) established that state
+survives. The
+[current-state audit](../../../research/audits/current/2026-10-02-current-state-architecture-audit.md)
+found that what "survives" means is still decided in more than one place: two
+re-embodiment semantics, two restore semantics, and a restart that is not an
+uninterrupted run.
+
+This document is the single description of every lifecycle operation and of what
+each one does to each kind of state. It adds no mechanism of its own. Every rule
+below is stated once in an executable register and checked by a named test; the
+prose only says where to look.
+
+It records the code as it is. Where two paths differ, the difference is declared
+here and pinned by a test. Whether they should converge is an owner decision
+(§8).
+
+## 2. Who owns what
+
+| Owner | Meaning | Lifetime |
+| --- | --- | --- |
+| Symbiont | The longitudinal subject: identity, organism time, genome and expression, cognition, experience, models, social knowledge, learned sensorimotor knowledge | The organism's whole life, across restarts and Bodies |
+| Body | Physical and physiological state of one Body | One Body |
+| Embodiment | One continuous period of one Symbiont in one Body: the episode, its execution authority and its in-flight motor state | One episode; closed and archived when the Body changes |
+| Process | Handles, caches and one-tick traces of one running process | One process |
+| Apparatus | Configuration and history written around the organism by the Lab | Recorded as provenance, reapplied by the launcher |
+
+## 3. State classes
+
+Each runtime attribute has exactly one continuity class and one re-embodiment
+treatment in `src/symbiont/host/continuity.py::REGISTER`.
+
+| Question | Class in the register | On restart | On canonical re-embodiment |
+| --- | --- | --- | --- |
+| Belongs to the Symbiont and may never be erased | `MUST_PRESERVE` with `Reembodiment.PRESERVED` | restored exactly | carried exactly |
+| Belongs to the Body and is replaced | `MUST_PRESERVE` with `Reembodiment.REPLACED` | restored exactly (same Body) | taken from the fresh Body |
+| Belongs to the Embodiment and is closed | `APPARATUS_FIELDS` (`embodiment_episode`) | restored | closed and archived; a new episode starts |
+| Kept as historical knowledge without authority over the current Body | `MUST_INVALIDATE_AUTHORITY` with `Reembodiment.INVALIDATED` | restored | knowledge carried, execution bindings and in-flight commitment withdrawn |
+| May be recomputed | `MAY_RECOMPUTE` | rebuilt from preserved state | rebuilt |
+| Must be reset or invalidated | `MUST_RESET` | never crosses the process boundary | not applicable |
+| Apparatus configuration | `MUST_REAPPLY_CONFIG` | recorded in provenance and reapplied | reapplied |
+
+`tests/unit/host/test_continuity_register.py` fails when a runtime attribute or
+checkpoint field is unclassified.
+
+## 4. Lifecycle operations
+
+| Operation | Entry point | What it is | What it is not |
+| --- | --- | --- | --- |
+| Save | `OrganismRuntime.checkpoint()` / `save()` | State identity over the whole organism payload, chained to its parent | A copy of the Body, the weights or the Lab journal |
+| Restart | `<Runtime>.from_checkpoint(payload)` on the same Body | The same organism with the state that was saved | An uninterrupted run (§5) |
+| Historical restore | `OrganismRuntime.from_checkpoint(payload)` | Reproduces the individual exactly as saved, including the absence of cognition in a cognition-less checkpoint | An upgrade |
+| Owner-facing restore | `restore_resident_with_canonical_cognition(payload, runtime_class=...)` | Historical restore plus the `canonical-cognition-adoption` transform when genome and graph are absent | A neutral restore: it can produce a different organism from the same checkpoint (§6) |
+| Canonical re-embodiment | `symbiont_lab.physics3d.reembodiment.prepare_fresh_embodiment_checkpoint` | The Symbiont moved into a fresh Body; knowledge carried, authority withdrawn | A reset of cognition |
+| Reduced-seed transplant | `Individual.transplant_to` → `Symbiont.begin_new_embodiment` | The clean-embodiment apparatus: identity, time, genotype and expression kept; embodiment-specific inference restarted from naive | Canonical re-embodiment (§7) |
+| Temporal decontamination | `symbiont_lab.physics3d.reembodiment.migrate_temporal_domains` | Corrects a contaminated clock coordinate and records it | A reconstruction of the physiology already produced under that clock |
+
+Every operation that changes organism state without the organism living through
+it is an authorized transform. It re-identifies the checkpoint and names itself
+in `checkpoint_lineage.transforms`.
+
+## 5. Restart is not an uninterrupted run
+
+A restart preserves the organism and its consolidated state. Its future is not
+the future of a run that never stopped:
+
+- one-tick causal traces are `MUST_RESET`, so the transition whose window spans
+  the process boundary is never recorded;
+- every restore opens the reacclimation gate, which pauses structural
+  consolidation for `kernel_limits.reacclimation_ticks`.
+
+```text
+restart = same organism
+        + same consolidated knowledge
+        + one unrecorded transition
+        + reacclimation
+```
+
+`tests/integration/test_restart_equivalence.py` fixes the set of fields that may
+differ from an uninterrupted run and asserts that exactly one transition is
+absent. A claim of restart equivalence stronger than this is not supported.
+
+## 6. Checkpoint history that outlives the save
+
+Two facts about an organism's past are not properties of one save:
+
+- `checkpoint_lineage.transforms` — the authorized transforms it has been
+  through;
+- `checkpoint_lineage.unverified_legacy_origin` — some ancestor checkpoint was
+  accepted without a verifiable identity. Schema 10 and earlier recorded an
+  identifier that covered only base-runtime fields and was never checked; such a
+  checkpoint is still accepted, deliberately, as a compatibility boundary.
+
+Both are carried into every later save (`lineage_history` in
+`src/symbiont/host/checkpoint.py`, restored into the runtime and written back by
+`checkpoint()`). Before this, a transform was visible only on the in-memory
+payload that was restored and vanished at the organism's next save, and nothing
+recorded that a verifiable chain began at an unverified checkpoint.
+
+Consequences:
+
+- "every checkpoint has a verified identity" is false; "every checkpoint saved by
+  a current runtime has a verified identity, and says whether its history starts
+  at an unverified one" is true;
+- an experiment that needs historical reproduction must use the historical
+  restore, and can check afterwards that `transforms` does not contain
+  `canonical-cognition-adoption`;
+- owner-facing launchers share one adoption path for every runtime layer, so the
+  CLI and the resident launcher cannot adopt differently.
+
+Tests: `tests/unit/core/test_canonical_birth.py`,
+`tests/compatibility/checkpoint_v10/`.
+
+## 7. Two transplant semantics
+
+Canonical re-embodiment and the reduced seed's transplant answer the question
+"what belongs to the organism?" differently for embodiment-specific inference.
+
+| State | Canonical re-embodiment (`OrganismRuntime`) | Reduced seed (`Symbiont`) |
+| --- | --- | --- |
+| Identity, organism time, genome, expression | preserved | preserved |
+| BodySchema | preserved | reset to naive |
+| Sensorimotor dynamics, effects, causal evidence, controllability, agency | preserved as knowledge | reset to naive |
+| Competences | preserved | preserved, effect grounding cleared |
+| Execution bindings, surface, in-flight commitment | invalidated | reset |
+| CognitiveGraph, experience, private models, social knowledge | preserved | not part of the reduced seed |
+
+The reduced seed is the apparatus of the clean-embodiment studies
+(`symbiont_lab.studies.embodiment`). Its semantics are declared per attribute in
+`REDUCED_SEED_REGISTER`; every attribute where it discards or ungrounds something
+canonical re-embodiment keeps is marked `diverges`.
+`tests/unit/host/test_reduced_seed_register.py` checks that the register covers
+every attribute of the class, that the declared divergences are exactly the real
+ones, and that a transplant treats each attribute as declared.
+
+Rule for claims: a result obtained with the reduced seed says nothing about
+retained knowledge after canonical re-embodiment, and the reverse. A study must
+name which of the two it used.
+
+## 8. Owner decisions
+
+1. **Convergence.** Whether the reduced seed should adopt the canonical
+   semantics, stay as a deliberately clean-slate apparatus, or be retired.
+   Changing it alters the apparatus of the embodiment falsification studies and
+   is not a mechanical change.
+2. **Legacy sunset.** Whether, and from when, checkpoints of unverified legacy
+   origin stop being accepted.
+3. **Functional transfer.** Preservation is established; usefulness is not. The
+   unapproved preregistration draft is
+   [Re-embodiment Functional Transfer v1](../experimentation/reembodiment-functional-transfer-v1.md).
+
+## 9. Executable references
+
+| Rule | Register | Test |
+| --- | --- | --- |
+| Every runtime attribute is classified | `REGISTER` | `tests/unit/host/test_continuity_register.py` |
+| Current-schema checkpoints fail closed | `required_checkpoint_fields` | `tests/unit/host/test_strict_restore.py` |
+| Whole lifecycle per register entry: state → checkpoint → restore → checkpoint → re-embodiment → restore → checkpoint | `REGISTER` | `tests/integration/test_reembodiment_continuity.py::test_the_whole_lifecycle_holds_per_register_entry` |
+| Restart differs from an uninterrupted run only on the declared surface | — | `tests/integration/test_restart_equivalence.py` |
+| Transforms and unverified legacy origin are durable | `lineage_history` | `tests/unit/core/test_canonical_birth.py` |
+| Reduced-seed transplant contract and its divergences | `REDUCED_SEED_REGISTER` | `tests/unit/host/test_reduced_seed_register.py` |
+
+## 10. Claims this contract does not make
+
+- that either transplant semantics is the scientifically correct one;
+- that preserved knowledge is useful in a new Body;
+- that a restart is equivalent to never having stopped;
+- that a checkpoint of unverified legacy origin is untrustworthy, or trustworthy.
