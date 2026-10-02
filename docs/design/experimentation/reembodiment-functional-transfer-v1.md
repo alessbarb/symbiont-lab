@@ -119,6 +119,25 @@ family is rejected and rebuilt before any confirmation seed is run.
 The synthetic Body currently offers a normal and a fully permuted mapping; a
 mapping with a chosen number of shared pairs must be added to it.
 
+**One identity space (r4).** "Shared pair" is only meaningful if the two Bodies
+name actuators and receptors identically. The synthetic Body derives its opaque
+receptor identifiers, its distractor schedule and its drift from its
+construction seed, and its actuator identifiers and contract fingerprint from
+its shape. Bodies A, A′ and B are therefore built with the **same construction
+seed and the same shape**, and differ **only** in the actuator-to-receptor
+mapping, which must be a parameter independent of the seed. Two Bodies built
+with different seeds share no signal identifier, so nothing learned in one can
+refer to anything in the other: R1 would equal R3 by construction and the dose
+would mean nothing.
+
+"New Body identity" at R1 consequently means a new embodiment epoch entered
+through the re-embodiment transform, not new signal identifiers. The three
+Bodies have the same contract fingerprint.
+
+The mapping parameter must leave the existing `NORMAL`, `PERMUTED` and
+`BROKEN_EFFECTOR` conditions byte-identical in readings and ground truth, pinned
+by a regression test: ten recorded agency-acquisition experiments use this Body.
+
 ### 4.3 Held fixed across arms
 
 - Runtime class, genome, kernel limits, physiology configuration.
@@ -169,7 +188,10 @@ Primary:
 
 A binding counts for M1 only if it is evidence acquired in B:
 
-- its `surface_fingerprint` is Body B's contract fingerprint;
+- its `surface_fingerprint` is Body B's contract fingerprint (within the
+  balanced family of §4.2.1 all three Bodies share one fingerprint, so this
+  sub-criterion cannot discriminate there; it is kept as a guard against a
+  mis-built family, and the two conditions below carry the weight);
 - its `valid_from_tick` is later than the tick of entry into B;
 - every one of its `evidence_refs` was produced after entry into B.
 
@@ -355,8 +377,14 @@ confirmatory_claim = "advantage at same_structure AND ordered reductions AND unr
    spread, `D_max`, and the 10-of-12 criterion. Of these the 15% spread is the
    least grounded and is the one the development runs should be used to justify
    or tighten before the freeze.
-4. The seed lists in §4.4.
+4. The seed lists in §4.4. Seed 127 is a development seed and was used for the
+   exploratory observation of §10.1.1; whether it stays in the development list
+   is part of this decision.
 5. Whether a maturity-only outcome should trigger a follow-up design.
+6. Whether the horizon rule for `H` should stay as written given §10.1.1: with
+   `H` tied to the naive arm, a slower treatment arm is right-censored, which
+   the paired comparison handles (a censored T against an uncensored control is
+   a loss for T) but which hides *how much* slower it is.
 
 ## 10.1 Apparatus note on `D_max`
 
@@ -367,7 +395,35 @@ binding appeared at ticks 189, 245 and 253. `D_max` is therefore about four
 times the observed time to a first valid binding. This is an order-of-magnitude
 check of the apparatus, not a development run, and it fixes nothing.
 
+### 10.1.1 Apparatus facts checked for r4
+
+Checked on the existing code, without running any development or confirmation
+seed and without the mapping parameter (so only the R1-like case, a Body
+identical to the source, could be built):
+
+- Re-embodiment into a Body of the same shape and construction seed yields the
+  same contract fingerprint and the same receptor identifiers.
+- The transform empties the execution bindings regardless of whether the
+  fingerprint changed: at B tick 0 there are no bindings and no active
+  commitment, and the lifecycle epoch advances. Integrity condition 1 therefore
+  holds for the balanced family.
+- A single exploratory observation, on seed 127, outside both seed lists' use
+  and outside the protocol (the naive organism was not saved and restored, no
+  sham arm, one seed): the organism re-embodied into the identical Body after
+  400 ticks reached its first `VALID` binding 363 ticks after entry; a newborn
+  in the same Body reached it at tick 114. This is not a result and fixes
+  nothing. It is recorded because it shows that **negative transfer is a live
+  possibility** for this apparatus, which the decision rule already names as an
+  outcome, and that `H = 2 × median naive M1` capped at `D` may censor arm T.
+
 ## 10.2 Revision history
+
+- **r4, 2026-10-02.** Apparatus facts checked against the code: Bodies A, A′
+  and B must share one construction seed and shape and differ only in a
+  seed-independent mapping; the fingerprint sub-criterion of M1 is vacuous
+  inside that family; integrity condition 1 holds because the transform empties
+  bindings unconditionally. One exploratory observation is recorded in §10.1.1.
+  No seed of §4.4 was run.
 
 - **r3, 2026-10-02.** After a second external review: the activity guard is a
   defined rate ratio with a fixed margin; the 10-of-12 advantage criterion is
