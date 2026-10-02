@@ -151,3 +151,36 @@ def test_resident_can_sample_observation_slower_than_life_ticks(tmp_path) -> Non
     assert runtime.ticks == 5
     assert runtime.observability_flags == [False, True, False, True, False]
     assert seen == [2, 4]
+
+
+def test_resident_budding_deposits_embryo_checkpoint(tmp_path) -> None:
+    import json
+
+    from symbiont.core.capsule import CapsuleKeyPair
+    from symbiont.core.local_habitat import LocalHabitat
+    from symbiont.core.runtime import OrganismRuntime
+
+    habitat = LocalHabitat(tmp_path / "habitat")
+    runtime = OrganismRuntime(
+        bootstrap_semantic_senses=True,
+        discover_senses=False,
+        min_samples=1,
+    )
+    runtime.tick()
+    assert runtime.metabolism.snapshot().reserve.get("maintenance", 0.0) >= 0.75
+    resident = ResidentOrganism(
+        runtime,
+        state_file=tmp_path / "resident.json",
+        habitat=habitat,
+        keypair=CapsuleKeyPair.generate(),
+    )
+
+    resident._social_and_reproductive_step(20)
+
+    embryos = list(habitat.incubator_dir.glob("*.json"))
+    assert len(embryos) == 1
+    embryo = json.loads(embryos[0].read_text())
+    assert embryo["organism_id"] == embryos[0].stem
+    assert embryo["organism_id"].startswith(f"{runtime.organism_id}-child-")
+    child = OrganismRuntime.from_checkpoint(embryo)
+    assert child.organism_id == embryo["organism_id"]

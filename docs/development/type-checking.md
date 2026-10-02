@@ -38,7 +38,7 @@ grupo debe validarse con pruebas enfocadas y sin relajar globalmente Pyright.
 
 Estado de la iteración del **2026-10-02**:
 
-- Pyright 1.1.414 analizó 585 archivos: **386 errores y 10 warnings** en 90
+- Pyright 1.1.414 analizó 585 archivos: **384 errores y 10 warnings** en 90
   archivos. La comparación con una ejecución anterior solo es orientativa: el
   número de diagnósticos no normaliza alcance, reglas ni distribución entre
   módulos.
