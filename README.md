@@ -171,7 +171,7 @@ Agents execute authorised work. They do not choose the scientific direction.
 
 ## Development
 
-Python 3.11+:
+Python 3.12+:
 
 ```bash
 python3 -m venv .venv

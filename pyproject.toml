@@ -6,15 +6,15 @@ build-backend = "setuptools.build_meta"
 name = "symbiont-lab"
 version = "0.90.0"
 description = "Safe self-developing local digital organism and scientific research apparatus"
-requires-python = ">=3.11"
-dependencies = ["cryptography>=42", "rich>=13"]
+requires-python = ">=3.12"
+dependencies = ["cryptography>=42", "rich>=15"]
 
 [project.optional-dependencies]
 dev = [
   "pytest>=8",
   "pytest-xdist>=3.5",
-  "ruff>=0.13",
-  "pyright>=1.1.414",
+  "ruff>=0.16",
+  "pyright>=1.1.404",
   "coverage>=7.10",
   "bandit[toml]>=1.8",
   "pip-audit>=2.9",
@@ -45,7 +45,7 @@ markers = [
 ]
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py312"
 line-length = 100
 extend-exclude = [".claude", "backups", "experiments", "graphify-out", "research"]
 
