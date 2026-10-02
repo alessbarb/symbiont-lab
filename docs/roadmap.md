@@ -90,8 +90,7 @@ stays in the runtime is recorded as open in that document.
 
 ### GOV-1 — Repository-enforced publication to main
 
-**Status:** ACTIVE — stable aggregate CI gate and main ruleset are deployed;
-end-to-end acceptance remains incomplete.
+**Status:** CLOSED — owner decision, 2026-10-02.
 
 **Governing decision:**
 [adr/ADR-0057-enforce-governed-main-publication.md](adr/ADR-0057-enforce-governed-main-publication.md).
@@ -99,11 +98,10 @@ end-to-end acceptance remains incomplete.
 GitHub enforces a validated-commit boundary on `main` with deletion and
 non-fast-forward protection and no bypass actors. PR #239 exposed that requiring
 all dynamic CI contexts individually can deadlock when a conditional matrix is
-skipped before expansion. The stable `governed-ci-gate` is now present in CI, and
-the active ruleset requires that context. Remaining acceptance work is to verify
-that an unchecked update is rejected and that a fresh ORDINARY candidate is
-promoted through the governed path. Do not infer either property from the
-workflow or ruleset configuration alone.
+skipped before expansion. The stable `governed-ci-gate` is present in CI, and the
+active ruleset requires that context. A fresh ORDINARY candidate was promoted
+through the governed path in PR #260. The owner has closed GOV-1; this status does
+not claim that a direct unchecked update was attempted or rejected.
 
 ### DOC-1 — Persistence terminology and legacy cleanup
 
