@@ -10,8 +10,8 @@ from symbiont.core.germline import (
     create_germline_state,
     create_standard_genome,
 )
-from symbiont.core.symbiont import Symbiont
 
+from symbiont.core.orchestration.clean_embodiment_seed import CleanEmbodimentSeed
 from symbiont.genetics.germline import EpigeneticProtocol
 from symbiont_lab.evolution.reproduction import create_offspring_package
 
@@ -42,12 +42,12 @@ def test_genome_learning_rate_is_actual_sensorimotor_phenotype():
     slow_genome = _genome_with("slow", learning_rate=0.03)
     fast_genome = _genome_with("fast", learning_rate=0.31)
 
-    slow = Symbiont(
+    slow = CleanEmbodimentSeed(
         "sym-slow",
         genome=slow_genome,
         germline=create_germline_state(slow_genome),
     )
-    fast = Symbiont(
+    fast = CleanEmbodimentSeed(
         "sym-fast",
         genome=fast_genome,
         germline=create_germline_state(fast_genome),
@@ -75,7 +75,7 @@ def test_epigenetic_mark_modulates_actual_cognitive_phenotype():
         ),
     )
 
-    sym = Symbiont("sym-epi", genome=genome, germline=germline)
+    sym = CleanEmbodimentSeed("sym-epi", genome=genome, germline=germline)
 
     assert sym.learning_rate == pytest.approx(0.15)
     assert sym.sensorimotor_model.learning_rate == pytest.approx(0.15)
@@ -87,7 +87,7 @@ def test_genome_is_authoritative_over_constructor_fallback_when_present():
         learning_rate=0.17,
         exploration_rate=0.61,
     )
-    sym = Symbiont(
+    sym = CleanEmbodimentSeed(
         "sym-authoritative",
         learning_rate=0.99,
         exploration_rate=0.01,
@@ -100,7 +100,7 @@ def test_genome_is_authoritative_over_constructor_fallback_when_present():
 
 
 def test_genomeless_symbiont_preserves_explicit_constructor_fallbacks():
-    sym = Symbiont(
+    sym = CleanEmbodimentSeed(
         "sym-legacy-free-fallback",
         learning_rate=0.23,
         exploration_rate=0.47,
@@ -113,13 +113,13 @@ def test_exploration_locus_changes_operational_trajectory_under_same_seed():
     low_genome = _genome_with("explore-low", exploration_rate=0.01)
     high_genome = _genome_with("explore-high", exploration_rate=0.80)
 
-    low = Symbiont(
+    low = CleanEmbodimentSeed(
         "same-cognitive-id",
         seed=991,
         genome=low_genome,
         germline=create_germline_state(low_genome),
     )
-    high = Symbiont(
+    high = CleanEmbodimentSeed(
         "same-cognitive-id",
         seed=991,
         genome=high_genome,
@@ -164,7 +164,7 @@ def test_inherited_epigenetic_predisposition_changes_phenotype_without_learned_s
         package.genome,
         inherited_marks=package.epigenetic_marks,
     )
-    child = Symbiont(
+    child = CleanEmbodimentSeed(
         "child-expression",
         seed=123,
         genome=package.genome,

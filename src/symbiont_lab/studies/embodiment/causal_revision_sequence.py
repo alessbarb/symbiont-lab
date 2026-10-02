@@ -15,6 +15,10 @@ from typing import Mapping, Sequence
 
 from symbiont.core.embodiment.body import Body, create_standard_body
 from symbiont.core.orchestration.individual import Individual, create_individual
+from symbiont.host.continuity import LongitudinalContract
+
+# Longitudinal contract of the subject this module builds (issue #273).
+LONGITUDINAL_CONTRACT = LongitudinalContract.REDUCED_SEED_TRANSPLANT
 
 _STUDY_ID = "embodiment.causal-revision-sequence"
 

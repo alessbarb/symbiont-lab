@@ -722,6 +722,17 @@ def entries_for(layer: str) -> tuple[ContinuityEntry, ...]:
     return tuple(entry for entry in REGISTER if entry.layer in visible)
 
 
+class LongitudinalContract(StrEnum):
+    """Which rule decides what a subject keeps when its Body changes.
+
+    The two are not interchangeable: a result obtained under one says nothing
+    about the other. Every runtime class and every study names the one it uses.
+    """
+
+    CANONICAL_REEMBODIMENT = "canonical-reembodiment-v1"
+    REDUCED_SEED_TRANSPLANT = "reduced-seed-transplant-v1"
+
+
 class Transplant(StrEnum):
     """What a Body transplant does to one attribute of the reduced seed."""
 
@@ -733,7 +744,7 @@ class Transplant(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class ReducedSeedEntry:
-    """One attribute of ``core.orchestration.symbiont.Symbiont`` under transplant.
+    """One attribute of ``CleanEmbodimentSeed`` under transplant.
 
     ``canonical`` names the ``OrganismRuntime`` register entry that owns the
     same kind of state. ``diverges`` is true where the reduced seed discards or
@@ -807,6 +818,7 @@ __all__ = [
     "CONDITIONAL_FIELDS",
     "ENVELOPE_FIELDS",
     "LAYERS",
+    "LongitudinalContract",
     "REDUCED_SEED_REGISTER",
     "REGISTER",
     "ApparatusField",

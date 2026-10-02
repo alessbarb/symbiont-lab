@@ -6,7 +6,7 @@ from importlib import resources
 
 import pytest
 
-from symbiont.core.orchestration.symbiont import Symbiont
+from symbiont.core.orchestration.clean_embodiment_seed import CleanEmbodimentSeed
 from symbiont.genetics.expression import GeneExpressionState
 from symbiont.genetics.genome import Genome, GenomeCodec
 from symbiont.genetics.germline import EpigeneticMark, GermlineState
@@ -59,7 +59,7 @@ def test_symbiont_uses_canonical_germline_expression_at_birth() -> None:
         genome,
         inherited_marks=(mark,),
     )
-    symbiont = Symbiont(
+    symbiont = CleanEmbodimentSeed(
         "symbiont.test.expression",
         seed=123,
         genome=genome,
@@ -106,13 +106,13 @@ def test_different_genome_locus_changes_operating_learning_phenotype() -> None:
         ),
     )
 
-    slow_symbiont = Symbiont(
+    slow_symbiont = CleanEmbodimentSeed(
         "symbiont.same",
         seed=77,
         genome=slow,
         germline=GermlineState.from_genome(slow),
     )
-    fast_symbiont = Symbiont(
+    fast_symbiont = CleanEmbodimentSeed(
         "symbiont.same",
         seed=77,
         genome=fast,

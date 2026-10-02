@@ -3,17 +3,16 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from symbiont.core.symbiont import Symbiont
-
 from symbiont.actuation.binding import CompetenceExecutionBindingRegistry
 from symbiont.actuation.competence import CompetenceEvidence, MotorCompetence
 from symbiont.actuation.model import AgencyModel, CompetenceEffectModel
 from symbiont.core.embodiment.body_schema import BodySchemaEngine
 from symbiont.core.embodiment.dynamics import SensorimotorDynamicsModel
+from symbiont.core.orchestration.clean_embodiment_seed import CleanEmbodimentSeed
 
 
 def test_production_symbiont_uses_only_canonical_embodiment_models() -> None:
-    sym = Symbiont("canonical-embodiment-test")
+    sym = CleanEmbodimentSeed("canonical-embodiment-test")
     assert isinstance(sym.body_schema, BodySchemaEngine)
     assert isinstance(sym.sensorimotor_model, SensorimotorDynamicsModel)
     assert isinstance(sym.competence_effect_model, CompetenceEffectModel)
@@ -62,7 +61,7 @@ def test_motor_competence_has_no_execution_surface_authority() -> None:
 
 def test_retired_agency_stack_is_not_imported_by_production_symbiont() -> None:
     root = Path(__file__).resolve().parents[2]
-    production = root / "src" / "symbiont" / "core" / "orchestration" / "symbiont.py"
+    production = root / "src" / "symbiont" / "core" / "orchestration" / "clean_embodiment_seed.py"
     tree = ast.parse(production.read_text(encoding="utf-8"))
     imported_modules: list[str] = []
     for node in ast.walk(tree):

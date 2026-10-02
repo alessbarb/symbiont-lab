@@ -12,8 +12,8 @@ from symbiont.core.germline import (
     create_germline_state,
     create_standard_genome,
 )
-from symbiont.core.symbiont import Symbiont
 
+from symbiont.core.orchestration.clean_embodiment_seed import CleanEmbodimentSeed
 from symbiont.genetics.expression import (
     ExpressionRegulator,
     GeneExpressionState,
@@ -83,7 +83,7 @@ def test_m1_regulator_is_semantically_invariant_to_external_names():
 def test_m2_transient_shock_does_not_create_acquired_mark():
     genome = _genome("m2")
     germline = create_germline_state(genome, acquired_capture_enabled=True)
-    Symbiont("m2-sym", genome=genome, germline=germline)
+    CleanEmbodimentSeed("m2-sym", genome=genome, germline=germline)
 
     state = GeneExpressionState.from_genome(genome, germline=germline)
     regulator = ExpressionRegulator()
@@ -166,7 +166,7 @@ def test_m5_inherited_mark_is_birth_expression_not_new_acquisition():
     assert germline.acquired_marks == {}
     assert germline.birth_expression["plasticity.learning_rate.baseline"] == pytest.approx(0.10)
 
-    sym = Symbiont("m5-sym", genome=genome, germline=germline)
+    sym = CleanEmbodimentSeed("m5-sym", genome=genome, germline=germline)
     assert sym.learning_rate == pytest.approx(0.18)
 
     # Neutral internal dynamics do not convert the inherited difference from

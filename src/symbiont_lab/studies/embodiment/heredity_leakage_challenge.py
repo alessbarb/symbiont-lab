@@ -22,10 +22,14 @@ from symbiont.core.lineage.germline import (
     SymbiontGenome,
     create_standard_genome,
 )
-from symbiont.core.orchestration.symbiont import Symbiont
+from symbiont.core.orchestration.clean_embodiment_seed import CleanEmbodimentSeed
 from symbiont.genetics.germline import EpigeneticProtocol
 from symbiont.genetics.schema import DEFAULT_GENOME_SCHEMA
+from symbiont.host.continuity import LongitudinalContract
 from symbiont_lab.evolution.reproduction import create_offspring_package
+
+# Longitudinal contract of the subject this module builds (issue #273).
+LONGITUDINAL_CONTRACT = LongitudinalContract.REDUCED_SEED_TRANSPLANT
 
 _STUDY_ID = "embodiment.heredity-leakage-challenge"
 
@@ -137,12 +141,12 @@ def _child_from_package(
     seed: int,
     inherited_marks: bool,
     suffix: str,
-) -> Symbiont:
+) -> CleanEmbodimentSeed:
     germline = GermlineState.from_genome(
         package.genome,
         inherited_marks=(package.epigenetic_marks if inherited_marks else ()),
     )
-    return Symbiont(
+    return CleanEmbodimentSeed(
         f"child-{suffix}-{seed}",
         seed=seed,
         genome=package.genome,
@@ -151,7 +155,7 @@ def _child_from_package(
 
 
 def _learning_assay(
-    child: Symbiont,
+    child: CleanEmbodimentSeed,
     *,
     condition: str,
     ticks: int = 80,
@@ -273,7 +277,7 @@ def _run_seed(seed: int) -> HeredityLeakSeedResult:
     )
     germline = GermlineState.from_genome(genome, inherited_marks=(mark,))
 
-    parent = Symbiont(
+    parent = CleanEmbodimentSeed(
         f"parent-sym-{seed}",
         seed=seed,
         genome=genome,
@@ -305,7 +309,7 @@ def _run_seed(seed: int) -> HeredityLeakSeedResult:
         package.genome,
         inherited_marks=package.epigenetic_marks,
     )
-    child = Symbiont(
+    child = CleanEmbodimentSeed(
         f"child-sym-{seed}",
         seed=seed + 10000,
         genome=package.genome,

@@ -24,6 +24,7 @@ from symbiont.core.embodiment.metabolism import MetabolicLedger
 from symbiont.core.embodiment.physiology import PhysiologyController, VitalState
 from symbiont.core.social.ecology import SharedHabitat
 from symbiont.genetics.genome import Genome
+from symbiont.host.continuity import LongitudinalContract
 from symbiont.host.contracts import AccessMode, Capability, CapabilityKind, CapabilityScope
 from symbiont.host.discovery import HostDiscovery
 from symbiont.host.lifecycle import HostLifecycle
@@ -37,6 +38,9 @@ from symbiont_world.state import WorldState
 from symbiont_world.topology import BodyPlacement, HexCoord, HexTopology
 
 from .deferred import DeferredEffect, DeferredEffectQueue
+
+# Longitudinal contract of the subject this module builds (issue #273).
+LONGITUDINAL_CONTRACT = LongitudinalContract.REDUCED_SEED_TRANSPLANT
 
 _HAZARD_DAMAGE_QUANTUM = 0.05
 _OCCUPANCY_SIGNAL = opaque_signal_id("local-occupancy-density")
@@ -524,8 +528,8 @@ def _construct_organism(
     if experimental_clean:
         from symbiont.core.embodiment import implant_body
         from symbiont.core.embodiment.body import create_standard_body
+        from symbiont.core.orchestration.clean_embodiment_seed import CleanEmbodimentSeed
         from symbiont.core.orchestration.individual import Individual
-        from symbiont.core.orchestration.symbiont import Symbiont
         from symbiont.genetics.germline import GermlineState
 
         num_rec = len(receptor_ids) if receptor_ids else 8
@@ -536,7 +540,7 @@ def _construct_organism(
         sym_genome = _load_base_genome()
         germline = GermlineState.from_genome(sym_genome)
         sym_seed = derive_world_seed(world_seed, f"symbiont.cognitive:{organism_id}")
-        sym = Symbiont(organism_id, seed=sym_seed, genome=sym_genome, germline=germline)
+        sym = CleanEmbodimentSeed(organism_id, seed=sym_seed, genome=sym_genome, germline=germline)
         session = implant_body(organism_id, body, started_at=0)
         individual = Individual(symbiont=sym, body=body, session=session)
         policy_rng = derive_world_rng(world_seed, f"adapter.random-policy-control:{organism_id}")

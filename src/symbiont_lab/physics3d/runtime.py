@@ -36,6 +36,7 @@ from symbiont.core.embodiment import (
 from symbiont.core.embodiment.metabolism import MetabolicLedger
 from symbiont.core.embodiment.physiology import LivingBodyState, VitalState
 from symbiont.host.checkpoint import verify_checkpoint_identity
+from symbiont.host.continuity import LongitudinalContract
 from symbiont.host.discovery import HostDiscovery
 from symbiont.host.lifecycle import HostLifecycle
 from symbiont.modeling.private_runtime import PrivateModelOrganismRuntime
@@ -73,6 +74,9 @@ from .reembodiment import (
 )
 from .resource import PhysicalResource
 from .settling import settle_passive_body
+
+# Longitudinal contract of the subject this module builds (issue #273).
+LONGITUDINAL_CONTRACT = LongitudinalContract.CANONICAL_REEMBODIMENT
 
 
 def metabolic_cost_from_actuator_work(

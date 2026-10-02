@@ -13,6 +13,7 @@ from symbiont.core.embodiment import (
     archive_episode_checkpoint,
 )
 from symbiont.host.checkpoint import stamp_checkpoint_identity
+from symbiont.host.continuity import LongitudinalContract
 
 from .longitudinal import (
     CONTRACT_FINGERPRINT_SCHEMA_VERSION,
@@ -24,6 +25,9 @@ from .longitudinal import (
     inject_memory_candidates,
     memory_for_contract,
 )
+
+# Longitudinal contract of the subject this module builds (issue #273).
+LONGITUDINAL_CONTRACT = LongitudinalContract.CANONICAL_REEMBODIMENT
 
 _MAX_EMBODIMENT_HISTORY = 8
 _SCHEMA_VERSION = 1

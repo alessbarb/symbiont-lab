@@ -26,7 +26,6 @@ from symbiont.core.germline import (
     create_standard_genome,
 )
 from symbiont.core.individual import create_individual
-from symbiont.core.symbiont import Symbiont
 
 from symbiont.actuation.model import AgencyModel as CanonicalAgencyModel
 from symbiont.core.embodiment.agency import (
@@ -36,6 +35,7 @@ from symbiont.core.embodiment.agency import (
     InferredBodySchema,
 )
 from symbiont.core.embodiment.body_schema import BodySchemaEngine
+from symbiont.core.orchestration.clean_embodiment_seed import CleanEmbodimentSeed
 from symbiont_lab.evolution.reproduction import create_offspring_package
 
 
@@ -45,7 +45,7 @@ def test_ast_body_morphology_and_names_never_enter_cognition():
     cognition_dir = repo_root / "src" / "symbiont" / "cognition"
     target_files = list(cognition_dir.rglob("*.py")) + [
         repo_root / "src" / "symbiont" / "core" / "embodiment" / "agency.py",
-        repo_root / "src" / "symbiont" / "core" / "orchestration" / "symbiont.py",
+        repo_root / "src" / "symbiont" / "core" / "orchestration" / "clean_embodiment_seed.py",
         repo_root / "src" / "symbiont" / "core" / "lineage" / "germline.py",
     ]
 
@@ -77,7 +77,7 @@ def test_ast_body_morphology_and_names_never_enter_cognition():
 
 def test_symbiont_interface_is_strictly_opaque():
     """Invariant A: Symbiont.step() signature accepts ONLY opaque inputs (AUD-013)."""
-    sig = inspect.signature(Symbiont.step)
+    sig = inspect.signature(CleanEmbodimentSeed.step)
     params = list(sig.parameters.keys())
     assert params == ["self", "opaque_inputs"]
 
@@ -99,7 +99,7 @@ _ALL_FORBIDDEN_SYMBOLS = _FORBIDDEN_SYMBOLS_ABSOLUTE | _FORBIDDEN_SYMBOLS_NARROW
 # Identifiers that would indicate a live organism is in play. A marked
 # component-falsification harness may not import, reference, or construct any of these.
 _LIVE_ORGANISM_SYMBOLS = {
-    "Symbiont",
+    "CleanEmbodimentSeed",
     "Individual",
     "create_individual",
     "_construct_organism",
@@ -291,9 +291,9 @@ def test_falsification_specimen_not_reachable_from_a_real_symbiont():
     the result.)
     """
     from symbiont.core.individual import Individual
-    from symbiont.core.symbiont import Symbiont
 
     from symbiont.core.embodiment import EmbodimentSession
+    from symbiont.core.orchestration.clean_embodiment_seed import CleanEmbodimentSeed
     from symbiont_lab.studies.embodiment.hidden_common_cause import (
         run_hidden_common_cause_study,
     )
@@ -304,7 +304,7 @@ def test_falsification_specimen_not_reachable_from_a_real_symbiont():
     escaped_types = (
         LegacyAgencyModel,
         InferredBodySchema,
-        Symbiont,
+        CleanEmbodimentSeed,
         Individual,
         Body,
         EmbodimentSession,

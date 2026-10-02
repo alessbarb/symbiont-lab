@@ -145,6 +145,12 @@ class RunManifest:
     schema_version: int = 1
     software: SoftwareEnvironment = field(default_factory=SoftwareEnvironment)
     execution_fingerprint: ExecutionFingerprint | None = None
+    # Which Body-change rule the study's subject follows; None when the
+    # protocol builds no longitudinal subject.
+    longitudinal_contract: str | None = None
+    # Which subject architecture the protocol runs when it is not the canonical
+    # organism runtime (for example the legacy Agent simulation); None otherwise.
+    subject_architecture: str | None = None
     selection_digests: dict[str, str] = field(default_factory=dict)
     config: dict[str, Any] = field(default_factory=dict)
     metrics: dict[str, Any] = field(default_factory=dict)
@@ -194,6 +200,8 @@ class RunManifest:
             schema_version=data.get("schema_version", 1),
             software=software,
             execution_fingerprint=execution_fingerprint,
+            longitudinal_contract=data.get("longitudinal_contract"),
+            subject_architecture=data.get("subject_architecture"),
             selection_digests=data.get("selection_digests", {}),
             config=data.get("config", {}),
             metrics=data.get("metrics", {}),

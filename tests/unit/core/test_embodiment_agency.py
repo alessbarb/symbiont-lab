@@ -10,7 +10,6 @@ from symbiont.core.body import (
     create_standard_body,
 )
 from symbiont.core.individual import Individual, create_individual
-from symbiont.core.symbiont import Symbiont
 
 from symbiont.core.embodiment import implant
 
@@ -21,6 +20,7 @@ from symbiont.core.embodiment.agency import (
     InferredBodySchema,
     PerceptualStructure,
 )
+from symbiont.core.orchestration.clean_embodiment_seed import CleanEmbodimentSeed
 
 
 def test_body_physical_substrate_and_causal_metabolism():
@@ -172,7 +172,7 @@ def test_body_transplant():
     body_1 = create_standard_body("body_source", num_receptors=3, num_effectors=2)
     body_2 = create_standard_body("body_target", num_receptors=4, num_effectors=3)
 
-    symbiont = Symbiont("sym_traveler")
+    symbiont = CleanEmbodimentSeed("sym_traveler")
     session_1 = implant(
         symbiont_id=symbiont.symbiont_id,
         body_id=body_1.body_id,
@@ -268,13 +268,13 @@ def test_label_renaming_invariance():
     e1 = EffectorPort(port_id="motor_right", kind="locomotor", ordinal=1, cost_per_activation=0.01)
     body_b = Body("body_b", receptors=[r0, r1, r_soma], effectors=[e0, e1])
 
-    sym_a = Symbiont("sym_a")
+    sym_a = CleanEmbodimentSeed("sym_a")
     session_a = implant(
         sym_a.symbiont_id, body_a.body_id, body_a.receptor_ids, body_a.effector_ids, started_at=0
     )
     ind_a = Individual(sym_a, body_a, session_a)
 
-    sym_b = Symbiont("sym_b")
+    sym_b = CleanEmbodimentSeed("sym_b")
     session_b = implant(
         sym_b.symbiont_id, body_b.body_id, body_b.receptor_ids, body_b.effector_ids, started_at=0
     )
@@ -295,7 +295,7 @@ def test_label_renaming_invariance():
 def test_silent_effector_failure_and_agency_revision():
     """AUD-038: Silent effector failure causes agency drop and body schema revision."""
     body = create_standard_body("body_fail", num_receptors=2, num_effectors=2)
-    sym = Symbiont("sym_fail")
+    sym = CleanEmbodimentSeed("sym_fail")
     session = implant(
         sym.symbiont_id, body.body_id, body.receptor_ids, body.effector_ids, started_at=0
     )

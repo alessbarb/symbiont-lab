@@ -13,8 +13,8 @@ from copy import deepcopy
 
 from symbiont.actuation.competence import CompetenceEvidence, MotorCompetence
 from symbiont.core.embodiment.body import create_standard_body
+from symbiont.core.orchestration.clean_embodiment_seed import CleanEmbodimentSeed
 from symbiont.core.orchestration.individual import Individual, create_individual
-from symbiont.core.orchestration.symbiont import Symbiont
 from symbiont.host.continuity import (
     REDUCED_SEED_REGISTER,
     REGISTER,
@@ -55,7 +55,7 @@ def _developed() -> Individual:
 def test_every_reduced_seed_attribute_is_classified() -> None:
     names = [entry.attribute for entry in REDUCED_SEED_REGISTER]
     assert sorted(names) == sorted(set(names))
-    assert set(names) == set(vars(Symbiont("sym.probe")))
+    assert set(names) == set(vars(CleanEmbodimentSeed("sym.probe")))
     assert set(names) == set(vars(_developed().symbiont))
 
 

@@ -71,6 +71,12 @@ language: en
 - **Re-embodiment:** The canonical move of a Symbiont into a fresh Body:
   knowledge is carried, Body state is replaced, execution authority is
   withdrawn.
+- **Clean-embodiment seed:** `CleanEmbodimentSeed`, the reduced subject of the
+  clean-embodiment falsification apparatus. It is not "the Symbiont" and follows
+  the `reduced-seed-transplant-v1` longitudinal contract.
+- **Longitudinal contract:** The named rule a subject follows when its Body
+  changes: `canonical-reembodiment-v1` or `reduced-seed-transplant-v1`. Recorded
+  in every run manifest.
 - **Transplant (reduced seed):** The clean-embodiment apparatus's Body change.
   Embodiment-specific inference restarts from naive. Not the same contract as
   re-embodiment.
