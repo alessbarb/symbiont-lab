@@ -831,3 +831,78 @@ def test_run_start_rejects_mixed_or_incomplete_input_provenance(
     )
     assert result == 2
     assert "snapshot mode requires" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    ("scope", "origin", "blocked"),
+    [
+        ("confirmation", True, True),
+        ("held-out", True, True),
+        ("confirmation", None, True),
+        ("confirmation", False, False),
+        ("development", True, False),
+    ],
+)
+def test_run_start_requires_a_verified_origin_for_confirmatory_scopes(
+    tmp_path, monkeypatch, capsys, scope, origin, blocked
+) -> None:
+    import importlib.util
+    from types import SimpleNamespace
+
+    spec = importlib.util.spec_from_file_location(
+        "agentctl_verified_origin", REPO_ROOT / "scripts/agentctl.py"
+    )
+    assert spec and spec.loader
+    agentctl = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(agentctl)
+    commit = "a" * 40
+    source = tmp_path / "source"
+    source.mkdir()
+    # The gate under test sits before the snapshot-source-commit check, which
+    # this stub fails on purpose so a passing gate stops there, not in a run.
+    answers = iter([True, False])
+    monkeypatch.setattr(agentctl, "commit_exists", lambda _commit: next(answers))
+    monkeypatch.setattr(agentctl, "git", lambda *_args: commit)
+    monkeypatch.setattr(agentctl, "_equivalence_lock_path", lambda: tmp_path / "no.lock")
+    monkeypatch.setattr(agentctl, "_trusted_origin_ref", lambda: commit)
+    monkeypatch.setattr(agentctl, "_trusted_governance_at", lambda *_args: {"scientific_runs": {}})
+    monkeypatch.setattr(agentctl, "_tracked_running_at", lambda _ref: [])
+    monkeypatch.setattr(agentctl, "_run_lock_path", lambda: tmp_path / "run.lock")
+    monkeypatch.setattr(agentctl, "runtime_dir", lambda: tmp_path / "runs")
+    monkeypatch.setattr(
+        agentctl,
+        "assess_resources",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            allowed=True,
+            available_memory_gb=16.0,
+            free_disk_gb=16.0,
+            available_cpu_threads=4,
+            reasons=(),
+        ),
+    )
+    monkeypatch.setattr(
+        agentctl, "inspect_snapshot_source", lambda _source: {"unverified_legacy_origin": origin}
+    )
+
+    result = agentctl.run_pinned(
+        commit=commit,
+        run_id="verified-origin",
+        scope=scope,
+        input_mode="snapshot",
+        snapshot_source=source,
+        snapshot_source_commit=commit,
+        command=[sys.executable, "-c", "pass"],
+        experiment_id="verified-origin",
+        seed=1,
+        extras=[],
+        wall_minutes=1,
+        memory_gb=1,
+        cpu=1,
+        disk_gb=1,
+    )
+
+    err = capsys.readouterr().err
+    assert result == 3
+    assert ("require a subject of verified origin" in err) is blocked
+    assert ("snapshot source commit is unavailable" in err) is not blocked
+    assert not (tmp_path / "runs").exists()
