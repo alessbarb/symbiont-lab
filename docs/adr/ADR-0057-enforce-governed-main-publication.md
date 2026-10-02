@@ -4,10 +4,11 @@
 - **Date:** 2026-10-02
 - **Decision owner:** project owner
 - **Relates to:** ADR-0050, ADR-0051, ADR-0056, docs/governance/publication-policy.toml
+- **Implementation decision:** validated-commit boundary, without update restriction or bypass actor
 
 ## Context
 
-The repository currently has a strong governed publication path:
+The repository has a governed publication path:
 
 ~~~text
 agentctl publish
@@ -20,72 +21,198 @@ agentctl publish
 The promotion workflow refuses automatic promotion of SCIENTIFIC,
 CONSTITUTIONAL and FROZEN changes and protects the governance control plane.
 
-However, GitHub currently reports no branch protection and no repository
-ruleset for main. An actor with write permission can therefore write directly
-to main and bypass the governed candidate route.
+Before this ADR was implemented, GitHub had no active repository ruleset for
+main. An actor with write permission could therefore write an unchecked commit
+directly to main.
 
-That means the current system guarantees:
+The project needs a repository-side guarantee that unvalidated commits cannot
+enter main, while preserving proportional CI and avoiding a privileged
+publication credential broader than necessary.
 
-> work that uses the governed publication route is checked by that route
+## Decision
 
-but does not technically guarantee:
+The repository boundary will enforce a **validated-commit policy**, not an
+exclusive-publisher policy.
 
-> every change that reaches main passed the governed route
+The accepted invariant is:
 
-The distinction matters because the project repeatedly relies on the stronger
-statement when discussing scientific integrity.
+> A commit may update main only when the repository-required validation checks
+> for that exact commit have succeeded.
 
-## Decision proposal
+The repository does **not** require that agentctl be the only technical actor
+capable of moving an already-validated commit to main.
 
-Make repository-side enforcement consistent with the existing publication
-model.
+agentctl remains the canonical and expected publication path because it also
+provides:
 
-At minimum, main must reject ordinary direct writes that bypass the governed
-publication mechanism.
+- governance classification;
+- candidate construction;
+- freshness checks;
+- control-plane protection;
+- automatic promotion restrictions by change class;
+- provenance and publication ergonomics.
 
-The exact GitHub mechanism may be branch protection, repository rulesets, or an
-equivalent supported control, provided the resulting behavior satisfies the
-acceptance criteria below.
+GitHub rulesets provide the lower-level safety boundary: an unchecked commit
+must not enter main.
+
+## Repository ruleset
+
+The accepted ruleset is:
+
+~~~text
+name: Protect main governed publication
+target: refs/heads/main
+enforcement: active
+bypass actors: none
+
+restrict deletions: enabled
+block force pushes: enabled
+require status checks: enabled
+restrict updates: disabled
+require pull request: disabled
+strict/up-to-date policy: disabled
+~~~
+
+The required status checks are the governed CI contexts produced by
+`.github/workflows/ci.yml`, excluding the explicitly informational performance
+job.
+
+At the time this decision was recorded, the ruleset requires:
+
+~~~text
+validation-plan
+code-quality-and-governance
+governance-and-docs-tests
+software-core (py3.12)
+physics3d-tests (py3.12)
+modeling-tests (py3.12)
+world-tests (py3.12)
+observatory-tests (py3.12)
+architecture-integrity
+runtime-contracts
+experiment-mechanics
+canonical-full (py3.12)
+python-compatibility (py3.11)
+python-compatibility (py3.13)
+host-constrained (alpine/musl)
+host-portability (macos-latest)
+host-portability (windows-latest)
+protocol-mechanics (py3.12)
+~~~
+
+`performance-report (informational)` is intentionally not required.
+
+## Why Restrict updates remains disabled
+
+GitHub's `Restrict updates` rule permits updates only from bypass actors.
+
+The repository's current promotion workflow uses the standard GitHub Actions
+`GITHUB_TOKEN`. That actor is not exposed as a selectable bypass app in this
+repository's ruleset UI.
+
+The alternatives were:
+
+1. introduce a dedicated GitHub App and grant it bypass authority; or
+2. keep bypass empty and enforce validation at the commit boundary.
+
+The project owner explicitly selected option 2 on 2026-10-02.
+
+This avoids creating and maintaining a privileged promotion credential solely
+to make agentctl technically exclusive.
+
+## Security model
+
+The resulting model is deliberately layered.
+
+### Repository boundary
+
+GitHub enforces:
+
+~~~text
+unchecked commit
+-> main
+-> rejected
+~~~
+
+A commit that already satisfied every required check may technically be pushed
+to main by a normal actor with write permission, provided the update is also a
+permitted fast-forward.
+
+That is an accepted property of this design, not an unacknowledged bypass.
+
+### Governance publication path
+
+The expected path remains:
+
+~~~text
+working tree
+-> agentctl publish
+-> agentctl/** candidate
+-> governed CI
+-> promotion workflow
+-> main
+~~~
+
+This path provides stronger governance semantics than the repository ruleset
+alone.
+
+A human or agent deliberately publishing a validated SHA directly instead of
+using agentctl may satisfy the repository integrity boundary while still
+violating the project's normal governance process.
+
+The distinction is:
+
+~~~text
+repository integrity
+    = no unvalidated commit reaches main
+
+governance process
+    = changes are classified, reviewed and promoted through the declared path
+~~~
+
+The project does not claim that the ruleset cryptographically makes agentctl the
+only possible publisher.
 
 ## Required properties
 
-### 1. Main is not an unrestricted write target
+### 1. Unvalidated commits cannot enter main
 
-Direct pushes to main by normal contributor/agent credentials must not be the
-ordinary publication path.
+A commit lacking any required status check must be rejected by the repository
+boundary.
 
-### 2. The existing candidate flow remains usable
+### 2. No general bypass credential exists
 
-ORDINARY work that passes the governed candidate validation may still be
-promoted without adding unnecessary duplicate validation.
+The ruleset has no bypass actors.
 
-Repository protection must not force the same test suite to run twice merely
-because promotion uses a bot/workflow identity.
+Neither the project owner nor normal agents receive a permanent bypass.
 
-### 3. Scientific review semantics remain unchanged
+### 3. The existing candidate flow remains usable
 
-SCIENTIFIC, CONSTITUTIONAL and FROZEN changes must continue to require their
-existing review/decision path.
+ORDINARY work that passes governed candidate validation may still be promoted
+without rerunning the same validation after promotion.
 
-This ADR does not lower or redefine those classifications.
+The promoted SHA is the same SHA that CI validated.
 
-### 4. Promotion authority is narrow
+### 4. Scientific review semantics remain unchanged
 
-Any workflow or identity allowed to update main despite protection must have only
-the authority required to publish a validated candidate.
+SCIENTIFIC, CONSTITUTIONAL and FROZEN changes continue to require their existing
+review and decision paths.
 
-It must not become a general bypass credential.
+Passing repository status checks does not downgrade their governance class or
+authorize automatic promotion.
 
 ### 5. Stale candidates remain rejected
 
-The existing freshness property remains mandatory:
+The promotion workflow continues to require:
 
 ~~~text
 validated candidate parent == current main
 ~~~
 
-If main changes after validation, the candidate must be revalidated against the
-new base.
+and exactly one candidate commit ahead of main.
+
+The ruleset's non-fast-forward protection supplies an additional repository-side
+barrier against divergent stale updates.
 
 ### 6. Control-plane changes do not self-authorize
 
@@ -95,87 +222,145 @@ Changes to:
 - agentctl publication logic;
 - classification policy;
 - ruleset/protection configuration;
-- trusted promotion identities;
+- required check policy;
+- trusted publication semantics;
 
 remain CONSTITUTIONAL.
 
-A proposed control-plane change must not disable its own review requirement as
-part of the same unreviewed publication.
-
 ## CI interpretation
 
-Repository enforcement must not redefine a green CI run as universal scientific
-evidence.
+A green CI result means the governed validation plan applicable to that commit
+passed.
 
-The current CI system intentionally builds a validation plan from the changed
-surface. A successful run means that the applicable governed validation passed.
+It does not mean that every experiment, slow suite, equivalence scenario or
+held-out campaign ran.
 
-It does not mean every experiment, slow suite, equivalence scenario or held-out
-campaign ran.
+Conditional CI jobs remain part of the required context set; the validation plan
+decides which jobs execute for a given change surface.
 
-Documentation and UI wording should preserve that distinction.
+The ruleset must not convert the informational performance report into a hard
+publication gate.
 
 ## Relationship to equivalence
 
 Equivalence evidence remains scoped to the scenarios that were actually
 available and executed.
 
-A result such as NOT_ASSESSABLE_SNAPSHOT_SET is a legitimate statement that
+A result such as `NOT_ASSESSABLE_SNAPSHOT_SET` is a legitimate statement that
 equivalence evidence was unavailable for that scenario. It must not be converted
-into either PASS or FAIL merely to satisfy a repository gate.
+into PASS or FAIL merely to satisfy the repository boundary.
 
-Repository protection therefore depends on the governed classifier and required
-evidence policy, not on treating equivalence as a universal classifier.
+Repository validation and scientific evidence remain distinct concepts.
 
 ## Alternatives considered
 
-### Keep the current convention-only model
+### A. Dedicated promotion GitHub App with Restrict updates
 
-Rejected as the desired end state because it cannot make the project's
-strongest publication guarantee true.
+Rejected for the current repository.
 
-### Require all CI jobs on every change
+This would make agentctl promotion technically exclusive, but introduces:
 
-Rejected because it recreates the duplicate/over-validation problem already
-addressed by the governed validation plan.
+- a privileged installation identity;
+- private key or token lifecycle;
+- additional secret handling;
+- another trusted component;
+- operational maintenance solely to enforce publisher identity.
+
+The marginal benefit does not currently justify that complexity because commit
+validation is the property the project actually needs at the repository
+boundary.
+
+This option may be reconsidered if the repository later has multiple writers,
+external collaborators or a materially stronger publisher-isolation threat
+model.
+
+### B. Validated-commit boundary without Restrict updates
+
+**Accepted.**
+
+Required checks, deletion protection and non-fast-forward protection are
+enforced on main, with no bypass actors.
+
+agentctl remains the canonical publication process but is not claimed to be the
+only technically possible publisher of an already-validated SHA.
 
 ### Require pull requests for every ordinary change
 
-Not required by this ADR. The goal is controlled publication, not a specific UI
-workflow. The existing candidate model may remain the normal path if repository
-protection can authorize its promotion safely.
+Rejected.
+
+The project uses a candidate-and-promotion workflow and does not need a PR UI
+requirement for ordinary publication.
+
+### Require all CI work on every change
+
+Rejected.
+
+This would defeat proportional validation and recreate unnecessary duplicate
+cost.
+
+### Convention-only governance
+
+Rejected.
+
+Without repository-required checks, an entirely unvalidated commit could enter
+main.
 
 ## Consequences
 
 Positive:
 
-- the repository boundary matches the documented governance model;
-- direct accidental or agent-driven bypass becomes harder;
-- "nothing reaches main outside the governed path" can become an enforceable
-  technical property within the configured credential model;
-- candidate freshness and proportional validation remain usable.
+- unvalidated commits are blocked at the repository boundary;
+- no privileged bypass identity or dedicated promotion App is required;
+- the existing agentctl promotion design remains simple;
+- the exact validated SHA can be promoted without duplicate testing;
+- direct force-pushes and branch deletion are blocked;
+- proportional CI remains intact.
 
-Costs:
+Trade-offs:
 
-- GitHub protection/ruleset configuration becomes part of the trusted control
-  plane;
-- promotion credentials and permissions require explicit maintenance;
-- emergency/manual override procedures, if retained, must be documented and
-  auditable.
+- agentctl is the canonical publisher by governance, not by exclusive repository
+  capability;
+- a writer can technically publish an already-validated fast-forward SHA to
+  main;
+- repository integrity therefore does not by itself prove that agentctl was used;
+- audit/provenance remains responsible for detecting process deviations.
+
+This trade-off is explicitly accepted.
 
 ## Acceptance criteria
 
-- [ ] main has an active repository-side protection/ruleset.
-- [ ] normal direct pushes to main are rejected.
-- [ ] the validated ORDINARY candidate promotion path still succeeds.
-- [ ] a stale validated candidate cannot update main.
-- [ ] SCIENTIFIC, CONSTITUTIONAL and FROZEN changes cannot use ordinary
-      auto-promotion.
-- [ ] governance-control changes retain external review.
-- [ ] the chosen configuration does not duplicate the full validation suite
-      unnecessarily.
-- [ ] tests or an auditable verification procedure demonstrate each property.
+- [x] main has an active repository ruleset.
+- [x] the ruleset targets only `refs/heads/main`.
+- [x] the ruleset has no bypass actors.
+- [x] required governed CI status contexts are configured.
+- [x] force pushes are blocked.
+- [x] branch deletion is blocked.
+- [x] the informational performance job is not a required check.
+- [x] `Restrict updates` remains disabled by explicit owner decision.
+- [ ] an end-to-end test demonstrates that a new unchecked commit cannot update
+      main.
+- [ ] an end-to-end ORDINARY candidate demonstrates that the validated agentctl
+      promotion path still succeeds under the active ruleset.
+- [ ] a stale candidate rejection is demonstrated or retained by existing
+      automated coverage.
 
-## Decision
+## Decision history
 
-Accepted by explicit project-owner decision on 2026-10-02.
+### 2026-10-02 — initial acceptance
+
+The project owner accepted repository-side enforcement for main.
+
+### 2026-10-02 — implementation refinement
+
+After configuring the ruleset and evaluating the available bypass actors, the
+project owner explicitly selected the validated-commit model (option B):
+
+- keep the bypass list empty;
+- do not enable `Restrict updates`;
+- require governed CI checks for main;
+- block force pushes and deletion;
+- retain agentctl as the canonical governance publication path;
+- do not claim that agentctl is the only technically possible publisher.
+
+This refinement supersedes any earlier wording in this ADR that required
+exclusive publisher identity.

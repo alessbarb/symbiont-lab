@@ -91,15 +91,17 @@ sources of truth.
 
 ### GOV-1 — Repository-enforced publication to main
 
-**Status:** ACCEPTED — implementation pending.
+**Status:** ACTIVE — repository ruleset configured; end-to-end verification pending.
 
 **Governing decision:**
 [adr/ADR-0057-enforce-governed-main-publication.md](adr/ADR-0057-enforce-governed-main-publication.md).
 
-The current agentctl/CI promotion path is governed, but GitHub does not yet make
-that path unavoidable because main has no active branch protection/ruleset.
-This workstream tracks repository-side enforcement without reintroducing
-duplicate full validation.
+GitHub now enforces a validated-commit boundary on `main`: required governed CI
+checks, deletion protection and non-fast-forward protection are active with no
+bypass actors. `Restrict updates` remains intentionally disabled under ADR-0057,
+so agentctl is the canonical governance publisher rather than the only technically
+possible publisher of an already-validated fast-forward SHA. Remaining work is
+end-to-end verification of unchecked rejection and ordinary candidate promotion.
 
 ### DOC-1 — Persistence terminology and legacy cleanup
 
