@@ -69,6 +69,32 @@ Two integration points were possible:
 - Research programme A4 is satisfied for the governed run path and remains open
   for in-run checkpoints.
 
+## P0 implementation closure and evidence (2026-10-02)
+
+The P0 validation closes the storage and governed-run publication boundaries
+described here without changing the per-run decision or extending it to
+checkpoints written while a study is running.
+
+- `GenerationStore.commit()` and `commit_directory()` propagate fault injection
+  into each payload write boundary, including partial writes and file/directory
+  synchronization boundaries. A failed unpublished commit leaves the previous
+  generation selected and removes the temporary generation; it does not expose a
+  mixed payload set.
+- The durable-I/O compound replacement test injects a partial payload write and
+  verifies that the prior target remains intact and temporary files are cleaned
+  up.
+- A governed development canary was run on the locked POSIX environment with an
+  explicit seed and execution fingerprint. It completed and produced a receipt
+  naming a complete generation. This validates the launcher path, not scientific
+  efficacy or Windows process-tree timeout behavior.
+- Existing E8 confirmation evidence was re-aggregated read-only against its
+  preregistered ten seeds and matched the archived aggregate. No confirmation
+  seeds were rerun and no frozen protocol or result was changed.
+
+The acceptance boundary is simulated fault injection plus the governed canary;
+it does not claim a hardware power-loss test. In-run checkpoint writes remain
+outside this decision and outside this closure.
+
 ## Tests
 
 - `tests/unit/lab/experiments/test_scientific_generations.py`: directory commit,
@@ -77,3 +103,5 @@ Two integration points were possible:
   publication (no visible result, outputs kept), a crash after `CURRENT` is
   replaced (complete generation), and an end-to-end launcher run that ends with
   a committed generation.
+- `tests/unit/host/test_durable_io.py`: compound replacement preserves the prior
+  file when a payload write fails part-way through.

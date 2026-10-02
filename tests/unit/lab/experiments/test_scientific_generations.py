@@ -173,3 +173,48 @@ def test_a_crash_while_committing_a_directory_leaves_nothing_or_a_complete_gener
     else:
         with pytest.raises(FileNotFoundError):
             store.open_current()
+
+
+@pytest.mark.parametrize(
+    "fault_point",
+    [
+        "payload.checkpoint.during_write",
+        "payload.model-artifacts/model.bin.before_file_fsync",
+        "payload.telemetry-index.before_dir_fsync",
+        "payload.provenance/runtime.txt.after_dir_fsync",
+    ],
+)
+def test_payload_write_crash_preserves_previous_generation(
+    tmp_path: Path, fault_point: str
+) -> None:
+    store = GenerationStore(tmp_path / "run")
+    store.commit(0, _files("zero"))
+    source = _tree(tmp_path / "work", "one")
+
+    def fault_hook(point: str) -> None:
+        if point == fault_point:
+            raise OSError(f"simulated crash at {point}")
+
+    with pytest.raises(OSError, match="simulated crash"):
+        store.commit_directory(1, source, _fault_point=fault_hook)
+
+    current = store.open_current()
+    assert current.index == 0
+    assert (current.path / "checkpoint").read_text(encoding="utf-8") == "checkpoint-zero"
+    assert not (store.root / "generation-000001").exists()
+    assert not list(store.root.glob(".generation-000001.*.tmp"))
+
+
+def test_mapping_payload_write_crash_preserves_previous_generation(tmp_path: Path) -> None:
+    store = GenerationStore(tmp_path / "run")
+    store.commit(0, _files("zero"))
+
+    def fault_hook(point: str) -> None:
+        if point == "payload.checkpoint.during_write":
+            raise OSError("simulated payload write crash")
+
+    with pytest.raises(OSError, match="simulated payload write crash"):
+        store.commit(1, _files("one"), _fault_point=fault_hook)
+
+    assert store.open_current().index == 0
+    assert not (store.root / "generation-000001").exists()

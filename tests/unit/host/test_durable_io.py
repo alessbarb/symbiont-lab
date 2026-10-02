@@ -76,6 +76,23 @@ def test_durable_atomic_replacement_exception_preserves_target(tmp_path: Path) -
     assert not tmp.exists()
 
 
+def test_durable_atomic_replacement_partial_payload_failure_preserves_target(
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "existing.dat"
+    target.write_bytes(b"initial-stable-data")
+
+    with pytest.raises(OSError, match="simulated partial write failure"):
+        with durable_atomic_replacement(target, sync_dir=True) as tmp:
+            with tmp.open("wb") as handle:
+                handle.write(b"partial")
+                handle.flush()
+                raise OSError("simulated partial write failure")
+
+    assert target.read_bytes() == b"initial-stable-data"
+    assert not tmp.exists()
+
+
 @pytest.mark.parametrize(
     "fault_point",
     [
