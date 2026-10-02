@@ -137,9 +137,12 @@ schedule work on:
 - functional transfer advantage after re-embodiment (unapproved preregistration
   draft:
   [design/experimentation/reembodiment-functional-transfer-v1.md](design/experimentation/reembodiment-functional-transfer-v1.md));
-- causal behavioral contribution of the private model;
-- matched-budget utility of model ancestry;
-- causal behavioral contribution of generative cognition.
+- causal behavioral contribution of the private model (unapproved preregistration draft:
+  [design/experimentation/private-model-causal-contribution-v1.md](design/experimentation/private-model-causal-contribution-v1.md));
+- matched-budget utility of model ancestry (unapproved preregistration draft:
+  [design/experimentation/model-ancestry-matched-budget-v1.md](design/experimentation/model-ancestry-matched-budget-v1.md));
+- causal behavioral contribution of generative cognition (unapproved preregistration draft:
+  [design/experimentation/generative-cognition-causal-contribution-v1.md](design/experimentation/generative-cognition-causal-contribution-v1.md)).
 
 Mechanical preservation alone must not be presented as positive evidence for
 those capabilities.
