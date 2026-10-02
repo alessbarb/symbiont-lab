@@ -77,9 +77,13 @@ language: en
 - **Unverified legacy origin:** Lineage marker carried by every save of an
   organism whose history includes a checkpoint accepted without a verifiable
   identity (schema 10 and earlier).
-- **World:** The `symbiont_world` kernel and nothing else. Physics3D and
-  synthetic Bodies are embodiment apparatus; habitats and host providers are
-  boundaries the launcher supplies. See
+- **World:** The external side of the organism boundary, as a category. It has
+  one constitutional implementation, the **World kernel** (`symbiont_world`),
+  reached through the **World adapter** (`symbiont_lab.world`). A **World run**
+  (`world.challenge`, `world.open`) is a run regime with complete consequences,
+  hosted today by Physics3D; it does not involve the World kernel. Physics3D and
+  synthetic Bodies are Body or study apparatus; habitats and host providers are
+  boundaries the launcher supplies. See ADR-0060 and
   `docs/design/world/world-responsibility-map-v1.md`.
 - **Continuity class:** What must happen to a piece of runtime state across a
   restart: `MUST_PRESERVE`, `MUST_RESET`, `MAY_RECOMPUTE`,
