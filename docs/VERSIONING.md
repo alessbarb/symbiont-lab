@@ -3,7 +3,7 @@
 Symbiont Lab uses the package version as the software release identifier. The
 current active development release line is package version `0.90.0`. The state
 is recorded in `ORGANISM.md`, `README.md` and the release changelog; historical
-milestones remain in [`roadmap.md`](roadmap.md).
+milestones remain in [`history/roadmap-log.md`](history/roadmap-log.md).
 
 ## Release lanes
 

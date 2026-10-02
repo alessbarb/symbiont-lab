@@ -98,8 +98,13 @@ classification = "CONSTITUTIONAL"
 
 [[surface]]
 id = "scientific-direction"
-paths = ["docs/roadmap.md", "docs/methodology/**"]
+paths = ["docs/methodology/**"]
 classification = "SCIENTIFIC"
+
+[[surface]]
+id = "project-roadmap"
+paths = ["docs/roadmap.md"]
+classification = "ORDINARY"
 
 [[surface]]
 id = "scientific-evidence-tests"

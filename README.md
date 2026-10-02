@@ -10,7 +10,11 @@ The project is currently in a **remediation and validation phase**, not in an op
 
 ## Current scientific state
 
-The canonical source of direction is [`docs/roadmap.md`](docs/roadmap.md). The machine-readable state is [`docs/governance/project-state.toml`](docs/governance/project-state.toml).
+The project-planning index is [`docs/roadmap.md`](docs/roadmap.md); the
+scientific programme is governed separately in
+[`docs/methodology/research-programme.md`](docs/methodology/research-programme.md).
+The machine-readable project state is
+[`docs/governance/project-state.toml`](docs/governance/project-state.toml).
 
 | Programme | Current state |
 | --- | --- |
@@ -192,7 +196,8 @@ Scientific campaigns are explicit commands. They do not belong in the default de
 ## Core documentation
 
 - [Technical architecture](docs/architecture.md)
-- [Active scientific roadmap](docs/roadmap.md)
+- [Project roadmap](docs/roadmap.md)
+- [Scientific programme](docs/methodology/research-programme.md)
 - [Historical roadmap log](docs/history/roadmap-log.md)
 
 ## Documentation authority
@@ -200,7 +205,8 @@ Scientific campaigns are explicit commands. They do not belong in the default de
 Use this order when documents conflict:
 
 1. accepted constitutional/ADR decisions;
-2. current `docs/roadmap.md` and governance project state;
+2. current project planning in `docs/roadmap.md`, scientific direction in
+   `docs/methodology/research-programme.md`, and governance project state;
 3. frozen preregistration/design for the specific experiment;
 4. current implementation contracts;
 5. research interpretation;

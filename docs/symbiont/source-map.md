@@ -106,5 +106,6 @@ This ledger ensures that the existing documentation corpus is not silently disca
 | other | `glossary.md` | 46 |
 | history-development | `history/roadmap-log.md` | 835 |
 | foundations | `methodology/README.md` | 18 |
-| history-development | `roadmap.md` | 513 |
+| project-planning | `roadmap.md` | 42 |
+| foundations | `methodology/research-programme.md` | 1904 |
 | foundations | `safety/README.md` | 27 |

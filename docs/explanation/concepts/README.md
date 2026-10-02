@@ -12,7 +12,7 @@ language: en
 ---
 # Symbiont — release documentation
 
-This section is the public narrative front door on what a Symbiont is and what real experimentation shows. It does not replace the canonical technical documentation (`docs/architecture.md`, `docs/math/`, `docs/roadmap.md`): each chapter cites its exact source in [`SOURCES.md`](SOURCES.md) and links to the technical document instead of repeating its numbers.
+This section is the public narrative front door on what a Symbiont is and what real experimentation shows. It does not replace the canonical technical documentation (`docs/architecture.md`, `docs/math/`, `docs/methodology/research-programme.md`): each chapter cites its exact source in [`SOURCES.md`](SOURCES.md) and links to the technical document instead of repeating its numbers.
 
 ## Reading paths
 

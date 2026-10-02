@@ -10,8 +10,9 @@
 The repository contains many design documents at different stages: proposals,
 reviewed designs, owner-approved work, frozen or closed programmes, and
 references. Without a single status authority, pending designs can be forgotten
-or mistaken for approved and scheduled work. The roadmap has a distinct role:
-it governs scientific direction, priority, gates, and authorization.
+or mistaken for approved and scheduled work. The roadmap has a distinct
+project-planning role; scientific direction, priority, gates, and authorization
+belong to explicit governed scientific records and owner decisions.
 
 The initial documentary triage identified 57 active, non-archived design
 documents. This inventory is intended to make their recorded status discoverable;
@@ -26,10 +27,11 @@ it is not a blanket technical, scientific, or implementation review.
    implementing, or reporting completion of a design. A status change must be
    reflected in the same change as its supporting decision or implementation
    evidence.
-3. The register does not replace the roadmap. The roadmap remains authoritative
-   for research direction, priority, milestone acceptance, experiment gates,
-   and authorization. It may reference a design or its register entry without
-   changing those authorities.
+3. The register does not replace the project roadmap. The roadmap tracks
+   project work and may reference a design or its register entry. It is not
+   authoritative for research direction, milestone acceptance, experiment
+   gates, or scientific authorization; those remain in governed scientific
+   records and explicit owner decisions, as clarified by ADR-0056.
 4. Statuses must not be inferred from document age, title, related code, or a
    roadmap mention. In particular, `Reviewed` is not `Approved`, approval is
    not scheduling, and implementation status does not imply scientific
@@ -59,13 +61,14 @@ it is not a blanket technical, scientific, or implementation review.
 - [x] Agent instructions require the register to be read for design-related
   work.
 - [x] The design index identifies the register as the status authority.
-- [x] The roadmap retains scientific direction and priority authority and only
-  references the proposal without changing its gate.
+- [x] The roadmap remains a project-planning index and does not alter the
+  scientific authority of governed records.
 - [x] Focused documentation link and register consistency tests pass.
 
 ## Decision
 
-Accepted by the project owner on 2026-10-01. This decision establishes design
+Accepted by the project owner on 2026-10-01. Its roadmap-authority clause was
+narrowly amended by ADR-0056 on 2026-10-02. This decision establishes design
 status tracking and mandatory reading. It does not accept every listed design,
-authorize implementation or experimentation, change the scientific roadmap,
-or reopen any frozen, paused, or unscheduled work.
+authorize implementation or experimentation, or reopen any frozen, paused, or
+unscheduled work.

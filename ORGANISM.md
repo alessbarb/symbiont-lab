@@ -52,7 +52,8 @@ not by continuously expanding the organism itself.
 
 The canonical state of the project is distributed across:
 
-- [`docs/roadmap.md`](docs/roadmap.md) — active research roadmap;
+- [`docs/roadmap.md`](docs/roadmap.md) — project-planning index;
+- [`docs/methodology/research-programme.md`](docs/methodology/research-programme.md) — governed scientific programme;
 - [`docs/history/roadmap-log.md`](docs/history/roadmap-log.md) — completed
   milestone history;
 - [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — release-by-release implementation

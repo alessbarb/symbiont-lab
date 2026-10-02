@@ -20,7 +20,7 @@ route/symbol/anchor cited truly exists.
 
 | Type | Valid sources | What for |
 | --- | --- | --- |
-| `normative` | `docs/adr/`, `docs/architecture.md`, `docs/design/`, `docs/roadmap.md` | definitions, boundaries, invariants |
+| `normative` | `docs/adr/`, `docs/architecture.md`, `docs/design/`, `docs/methodology/research-programme.md` | definitions, boundaries, invariants |
 | `formal` | `docs/math/` | mathematical backing |
 | `implementation` | `src/`, `observatory/` + tests | actually implemented behavior |
 | `empirical` | `research/` + tests/studies | experimentally observed results |

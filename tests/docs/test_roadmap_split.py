@@ -6,6 +6,17 @@ from .conftest import REPO_ROOT
 def test_roadmap_keeps_only_active_state():
     text = (REPO_ROOT / "docs" / "roadmap.md").read_text(encoding="utf-8")
     for must_have in (
+        "# Project Roadmap",
+        "active project-planning index",
+        "does not establish scientific direction",
+        "methodology/research-programme.md",
+        "governance/project-state.toml",
+    ):
+        assert must_have in text, f"missing from active roadmap.md: {must_have}"
+    research_programme = (REPO_ROOT / "docs" / "methodology" / "research-programme.md").read_text(
+        encoding="utf-8"
+    )
+    for must_have in (
         "## 1. North star",
         "## 2. Permanent architectural invariants",
         "## 3. Lifecycle semantics",
@@ -16,7 +27,7 @@ def test_roadmap_keeps_only_active_state():
         "## 19. Phase C — Genotype to phenotype to physical consequence",
         "## 25. Phase F — Population, communication and culture",
     ):
-        assert must_have in text, f"missing from active roadmap.md: {must_have}"
+        assert must_have in research_programme, f"missing from research programme: {must_have}"
     for must_not_have in (
         "## Milestone A — Safe real perception",
         "## Milestone F — Digital physiology",

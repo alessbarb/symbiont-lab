@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-10-01
 - **Decision owner:** project owner
-- **Relates to:** ADR-0046, ADR-0047, ADR-0048, A2 in `docs/roadmap.md`
+- **Relates to:** ADR-0046, ADR-0047, ADR-0048, A2 in `docs/methodology/research-programme.md`
 
 ## Context
 

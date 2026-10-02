@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -146,14 +147,33 @@ def test_adr_is_constitutional() -> None:
     assert result.classification == ChangeClass.CONSTITUTIONAL
 
 
-def test_roadmap_is_scientific_direction() -> None:
+def test_trusted_main_still_classifies_roadmap_as_scientific_during_policy_transition() -> None:
     result = assess(
         ROOT,
         "HEAD",
         ["docs/roadmap.md"],
-        "diff --git a/docs/roadmap.md b/docs/roadmap.md\n+ new research phase",
+        "diff --git a/docs/roadmap.md b/docs/roadmap.md\n+ update task status",
     )
     assert result.classification == ChangeClass.SCIENTIFIC
+
+
+def test_methodology_remains_scientific() -> None:
+    result = assess(
+        ROOT,
+        "HEAD",
+        ["docs/methodology/research-programme.md"],
+        "diff --git a/docs/methodology/research-programme.md b/docs/methodology/research-programme.md\n+ new research phase",
+    )
+    assert result.classification == ChangeClass.SCIENTIFIC
+
+
+def test_candidate_policy_classifies_roadmap_ordinary_and_methodology_scientific() -> None:
+    policy = tomllib.loads((ROOT / "docs/governance/change-surfaces.toml").read_text())
+    surfaces = {surface["id"]: surface for surface in policy["surface"]}
+    assert surfaces["project-roadmap"]["classification"] == "ORDINARY"
+    assert surfaces["project-roadmap"]["paths"] == ["docs/roadmap.md"]
+    assert "docs/methodology/**" in surfaces["scientific-direction"]["paths"]
+    assert surfaces["scientific-direction"]["classification"] == "SCIENTIFIC"
 
 
 def test_experimental_integrity_tests_are_scientific() -> None:

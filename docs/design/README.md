@@ -27,7 +27,9 @@ presence here does not mean it is approved or scheduled.
 > [!IMPORTANT]
 > A design document in `docs/design/` records a proposal, contract, audit, or
 > hypothesis. Its lifecycle status is defined by [`register.md`](register.md).
-> The roadmap remains canonical for research direction, priority, gates, and
-> scientific acceptance. For implementation status in source code, consult
-> [`../architecture.md`](../architecture.md), [`../roadmap.md`](../roadmap.md),
+> Scientific direction, priority, gates, and acceptance belong to governed
+> scientific records, including the
+> [`research programme`](../methodology/research-programme.md). For project
+> planning and implementation status, consult [`../roadmap.md`](../roadmap.md),
+> [`../architecture.md`](../architecture.md),
 > and [`../../ORGANISM.md`](../../ORGANISM.md).

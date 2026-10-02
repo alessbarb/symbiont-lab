@@ -76,11 +76,6 @@ class = "governance-control-plane"
 rule = "external-review-required"
 
 [[artifact]]
-path_glob = "docs/roadmap.md"
-class = "governance-control-plane"
-rule = "external-review-required"
-
-[[artifact]]
 path_glob = "experiments/**/results.json"
 class = "scientific-result"
 rule = "append-or-supersede; never rewrite completed evidence"

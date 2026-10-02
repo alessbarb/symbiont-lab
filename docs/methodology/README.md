@@ -1,5 +1,11 @@
 # Scientific Methodology
 
+The governed research sequence, capability gates, lifecycle semantics, and
+claim vocabulary are recorded in
+[`research-programme.md`](research-programme.md). The project-planning index
+[`../roadmap.md`](../roadmap.md) links to it but does not define scientific
+authority.
+
 ## Principles of Synthetic Experimentation
 
 1. **Deterministic RNG Stream Isolation:**

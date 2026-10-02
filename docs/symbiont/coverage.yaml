@@ -308,8 +308,11 @@ sources:
   area: foundations
   lines: 18
 - path: roadmap.md
-  area: history-development
-  lines: 513
+  area: project-planning
+  lines: 42
+- path: methodology/research-programme.md
+  area: foundations
+  lines: 1904
 - path: safety/README.md
   area: foundations
   lines: 27

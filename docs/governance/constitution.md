@@ -15,8 +15,10 @@ execution, accepts constitutional changes and opens or closes programmes.
 
 Technical ability to edit a file does not confer scientific authority. Agents may
 analyse and implement freely inside the requested task and accepted invariants, while
-`agent-policy.md`, `decision-gates.md`, the active roadmap, frozen experiment
-contracts and external owner decisions define the boundaries that require review.
+`agent-policy.md`, `decision-gates.md`, governed scientific records, frozen
+experiment contracts and external owner decisions define the boundaries that
+require review. The project roadmap is a planning index; it cannot establish or
+change scientific direction, gates, acceptance, or authorization (ADR-0056).
 
 A constitutional change follows only this order:
 

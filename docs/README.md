@@ -11,7 +11,7 @@ The rest of `docs/` remains intentionally available because it contains the sour
 - `explanation/` contains earlier explanatory treatments and the mathematical compendium.
 - `adr/` records accepted architectural decisions and their context.
 - `methodology/` and `design/experimentation/` describe experimental practice and individual protocols.
-- `history/` (including `history/roadmap-log.md`), `roadmap.md` and `CHANGELOG.md` preserve development history.
+- `history/` (including `history/roadmap-log.md`) and `CHANGELOG.md` preserve development history; `roadmap.md` is the project-planning index.
 - `development/` documents engineering concerns that are useful to maintainers but are not part of the scientific description of the organism.
 
 No historical source has been removed simply because a canonical synthesis now exists. The canonical corpus includes a [`source-map`](symbiont/source-map.md) that accounts for every Markdown source in the current documentation set and indicates the scientific area into which its knowledge belongs.
@@ -27,6 +27,8 @@ Use the following distinction:
 | Understand intended or proposed design | `docs/design/` |
 | Evaluate an empirical claim | experiment/study artefacts and their protocol |
 | Understand why an architectural decision was made | `docs/adr/` |
+| Find project work and status | `docs/roadmap.md` and `docs/governance/project-state.toml` |
+| Find the governed research sequence and scientific gates | `docs/methodology/research-programme.md` and its linked protocols |
 | Reconstruct historical evolution | `docs/history/`, roadmap and changelog |
 
-When these sources disagree, the disagreement is scientifically relevant and should be documented rather than silently normalised.
+When governed scientific sources disagree, the disagreement is scientifically relevant and should be documented rather than silently normalised. The project roadmap does not override them.
