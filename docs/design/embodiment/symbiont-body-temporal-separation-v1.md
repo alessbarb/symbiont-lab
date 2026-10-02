@@ -3,14 +3,22 @@ id: design.general.symbiont-body-temporal-separation-v1
 title: "Symbiont Body Temporal Separation V1"
 document_type: design
 domain: embodiment
-status: unclassified
+status: superseded
 canonical: false
-implementation_status: unknown
+implementation_status: partial
 migrated_on: 2026-09-25
-last_reviewed: null
+last_reviewed: 2026-10-02
 language: en
 ---
 # Spec — Temporal Separation Symbiont / Body v1
+
+> **Superseded for active architecture/mechanical contract** by [Embodiment v2](embodiment-v2.md) and [Longitudinal Integrity v1](../core/longitudinal-integrity-v1.md). This is not a scientific supersession: it does not establish future-state equivalence, useful transfer, or any broader experimental conclusion. The original rationale below is retained as historical context.
+
+| Concern in this proposal | Current design boundary |
+| --- | --- |
+| Separate Symbiont, Body, and episode time/ownership | Embodiment v2 defines the active ontology and temporal ownership. |
+| Durable restart/checkpoint continuity | Longitudinal Integrity v1 defines the closed mechanical gate and its limitations. |
+| Physiological history and body aging | Embodiment v2 is the active architecture; this historical proposal is not evidence that every suggested field or behavior is implemented. |
 
 Status: **proposed canonical architecture**.
 

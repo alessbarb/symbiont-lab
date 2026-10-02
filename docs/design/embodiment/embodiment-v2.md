@@ -6,7 +6,9 @@ domain: embodiment
 status: active
 canonical: true
 implementation_status: implemented
-supersedes: []
+supersedes:
+  - docs/design/embodiment/embodiment-memory-v1.md
+  - docs/design/embodiment/symbiont-body-temporal-separation-v1.md
 extends: []
 implements: []
 depends_on: []

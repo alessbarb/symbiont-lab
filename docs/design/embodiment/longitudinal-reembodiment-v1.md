@@ -3,14 +3,16 @@ id: design.embodiment.longitudinal-reembodiment-v1
 title: "Longitudinal Reembodiment V1"
 document_type: design
 domain: embodiment
-status: unclassified
+status: proposed
 canonical: false
-implementation_status: unknown
+implementation_status: partial
 migrated_on: 2026-09-25
-last_reviewed: null
+last_reviewed: 2026-10-02
 language: en
 ---
 # Spec Package — Longitudinal Re-embodiment v1
+
+> **Current scope:** active only for residual scientific questions. Embodiment v2 now supplies the architecture; Longitudinal Integrity v1 closes the bounded mechanical restart-continuity gate. [Embodiment Epoch Summary v1](embodiment-epoch-summary-v1.md) remains a proposed observational-contract delta. These replacements do not establish functional transfer, adaptive advantage, or scientific value of retained state. This document preserves the historical specimen record and does not authorize a new experiment.
 
 Status: **proposed canonical direction**.
 
