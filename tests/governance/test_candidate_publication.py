@@ -96,6 +96,7 @@ def test_candidate_pr_creates_missing_class_label(monkeypatch) -> None:
     assert calls[1][3] == "SCIENTIFIC"
     assert calls[-1][-2:] == ["--label", "SCIENTIFIC"]
 
+
 def test_ci_exposes_one_stable_governed_required_gate() -> None:
     workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
 

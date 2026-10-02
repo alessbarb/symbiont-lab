@@ -434,7 +434,7 @@ _GOVERNANCE_LABELS = {
     ),
     ChangeClass.CONSTITUTIONAL: (
         "5319e7",
-        "Governance classification: constitutional control-plane or invariant change; external review required.",
+        "Constitutional control-plane/invariant change; external review required.",
     ),
     ChangeClass.FROZEN: (
         "6f42c1",
