@@ -179,8 +179,6 @@ def test_clean_organism_has_no_semantic_bootstrap_or_autonomous_action_priors():
         organism_seed=102,
         ground_truth=build_ground_truth(),
         policy="cognitive",
-        sensory_plasticity=True,
-        discover_senses=True,
         actuation_enabled=True,
         experimental_clean=True,
     )
@@ -203,8 +201,6 @@ def test_clean_founders_do_not_share_signal_identity_namespace():
         world_seed=77,
         ground_truth=build_ground_truth(),
         policy="cognitive",
-        sensory_plasticity=True,
-        discover_senses=True,
         actuation_enabled=True,
         experimental_clean=True,
     )
@@ -362,8 +358,6 @@ def test_clean_world_never_calls_structured_motor_probing():
         topology=HexTopology(width=4, height=4),
         start_cells=(HexCoord(1, 1),),
         movement_enabled=True,
-        sensory_plasticity=True,
-        discover_senses=True,
         experimental_clean=True,
     )
     rig = pop._rigs["clean-probe-guard"]
@@ -385,8 +379,6 @@ def test_clean_body_has_no_dedicated_acquire_actuator():
         organism_seed=5051,
         ground_truth=build_ground_truth(),
         policy="cognitive",
-        sensory_plasticity=True,
-        discover_senses=True,
         actuation_enabled=True,
         experimental_clean=True,
     )
@@ -407,8 +399,6 @@ def test_clean_world_does_not_inject_resource_habitats_or_cognitive_fuel():
         organism_seed=6061,
         ground_truth=build_ground_truth(),
         policy="cognitive",
-        sensory_plasticity=True,
-        discover_senses=True,
         actuation_enabled=True,
         experimental_clean=True,
     )
@@ -428,8 +418,6 @@ def test_boundary_guard_rejects_implicit_ambient_metabolism_regardless_of_ledger
         topology=HexTopology(width=4, height=4),
         start_cells=(HexCoord(1, 1),),
         movement_enabled=True,
-        sensory_plasticity=True,
-        discover_senses=True,
         experimental_clean=True,
     )
     rig = pop._rigs["isolated-core"]
@@ -453,8 +441,6 @@ def test_clean_material_exchange_crosses_only_scalar_absorption():
         topology=HexTopology(width=4, height=4),
         start_cells=(HexCoord(1, 1),),
         movement_enabled=True,
-        sensory_plasticity=True,
-        discover_senses=True,
         experimental_clean=True,
     )
     for _ in range(32):
@@ -487,8 +473,6 @@ def test_clean_material_exchange_conserves_mass_with_scarce_resources():
         topology=HexTopology(width=4, height=4),
         start_cells=(HexCoord(1, 1),),
         movement_enabled=True,
-        sensory_plasticity=True,
-        discover_senses=True,
         experimental_clean=True,
     )
     cell = HexCoord(1, 1)
@@ -555,8 +539,6 @@ def test_clean_organism_identity_is_world_independent():
         organism_seed=7071,
         ground_truth=build_ground_truth(),
         policy="cognitive",
-        sensory_plasticity=True,
-        discover_senses=True,
         actuation_enabled=True,
         experimental_clean=True,
     )

@@ -264,9 +264,6 @@ def capture_checkpoint(
 def restore_population_from_checkpoint(
     checkpoint: PersistentWorldCheckpoint,
     ground_truth: GroundTruth,
-    *,
-    sensory_plasticity: bool = False,
-    discover_senses: bool = False,
 ) -> PopulationGenesisRuntime:
     """Instantiate a PopulationGenesisRuntime from a PersistentWorldCheckpoint."""
     topo = HexTopology(
@@ -291,8 +288,6 @@ def restore_population_from_checkpoint(
         topology=topo,
         start_cells=start_cells,
         world_id=checkpoint.world_id,
-        sensory_plasticity=(True if checkpoint.experimental_clean else sensory_plasticity),
-        discover_senses=(True if checkpoint.experimental_clean else discover_senses),
         journal=EventJournal.from_snapshot(checkpoint.journal),
         geography=geography,
         movement_enabled=checkpoint.movement_enabled,
@@ -739,8 +734,6 @@ class WorldStorage:
         ground_truth: GroundTruth,
         *,
         expected_constitution: WorldConstitution | None = None,
-        sensory_plasticity: bool = False,
-        discover_senses: bool = False,
     ) -> PopulationGenesisRuntime:
         """Restore world from the newest valid confirmed checkpoint on disk."""
         chk = self.load_latest_checkpoint()
@@ -755,6 +748,4 @@ class WorldStorage:
         return restore_population_from_checkpoint(
             chk,
             ground_truth,
-            sensory_plasticity=sensory_plasticity,
-            discover_senses=discover_senses,
         )

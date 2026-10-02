@@ -172,13 +172,9 @@ class IntegratedHabitatRuntime:
             ),
             explicit_metabolism=True,
             physiology=PhysiologyController(body_state=body_state),
-            bootstrap_semantic_senses=True,
-            discover_senses=False,
-            interoception_mode="absent",
             min_samples=1,
             mutation_seed=self.config.seed + generation,
             cultural_policy_seed=self.config.seed + generation,
-            symbol_policy_seed=self.config.seed + generation,
             sequence_max_length=self.config.sequence_max_length,
         )
         if not runtime.join_social_habitat(self.social_habitat):
@@ -387,8 +383,10 @@ class IntegratedHabitatRuntime:
             organism = ModeledOrganismRuntime.from_checkpoint(
                 raw,
                 social_habitat=runtime.social_habitat,
-                bootstrap_semantic_senses=True,
-                discover_senses=False,
+                # Same deterministic surface as at birth: never the real host.
+                host_lifecycle=HostLifecycle(
+                    discovery=HostDiscovery(providers=()), reading_providers=()
+                ),
             )
             if organism.organism_id in runtime.population:
                 raise ValueError("duplicate organism in integrated habitat checkpoint")

@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 
 from symbiont.core.orchestration.runtime import OrganismRuntime
+from symbiont.core.organism_profile import HISTORICAL_V0
 from symbiont.core.social import SocialHabitat
 from symbiont.core.social.interactions import EcologicalResourcePool
 
@@ -26,7 +27,7 @@ def run_social_runtime_context_replay_study() -> SocialRuntimeContextReplayStudy
     habitat = SocialHabitat(EcologicalResourcePool({"food": 6.0}), max_members=3)
     for member in ("observer", "peer-a", "peer-b"):
         habitat.admit(member)
-    live = OrganismRuntime(organism_id="observer", social_habitat=habitat)
+    live = OrganismRuntime(profile=HISTORICAL_V0, organism_id="observer", social_habitat=habitat)
     live.social_ledger.observe("observer", "peer-a", benefit=2.0, tick=0)
     live.social_ledger.observe("observer", "peer-b", benefit=1.0, tick=0)
     before = live.select_social_opportunity()

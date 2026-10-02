@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from typing import Sequence
 
+from symbiont.core.organism_profile import HISTORICAL_V0
 from symbiont.modeling import (
     CulturalAction,
     CulturalPolicyConfig,
@@ -80,6 +81,7 @@ def _trial(seed: int, *, ticks: int, contact_rounds: int) -> AutonomousAgencySee
     )
     organisms = tuple(
         ModeledOrganismRuntime(
+            profile=HISTORICAL_V0,
             organism_id=organism_id,
             bootstrap_semantic_senses=False,
             cultural_policy_seed=seed + index,

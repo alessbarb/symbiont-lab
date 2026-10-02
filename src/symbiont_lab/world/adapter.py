@@ -502,8 +502,6 @@ def _construct_organism(
     organism_seed: int,
     ground_truth: GroundTruth,
     policy: str,
-    sensory_plasticity: bool = False,
-    discover_senses: bool = False,
     actuation_binding: ActuationBindingConstitution | None = None,
     actuation_enabled: bool = False,
     experimental_clean: bool = False,
@@ -600,10 +598,6 @@ def _construct_organism(
         explicit_metabolism=False,
         physiology=physiology,
         signal_identity=None,
-        bootstrap_semantic_senses=True,
-        discover_senses=discover_senses,
-        sensory_plasticity=sensory_plasticity,
-        interoception_mode="absent",
         min_samples=1,
         mutation_seed=organism_seed,
         actuation_enabled=actuation_enabled,
@@ -713,8 +707,6 @@ class SingleOrganismGenesisRuntime:
         world_id: str = "genesis-v1",
         policy: str = "cognitive",
         organism_seed: int | None = None,
-        sensory_plasticity: bool = False,
-        discover_senses: bool = False,
         deferred_resource_delays: dict[str, int] | None = None,
         deferred_damage_amount: float = 0.1,
     ) -> None:
@@ -740,8 +732,6 @@ class SingleOrganismGenesisRuntime:
             organism_seed=self.organism_seed,
             ground_truth=ground_truth,
             policy=policy,
-            sensory_plasticity=sensory_plasticity,
-            discover_senses=discover_senses,
         )
         self.runtime = self._rig.runtime
         self._reading_provider = self._rig.reading_provider

@@ -7,6 +7,7 @@ from collections import Counter
 from dataclasses import asdict, dataclass
 
 from symbiont.core.orchestration.runtime import OrganismRuntime
+from symbiont.core.organism_profile import HISTORICAL_V0
 from symbiont.core.social import SocialHabitat
 from symbiont.core.social.interactions import EcologicalResourcePool
 
@@ -43,7 +44,8 @@ def run_social_runtime_longitudinal_study(
     for organism_id in ids:
         habitat.admit(organism_id)
     runtimes = [
-        OrganismRuntime(organism_id=organism_id, social_habitat=habitat) for organism_id in ids
+        OrganismRuntime(profile=HISTORICAL_V0, organism_id=organism_id, social_habitat=habitat)
+        for organism_id in ids
     ]
     pairs: Counter[tuple[str, str]] = Counter()
     touched: set[str] = set()

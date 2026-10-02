@@ -36,12 +36,13 @@ symbiont-telemetry-benchmark = "symbiont_lab.physics3d.telemetry.cli:benchmark_m
 symbiont-telemetry-convert = "symbiont_lab.physics3d.telemetry.cli:convert_main"
 
 [tool.pytest.ini_options]
-norecursedirs = ["backups", ".claude"]
+norecursedirs = ["backups", ".claude", "archive"]
 testpaths = ["tests"]
 addopts = "-m 'not slow'"
 markers = [
   "experiment_contract: mechanical contract for an experiment protocol or runner",
   "slow: test intentionally exercises a longer or more expensive path",
+  "superseded(by, reason): archived test replaced by the canonical test named in `by`",
 ]
 
 [tool.ruff]

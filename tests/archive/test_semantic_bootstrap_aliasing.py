@@ -11,13 +11,14 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from symbiont.core.runtime import OrganismRuntime
 
 from symbiont.cognition.genome import GenomeCodec
 from symbiont.cognition.graph import load_graph_definition
 from symbiont.cognition.limits import KernelLimits
 
-_EXAMPLES = Path(__file__).resolve().parents[3] / "examples" / "cognition"
+_EXAMPLES = Path(__file__).resolve().parents[2] / "examples" / "cognition"
 
 
 def _genome():
@@ -45,6 +46,10 @@ def _readouts_over_ticks(*, bootstrap_semantic_senses: bool, ticks: int) -> list
     return readouts
 
 
-def test_without_semantic_bootstrap_the_example_graph_stays_legitimately_disconnected():
-    readouts = _readouts_over_ticks(bootstrap_semantic_senses=False, ticks=5)
-    assert readouts == [0.0] * 5
+@pytest.mark.superseded(
+    by="tests/unit/core/test_semantic_bootstrap_aliasing.py::test_without_semantic_bootstrap_the_example_graph_stays_legitimately_disconnected",
+    reason="Semantic sense bootstrap is not part of the canonical profile v1 (decontamination P0-P2); no launcher can enable it.",
+)
+def test_with_semantic_bootstrap_system_load_reaches_the_bridge():
+    readouts = _readouts_over_ticks(bootstrap_semantic_senses=True, ticks=20)
+    assert any(value != 0.0 for value in readouts)

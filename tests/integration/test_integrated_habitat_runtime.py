@@ -35,7 +35,12 @@ def test_newborn_has_fresh_acquired_state_and_inherited_genome_only():
     child = habitat.population[child_id]
     assert child.experience_ledger.records == ()
     assert child.social_evidence_ledger.claims == ()
-    assert child.sequence_grounding_ledger.exposures == ()
+    # Nothing is inherited: any exposure is a message addressed to the child
+    # itself after its birth at the tick-1 lifecycle probe.
+    assert all(
+        message.receiver_id == child_id and message.emitted_tick >= 1
+        for message in child.sequence_grounding_ledger.exposures
+    )
     assert child.genome is not None
 
 

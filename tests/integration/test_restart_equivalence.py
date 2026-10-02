@@ -60,6 +60,9 @@ CONTINUATION_TICKS = 40
 #
 # Fabricating either would bridge a causal consequence that never happened in
 # the restored timeline. The remaining fields diverge downstream of cognition.
+# Receptor utility is fed by the bridge's predictive gain, so under sensory
+# plasticity (canonical profile v1) the sensory system and the body schema built
+# on it are downstream of cognition as well.
 RESTART_SENSITIVE_FIELDS = {
     "experience_ledger",
     "private_learning_state",
@@ -72,6 +75,8 @@ RESTART_SENSITIVE_FIELDS = {
     "metabolism",
     "living_body",
     "narrative_journal",
+    "sensory_system",
+    "body_schema",
 }
 # Save metadata: never part of the organism's future-equivalence surface.
 SAVE_METADATA = {"checkpoint_lineage", "runtime_provenance"}
@@ -321,8 +326,16 @@ def test_reacclimation_gate_holds_structure_then_releases(developed) -> None:
     window = KernelLimits().reacclimation_ticks
 
     def topology(subject: PrivateModelOrganismRuntime) -> tuple[set[str], int]:
+        # The gate holds concepts and connections. Receptors are deliberately
+        # outside it: a restored organism may adapt its sensors at once.
         graph = subject.cognitive_bridge.graph
-        return {node.node_id for node in graph.nodes}, len(graph.edges)
+        receptors = {node.node_id for node in graph.nodes if node.node_id.startswith("sensor.")}
+        held_edges = [
+            edge
+            for edge in graph.edges
+            if edge.source_id not in receptors and edge.target_id not in receptors
+        ]
+        return {node.node_id for node in graph.nodes} - receptors, len(held_edges)
 
     at_restart = topology(restored)
     restored.run(window - 1)

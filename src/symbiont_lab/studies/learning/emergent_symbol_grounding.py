@@ -11,6 +11,7 @@ import hashlib
 from dataclasses import asdict, dataclass
 from typing import Sequence
 
+from symbiont.core.organism_profile import HISTORICAL_V0
 from symbiont.modeling import (
     ModeledOrganismRuntime,
     SymbolAction,
@@ -99,16 +100,28 @@ def _trial(
 ) -> dict[str, object]:
     space = default_symbol_space()
     emitter_a = ModeledOrganismRuntime(
-        organism_id=f"esg-a-{seed}", bootstrap_semantic_senses=False, symbol_policy_seed=seed
+        profile=HISTORICAL_V0,
+        organism_id=f"esg-a-{seed}",
+        bootstrap_semantic_senses=False,
+        symbol_policy_seed=seed,
     )
     emitter_b = ModeledOrganismRuntime(
-        organism_id=f"esg-b-{seed}", bootstrap_semantic_senses=False, symbol_policy_seed=seed
+        profile=HISTORICAL_V0,
+        organism_id=f"esg-b-{seed}",
+        bootstrap_semantic_senses=False,
+        symbol_policy_seed=seed,
     )
     learner = ModeledOrganismRuntime(
-        organism_id=f"esg-learner-{seed}", bootstrap_semantic_senses=False, symbol_policy_seed=seed
+        profile=HISTORICAL_V0,
+        organism_id=f"esg-learner-{seed}",
+        bootstrap_semantic_senses=False,
+        symbol_policy_seed=seed,
     )
     newborn = ModeledOrganismRuntime(
-        organism_id=f"esg-newborn-{seed}", bootstrap_semantic_senses=False, symbol_policy_seed=seed
+        profile=HISTORICAL_V0,
+        organism_id=f"esg-newborn-{seed}",
+        bootstrap_semantic_senses=False,
+        symbol_policy_seed=seed,
     )
     pairs = {
         (emitter_a.organism_id, learner.organism_id),

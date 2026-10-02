@@ -40,6 +40,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Sequence
 
+from symbiont.core.organism_profile import HISTORICAL_V0
 from symbiont.modeling import (
     ModeledOrganismRuntime,
     SymbolAction,
@@ -184,16 +185,19 @@ def _run_condition(
     seed_b = _independent_seed(seed)
     assert seed_b != seed  # isg5: interaction can never rely on a shared policy seed
     emitter_a = ModeledOrganismRuntime(
+        profile=HISTORICAL_V0,
         organism_id=f"isg-a-{seed}-{condition}",
         bootstrap_semantic_senses=False,
         symbol_policy_seed=seed,
     )
     emitter_b = ModeledOrganismRuntime(
+        profile=HISTORICAL_V0,
         organism_id=f"isg-b-{seed}-{condition}",
         bootstrap_semantic_senses=False,
         symbol_policy_seed=seed_b,
     )
     learner = ModeledOrganismRuntime(
+        profile=HISTORICAL_V0,
         organism_id=f"isg-learner-{seed}-{condition}",
         bootstrap_semantic_senses=False,
         symbol_policy_seed=seed,

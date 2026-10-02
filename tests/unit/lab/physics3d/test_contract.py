@@ -175,9 +175,11 @@ def test_physics3d_grants_body_sized_bounded_sensory_checkpoint_budget():
 
 def test_physics3d_opts_into_autonomous_validated_predictor_promotion():
     import symbiont_lab.physics3d.runtime as runtime
+    from symbiont.core.organism_profile import CANONICAL
 
-    source = inspect.getsource(runtime)
-    assert source.count("auto_promote_predictors=True") >= 2
+    # Promotion comes from the canonical profile, not from a launcher override.
+    assert CANONICAL.auto_promote_predictors is True
+    assert "auto_promote_predictors" not in inspect.getsource(runtime)
 
 
 def test_humanoid_self_collision_excludes_direct_and_structural_neighbours():
@@ -428,7 +430,10 @@ def test_physics3d_locomotion_constitution_uses_explicit_metabolism():
     source = inspect.getsource(runtime.PyBulletEmbodimentRuntime.__init__)
     assert "explicit_metabolism=True" in source
     assert "replenishment={kind: 0.0 for kind in metabolic_capacity}" in source
-    assert 'interoception_mode="absent"' in source
+    from symbiont.core.organism_profile import CANONICAL
+
+    assert CANONICAL.interoception_mode == "absent"
+    assert "interoception_mode" not in source
 
 
 def test_l3_receptors_remain_opaque_ordinals():

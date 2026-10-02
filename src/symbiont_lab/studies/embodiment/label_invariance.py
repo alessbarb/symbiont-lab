@@ -226,8 +226,6 @@ def _world_label_assay(seed: int, *, steps: int) -> tuple[bool, int | None]:
         topology=HexTopology(width=4, height=4),
         start_cells=(HexCoord(1, 1),),
         movement_enabled=True,
-        sensory_plasticity=True,
-        discover_senses=True,
         experimental_clean=True,
     )
     b = PopulationGenesisRuntime(
@@ -238,8 +236,6 @@ def _world_label_assay(seed: int, *, steps: int) -> tuple[bool, int | None]:
         topology=HexTopology(width=4, height=4),
         start_cells=(HexCoord(1, 1),),
         movement_enabled=True,
-        sensory_plasticity=True,
-        discover_senses=True,
         experimental_clean=True,
     )
 

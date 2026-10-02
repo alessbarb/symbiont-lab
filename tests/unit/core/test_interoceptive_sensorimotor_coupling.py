@@ -16,6 +16,10 @@ from symbiont.core.runtime import OrganismDeadError, OrganismRuntime
 from symbiont.actuation.surface import derive_actuator_constitution
 from symbiont.cognition.birth import load_base_genome
 from symbiont.cognition.limits import KernelLimits
+from symbiont.host.discovery import HostDiscovery
+from symbiont.host.lifecycle import HostLifecycle
+from symbiont.host.providers.interoception import InteroceptionProvider
+from tests.bodies import TestBody, TestBodyDiscovery, test_body_kwargs
 
 
 def _reproduction_genome():
@@ -26,19 +30,33 @@ def _reproduction_genome():
 
 
 def _runtime(interoception_mode: str) -> OrganismRuntime:
-    return OrganismRuntime(
+    """The canonical organism in a deterministic test Body; the study arm only
+    sets interoception. The organism's own interoceptive provider is offered
+    next to the Body so its readings are the ones the runtime updates."""
+    body = TestBody()
+    runtime = OrganismRuntime(
+        **test_body_kwargs(body),
         organism_id="interoception-coupling-probe",
         genome=_reproduction_genome(),
         actuation_enabled=True,
         actuator_constitution=derive_actuator_constitution(
             8, physical_contract="interoception-probe-v2"
         ),
-        bootstrap_semantic_senses=True,
-        discover_senses=True,
         min_samples=1,
         investigate_ticks=0,
         interoception_mode=interoception_mode,
     )
+    # The runtime offers its interoceptive surface only with Linux host
+    # discovery; here the Body is synthetic, so the arm supplies it on any host.
+    internal = InteroceptionProvider() if interoception_mode == "enabled" else None
+    runtime._interoception_provider = internal
+    if internal is not None:
+        providers = (body, internal)
+        runtime._lifecycle = HostLifecycle(
+            discovery=HostDiscovery((TestBodyDiscovery(), internal)), reading_providers=providers
+        )
+        runtime._reading_providers = providers
+    return runtime
 
 
 def _capture_snapshot_sizes(runtime: OrganismRuntime, method_name: str, ticks: int) -> list[int]:

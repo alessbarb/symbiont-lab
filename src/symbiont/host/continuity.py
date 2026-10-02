@@ -310,6 +310,7 @@ REGISTER: tuple[ContinuityEntry, ...] = (
     _config("_investigate_ticks"),
     _config("_conflict_z"),
     _config("_min_samples"),
+    _config("_profile_version"),
     _config("_discover_senses"),
     _config("_bootstrap_semantic_senses"),
     _config("_explicit_metabolism"),
@@ -361,6 +362,7 @@ REGISTER: tuple[ContinuityEntry, ...] = (
     # --- host and process handles ------------------------------------------------
     _handle("_lifecycle", "host.lifecycle"),
     _handle("_reading_providers", "host.providers"),
+    _handle("_host_sense_source", "host.providers"),
     _handle("_interoception_provider", "host.providers"),
     _handle("_habitat", "social.ecology"),
     _handle("_resource_habitats", "social.ecology"),

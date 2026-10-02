@@ -49,11 +49,6 @@ def build_organism_parser(parser: argparse.ArgumentParser) -> None:
     run_cmd.add_argument(
         "--graph-file", help="Override the canonical germinal graph (requires --genome-file)"
     )
-    run_cmd.add_argument(
-        "--sensory-plasticity",
-        action="store_true",
-        help="Enable organism-owned adaptive sensory receptors; off by default for historical equivalence",
-    )
 
     from symbiont.core.foundation.epistemic import DEFAULT_EPISTEMIC_CONVENTIONS
     from symbiont.core.runtime_defaults import (
@@ -95,24 +90,9 @@ def build_organism_parser(parser: argparse.ArgumentParser) -> None:
         default=DEFAULT_EPISTEMIC_CONVENTIONS.established_signal_min_samples,
     )
     live_cmd.add_argument(
-        "--sensory-plasticity",
-        action="store_true",
-        help="Enable organism-owned adaptive sensory receptors; source identities remain opaque",
-    )
-    live_cmd.add_argument(
-        "--semantic-bootstrap",
-        action="store_true",
-        help="Also expose the legacy hand-labelled CPU/disk senses. Off by default: live mode develops opaque senses itself.",
-    )
-    live_cmd.add_argument(
         "--stdout",
         action="store_true",
         help="Emit bounded non-identifying tick summaries for local observers",
-    )
-    live_cmd.add_argument(
-        "--no-interoception",
-        action="store_true",
-        help="Ablate the internal aggregate signal provider for a controlled study",
     )
     live_cmd.add_argument(
         "--genome-file",
@@ -219,8 +199,6 @@ def _runtime_for_run(args: argparse.Namespace) -> OrganismRuntime:
         conflict_z=args.conflict_z,
         min_samples=args.min_samples,
     )
-    if args.sensory_plasticity:
-        kwargs["sensory_plasticity"] = True
     existing_payload = load_checkpoint_file(args.state_file) if args.state_file else None
     if existing_payload is not None:
         return restore_resident_with_canonical_cognition(existing_payload, **kwargs)
@@ -336,12 +314,7 @@ def _run_live(args: argparse.Namespace) -> int:
         investigate_ticks=args.investigate_ticks,
         conflict_z=args.conflict_z,
         min_samples=args.min_samples,
-        discover_senses=True,
-        bootstrap_semantic_senses=bool(args.semantic_bootstrap),
-        interoception_enabled=not args.no_interoception,
     )
-    if args.sensory_plasticity:
-        kwargs["sensory_plasticity"] = True
     existing_payload = load_checkpoint_file(state_file)
     if existing_payload is not None:
         runtime = restore_resident_with_canonical_cognition(existing_payload, **kwargs)

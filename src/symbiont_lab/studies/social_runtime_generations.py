@@ -10,6 +10,7 @@ from symbiont.cognition.limits import KernelLimits
 from symbiont.core.embodiment.metabolism import MetabolicLedger
 from symbiont.core.embodiment.physiology import PhysiologyController
 from symbiont.core.orchestration.runtime import OrganismRuntime
+from symbiont.core.organism_profile import HISTORICAL_V0
 from symbiont.core.social import SocialHabitat
 from symbiont.core.social.interactions import EcologicalResourcePool
 from symbiont_lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
@@ -41,6 +42,7 @@ def run_social_runtime_generations_study(*, generations: int = 3) -> SocialRunti
     social.admit("peer")
     zero = {kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")}
     active = OrganismRuntime(
+        profile=HISTORICAL_V0,
         organism_id="generation-0",
         genome=genome,
         social_habitat=social,

@@ -7,6 +7,7 @@ from dataclasses import asdict, dataclass
 from symbiont.core.embodiment.metabolism import MetabolicLedger
 from symbiont.core.embodiment.physiology import PhysiologyController
 from symbiont.core.orchestration.runtime import OrganismRuntime
+from symbiont.core.organism_profile import HISTORICAL_V0
 from symbiont.core.social import SocialHabitat
 from symbiont.core.social.interactions import EcologicalResourcePool
 
@@ -27,7 +28,7 @@ def run_social_runtime_replay_study() -> SocialRuntimeReplayStudy:
     habitat = SocialHabitat(EcologicalResourcePool({"food": 2.0}), max_members=2)
     habitat.admit("a")
     habitat.admit("b")
-    runtime = OrganismRuntime(organism_id="a", social_habitat=habitat)
+    runtime = OrganismRuntime(profile=HISTORICAL_V0, organism_id="a", social_habitat=habitat)
     runtime.request_social_exchange("b", "food", 0.5)
     runtime.suspend_social_interaction("b")
     runtime_payload = runtime.checkpoint()
@@ -49,6 +50,7 @@ def run_social_runtime_replay_study() -> SocialRuntimeReplayStudy:
     metabolism = MetabolicLedger(replenishment=zero)
     metabolism.charge("maintenance", 8.0)
     dying = OrganismRuntime(
+        profile=HISTORICAL_V0,
         organism_id="b",
         social_habitat=habitat,
         metabolism=metabolism,

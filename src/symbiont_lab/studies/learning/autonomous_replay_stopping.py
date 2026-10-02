@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 
+from symbiont.core.organism_profile import HISTORICAL_V0
 from symbiont.modeling import (
     ModeledOrganismRuntime,
     ModelObjective,
@@ -129,6 +130,7 @@ def run_autonomous_replay_stopping_study(
     for seed in normalized:
         organism_id = f"autonomous-stopping-{seed}"
         runtime = ModeledOrganismRuntime(
+            profile=HISTORICAL_V0,
             organism_id=organism_id,
             bootstrap_semantic_senses=False,
             discover_senses=False,

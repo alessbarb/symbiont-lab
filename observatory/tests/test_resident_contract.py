@@ -103,8 +103,14 @@ class ResidentContractTests(unittest.TestCase):
             self.assertEqual(len(topology_files), 1)
             topology = json.loads(topology_files[0].read_text(encoding="utf-8"))
             self.assertEqual(topology["genome_id"], "genome_symbiont_base_v2")
-            self.assertEqual(topology["topology_revision"], 0)
-            self.assertEqual(topology["nodes"], [])
+            # Canonical profile v1: the newborn admits its own receptors as sense
+            # nodes on the first tick; nothing else is grown yet.
+            self.assertTrue(
+                all(
+                    node["kind"] == "sense" and node["node_id"].startswith("sensor.identity.")
+                    for node in topology["nodes"]
+                )
+            )
             self.assertEqual(topology["edges"], [])
 
             journal_segments = list((observatory_dir / "journal").glob("*.ndjson"))
@@ -129,7 +135,6 @@ class ResidentContractTests(unittest.TestCase):
                     str(genome_file),
                     "--graph-file",
                     str(graph_file),
-                    "--semantic-bootstrap",
                     "--max-ticks",
                     "1",
                     "--interval",
@@ -148,34 +153,6 @@ class ResidentContractTests(unittest.TestCase):
             topology = json.loads(topology_files[0].read_text(encoding="utf-8"))
             self.assertEqual(topology["topology_revision"], 0)
             self.assertTrue(topology["nodes"])
-
-    def test_semantic_bootstrap_flag_is_accepted_and_does_not_break_a_run(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            state_file = Path(tmp) / "organism.json"
-            observatory_dir = Path(tmp) / "observatory-state"
-            result = subprocess.run(
-                [
-                    sys.executable,
-                    "-m",
-                    "symbiont_lab.cli.observed_resident",
-                    "--state-file",
-                    str(state_file),
-                    "--observatory-dir",
-                    str(observatory_dir),
-                    "--semantic-bootstrap",
-                    "--max-ticks",
-                    "1",
-                    "--interval",
-                    "0.01",
-                    "--checkpoint-every",
-                    "1",
-                ],
-                cwd=REPO_ROOT,
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
-            self.assertEqual(result.returncode, 0, msg=result.stderr)
 
 
 if __name__ == "__main__":

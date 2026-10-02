@@ -29,6 +29,12 @@ Local validation is development feedback, not a second publication gate. Run tar
 checks when they help diagnose the touched code. Do not routinely duplicate the full CI
 suite locally.
 
+Leave the test suite describing the organism as it is now (ADR-0062). When a
+change makes a test assert behavior that no longer applies, do not weaken it,
+skip it or leave it failing: either migrate it to the canonical organism, if the
+mechanism it checks still exists, or archive it as superseded under the rules in
+`tests/README.md`. Every change that obsoletes a test cleans it in the same change.
+
 ## Publish once
 
     python scripts/agentctl.py publish --message "..."

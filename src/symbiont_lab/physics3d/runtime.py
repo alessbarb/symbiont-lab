@@ -532,12 +532,9 @@ class PyBulletEmbodimentRuntime:
                 cognitive_graph=graph,
                 kernel_limits=resolved_limits,
                 mutation_seed=seed,
-                bootstrap_semantic_senses=False,
-                discover_senses=True,
                 sensory_system=physics3d_sensory_system(
                     max_active_sensors=self.body_descriptor.sensory_capacity
                 ),
-                sensory_plasticity=True,
                 metabolism=MetabolicLedger(
                     capacity=metabolic_capacity,
                     replenishment={kind: 0.0 for kind in metabolic_capacity},
@@ -545,9 +542,7 @@ class PyBulletEmbodimentRuntime:
                 ),
                 living_body_state=living_body_state,
                 explicit_metabolism=True,
-                interoception_mode="absent",
                 min_samples=1,
-                auto_promote_predictors=True,
                 actuation_enabled=True,
                 actuator_constitution=actuator_constitution,
                 competence_development=CompetenceDevelopmentEngine(
@@ -628,13 +623,8 @@ class PyBulletEmbodimentRuntime:
                 actuator_constitution_override=canonical_actuator_surface,
                 host_lifecycle=host_lifecycle,
                 host_reading_providers=(reading_provider,),
-                bootstrap_semantic_senses=False,
-                discover_senses=True,
-                sensory_plasticity=True,
                 explicit_metabolism=True,
-                interoception_mode="absent",
                 min_samples=1,
-                auto_promote_predictors=True,
             )
             self._embodiment_contract = contract
 

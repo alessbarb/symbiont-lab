@@ -419,8 +419,6 @@ def test_clean_world_executes_without_legacy_runtime_monkeypatched(monkeypatch):
         topology=HexTopology(width=4, height=4),
         start_cells=(HexCoord(1, 1),),
         movement_enabled=True,
-        sensory_plasticity=True,
-        discover_senses=True,
         experimental_clean=True,
     )
 
@@ -450,8 +448,6 @@ def test_clean_world_architecture_has_zero_legacy_runtime_dependency():
         organism_seed=43,
         ground_truth=build_ground_truth(),
         policy="cognitive",
-        sensory_plasticity=True,
-        discover_senses=True,
         actuation_enabled=True,
         experimental_clean=True,
     )

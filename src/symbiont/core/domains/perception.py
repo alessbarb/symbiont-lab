@@ -343,6 +343,17 @@ class PerceptionDomain:
                 baseline = DriftAwareBaseline()
                 services.drift_baselines[percept.name] = baseline
             drift_observations[percept.name] = baseline.observe(percept.value)
+        # A receptor whose every source left the host manifest no longer has a
+        # signal to track: its baseline is released, as adaptive-sense eviction
+        # already does on the non-plastic path. It restarts if the source returns.
+        if services.sensory_system.plasticity_enabled:
+            available_sources = {
+                capability.capability_id for capability in snapshot.manifest.available
+            }
+            for name in tuple(services.drift_baselines):
+                sensor = sensor_by_cognitive_name.get(name)
+                if sensor is not None and available_sources.isdisjoint(sensor.source_ids):
+                    del services.drift_baselines[name]
 
         assimilation: list[AssimilationDecision] = []
         for observation in drift_observations.values():

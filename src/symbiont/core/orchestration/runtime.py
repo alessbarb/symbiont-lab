@@ -116,6 +116,7 @@ from ..embodiment.physiology import (
 )
 from ..foundation.narrative import NarrativeEntry
 from ..lineage.inheritance import EpigeneticPrior
+from ..organism_profile import CANONICAL, HISTORICAL_V0, PROFILES, OrganismProfile
 from ..regulation import InnateReactivity, ReactiveMemory
 from ..signals.identity import SignalIdentity
 from ..signals.knowledge import MAX_KNOWLEDGE_CHECKPOINT_BYTES, SignalKnowledgeEngine
@@ -277,11 +278,11 @@ class OrganismRuntime:
         rhythm_model: RhythmModel | None = None,
         drift_baselines: dict[str, DriftAwareBaseline] | None = None,
         tick_count: int = 0,
-        discover_senses: bool = False,
-        bootstrap_semantic_senses: bool = True,
+        discover_senses: bool | None = None,
+        bootstrap_semantic_senses: bool | None = None,
         adaptive_senses: AdaptiveSenseModel | None = None,
         sensory_system: SensorySystem | None = None,
-        sensory_plasticity: bool = False,
+        sensory_plasticity: bool | None = None,
         self_model: SelfModel | None = None,
         body_schema: BodySchemaEngine | None = None,
         evidence_ledger: EvidenceRevisionLedger | None = None,
@@ -314,13 +315,13 @@ class OrganismRuntime:
         exchange_guard: ExchangeReplayGuard | None = None,
         exchange_sequence: int = 0,
         explicit_metabolism: bool = False,
-        auto_promote_predictors: bool = False,
+        auto_promote_predictors: bool | None = None,
         generation: int = 0,
         social_exchange_quantum: float = 0.1,
         social_exchange_cost: float = 0.01,
         resting_requested: bool = False,
         degradation_queue: DegradationQueue | None = None,
-        interoception_enabled: bool = True,
+        interoception_enabled: bool | None = None,
         interoception_mode: str | None = None,
         developmental_tracker: DevelopmentalTracker | None = None,
         actuation_enabled: bool = False,
@@ -334,9 +335,32 @@ class OrganismRuntime:
         executive_mode: ExecutiveMode = ExecutiveMode.FULL,
         intention_policy: IntentionPolicy | None = None,
         executive_admission_policy: ExecutiveAdmissionPolicy | None = None,
-        factorized_effects: bool = False,
+        factorized_effects: bool | None = None,
         persist_replay_state: bool | None = None,
+        profile: OrganismProfile | None = None,
     ) -> None:
+        # Governed options left unset come from the organism profile (ADR-0062).
+        profile = profile if profile is not None else CANONICAL
+        self._profile_version = profile.version
+        if discover_senses is None:
+            discover_senses = profile.discover_senses
+        if bootstrap_semantic_senses is None:
+            bootstrap_semantic_senses = profile.bootstrap_semantic_senses
+        if sensory_plasticity is None:
+            sensory_plasticity = profile.sensory_plasticity
+        if auto_promote_predictors is None:
+            auto_promote_predictors = profile.auto_promote_predictors
+        if factorized_effects is None:
+            factorized_effects = profile.factorized_effects
+        if intention_policy is None:
+            intention_policy = profile.intention_policy()
+        if interoception_mode is None:
+            interoception_mode = (
+                profile.interoception_mode
+                if interoception_enabled is None
+                else ("enabled" if interoception_enabled else "absent")
+            )
+        interoception_enabled = interoception_mode != "absent"
         if attention_budget <= 0.0:
             raise ValueError("attention_budget must be positive")
         if investigate_ticks < 0:
@@ -360,12 +384,8 @@ class OrganismRuntime:
             else SensorySystem(plasticity_enabled=sensory_plasticity)
         )
         self._discover_senses = discover_senses
-        if interoception_mode is None:
-            interoception_mode = "enabled" if interoception_enabled else "absent"
         if interoception_mode not in {"enabled", "sham", "absent"}:
             raise ValueError("interoception_mode must be enabled, sham or absent")
-        if interoception_mode == "absent" and interoception_enabled:
-            interoception_enabled = False
         self._interoception_mode = interoception_mode
         self._interoception_enabled = interoception_mode != "absent"
 
@@ -398,6 +418,16 @@ class OrganismRuntime:
             self._interoception_provider = None
 
         self._reading_providers = tuple(reading_providers)
+        # The host is one sense source among others (Body, vision, ...). Where
+        # it cannot be read the organism is still born, and says so (ADR-0062).
+        if host_lifecycle is not None:
+            self._host_sense_source = "embodied"
+        elif not discover_senses:
+            self._host_sense_source = "not_requested"
+        elif platform.system() == "Linux":
+            self._host_sense_source = "available"
+        else:
+            self._host_sense_source = "unavailable"
         if host_lifecycle is not None:
             if not isinstance(host_lifecycle, HostLifecycle):
                 raise TypeError("host_lifecycle must be a HostLifecycle")
@@ -1362,6 +1392,7 @@ class OrganismRuntime:
             "investigate_ticks": self._investigate_ticks,
             "conflict_z": self._conflict_z,
             "min_samples": self._min_samples,
+            "profile_version": self._profile_version,
             "discover_senses": self._discover_senses,
             "bootstrap_semantic_senses": self._bootstrap_semantic_senses,
             "sensory_plasticity": self._sensory_system.plasticity_enabled,
@@ -1374,6 +1405,7 @@ class OrganismRuntime:
             "resting_requested": self._resting_requested,
             "interoception_enabled": self._interoception_enabled,
             "interoception_mode": self._interoception_mode,
+            "host_sense_source": self._host_sense_source,
             "mutation_seed": self._mutation_seed,
             "epigenetic_decay": self._epigenetic_decay,
             "actuation_enabled": self._actuation_enabled,
@@ -3082,6 +3114,13 @@ class OrganismRuntime:
         ):
             if name not in constructor_kwargs and name in effective:
                 constructor_kwargs[name] = effective[name]
+        # A restored organism keeps the profile it was born with (ADR-0062);
+        # checkpoints written before profiles existed are historical.
+        if "profile" not in constructor_kwargs:
+            born_with = effective.get("profile_version", HISTORICAL_V0.version)
+            if born_with not in PROFILES:
+                raise CheckpointError(f"unknown organism profile version: {born_with!r}")
+            constructor_kwargs["profile"] = PROFILES[born_with]
         if "min_samples" not in constructor_kwargs:
             constructor_kwargs["min_samples"] = min_samples
         if "conflict_z" not in constructor_kwargs:

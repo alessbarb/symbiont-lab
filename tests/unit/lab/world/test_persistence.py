@@ -595,8 +595,6 @@ def test_clean_mode_is_checkpointed_and_restored():
         topology=HexTopology(width=4, height=4),
         start_cells=(HexCoord(1, 1),),
         movement_enabled=True,
-        sensory_plasticity=True,
-        discover_senses=True,
         experimental_clean=True,
     )
     checkpoint = capture_checkpoint(pop, world_fingerprint="clean-fp")
@@ -605,8 +603,6 @@ def test_clean_mode_is_checkpointed_and_restored():
     restored = restore_population_from_checkpoint(
         checkpoint,
         gt,
-        sensory_plasticity=True,
-        discover_senses=True,
     )
     assert restored.experimental_clean is True
     rig = restored._rigs["clean-a"]
