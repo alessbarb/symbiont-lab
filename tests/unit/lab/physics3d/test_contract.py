@@ -629,6 +629,36 @@ def test_physics3d_applies_all_concurrent_actuations_in_one_tick():
     }
 
 
+def test_physics3d_external_physical_actuation_override_is_bounded_and_complete():
+    from types import SimpleNamespace
+
+    import pytest
+
+    from symbiont_lab.physics3d.runtime import PyBulletEmbodimentRuntime
+
+    applied = {}
+
+    class Apparatus:
+        effector_ids = ("eff.0", "eff.1", "eff.2")
+
+        def apply_effectors(self, physical):
+            applied.update(physical)
+
+    runtime = PyBulletEmbodimentRuntime.__new__(PyBulletEmbodimentRuntime)
+    runtime.apparatus = Apparatus()
+    runtime._actuator_to_effector = {}
+    runtime.organism = SimpleNamespace(last_actuations=())
+
+    active = runtime._apply_runtime_actuation({"eff.1": 0.65})
+
+    assert active == 1
+    assert applied == {"eff.0": 0.0, "eff.1": 0.65, "eff.2": 0.0}
+    with pytest.raises(ValueError, match="unknown physical effector"):
+        runtime._apply_runtime_actuation({"motor.unknown": 0.2})
+    with pytest.raises(ValueError, match="finite in \\[0, 1\\]"):
+        runtime._apply_runtime_actuation({"eff.0": float("nan")})
+
+
 def test_physics3d_resume_projects_solver_penetration_but_direct_restore_stays_strict():
     import inspect
 
