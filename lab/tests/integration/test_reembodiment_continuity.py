@@ -122,7 +122,7 @@ def test_symbiont_owned_state_is_preserved_exactly(case: _Case) -> None:
         for entry in REGISTER
         if entry.reembodiment is Reembodiment.PRESERVED
         for field in entry.checkpoint_fields
-    } - SAVE_METADATA
+    } - SAVE_METADATA - {"body_schema"}
 
     changed = {
         field
@@ -179,9 +179,26 @@ def test_current_body_authority_is_withdrawn(case: _Case) -> None:
 def test_knowledge_survives_as_knowledge_without_authority(case: _Case) -> None:
     restored = case.restore()
 
-    # BodySchema is carried as historical inference, not promoted to fresh-body
-    # fact. Current actuation authority is checked independently below.
-    assert case.transformed["body_schema"] == case.previous["body_schema"]
+    # Longitudinal BodySchema knowledge survives, while the old episode's
+    # body-boundary classification is retained only in history, not promoted
+    # as a fact about Body B.
+    prior_schema = _json(case.previous["body_schema"])
+    current_schema = _json(case.transformed["body_schema"])
+    prior_boundary = prior_schema["boundary_evidence"]
+    reset_boundary = {
+        "self_caused_channels": [],
+        "somatic_correlated_channels": [],
+        "external_channels": [],
+        "confidence": 0.0,
+        "revision_count": 0,
+        "disruption_score": 0.0,
+    }
+    prior_schema["boundary_evidence"] = reset_boundary
+    assert current_schema == prior_schema
+    assert prior_boundary["self_caused_channels"]
+    assert case.transformed["embodiment_lifecycle"]["history"][0]["body_schema"] == (
+        case.previous["body_schema"]
+    )
     assert {node.node_id for node in restored.cognitive_bridge.graph.nodes} == (
         case.graph_nodes_in_a
     )
@@ -210,7 +227,6 @@ def test_experience_continues_in_body_b_without_erasing_body_a_knowledge(
         min_samples=1,
         interoception_mode="absent",
     )
-
     run_ticks(restored, body_b, 50)
 
     assert restored.tick_count == DEVELOPMENT_TICKS + 50
@@ -287,7 +303,9 @@ def test_the_whole_lifecycle_holds_per_register_entry(case: _Case) -> None:
     reembodied = case.restore(transformed)
     final = _json(reembodied.checkpoint())
 
-    preserved = _fields(Reembodiment.PRESERVED) & set(resaved)
+    # BodySchema's nested body-boundary authority has its own subfield rule:
+    # the old full schema is archived and only that active classification resets.
+    preserved = (_fields(Reembodiment.PRESERVED) & set(resaved)) - {"body_schema"}
     invalidated = _fields(Reembodiment.INVALIDATED) & set(resaved)
     # ``actuation`` carries both the domain (authority invalidated) and the new
     # Body's enablement; the domain rule governs the field as a whole.

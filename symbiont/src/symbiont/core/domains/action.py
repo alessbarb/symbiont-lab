@@ -1392,9 +1392,6 @@ class ActionDomain:
         # organism-owned causal effects and agency only, from any causal
         # source — body ownership does not wait for a motor competence.
         # Controllability alone never makes a channel part of Body.
-        # Boundary evidence must come from this observed transition. Scanning
-        # the organism-wide EffectSpace here reintroduced effects learned in a
-        # prior Body as if they were observations of the current Body.
         observed_features = {
             feature for feature in opaque_changes if not feature.startswith("channel.")
         }

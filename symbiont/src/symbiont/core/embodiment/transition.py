@@ -418,9 +418,10 @@ def prepare_fresh_embodiment_checkpoint(
 ) -> dict[str, Any]:
     """Move one unchanged Symbiont into a fresh Body.
 
-    Re-embodiment never rewrites learned Symbiont state. Only Body-owned
-    physiology and current execution authority are replaced. Any adaptation to
-    the new embodiment must be acquired later through ordinary experience.
+    Re-embodiment preserves longitudinal Symbiont knowledge and archives the
+    closed episode. Body-relative boundary classification and execution
+    authority are withdrawn; adaptation to the new embodiment must be acquired
+    through ordinary experience.
     """
     previous = migrate_temporal_domains(previous)
     result = deepcopy(dict(previous))
@@ -448,6 +449,21 @@ def prepare_fresh_embodiment_checkpoint(
             end_reason=("body_death" if _body_vital_state(previous) == "dead" else "body_replaced"),
         )
         result["embodiment_archive"] = archive.checkpoint()
+    # The prior full BodySchema is retained in the closed episode archive.
+    # Its active boundary classification is body-relative, so it cannot remain
+    # current-body evidence after the transition.
+    raw_body_schema = result.get("body_schema")
+    if isinstance(raw_body_schema, dict):
+        boundary = raw_body_schema.get("boundary_evidence")
+        if isinstance(boundary, dict):
+            raw_body_schema["boundary_evidence"] = {
+                "self_caused_channels": [],
+                "somatic_correlated_channels": [],
+                "external_channels": [],
+                "confidence": 0.0,
+                "revision_count": 0,
+                "disruption_score": 0.0,
+            }
     # A new physical Body always starts a new canonical episode. Never carry
     # the previous body/episode identity through the compatibility transform.
     result.pop("embodiment_episode", None)
@@ -684,10 +700,9 @@ def prepare_fresh_embodiment_checkpoint(
     )
 
     # The Symbiont itself is invariant across re-embodiment. Cognitive state,
-    # private models, self-model, sensory learning and learned BodySchema are
-    # preserved exactly. A new Body may make parts of that knowledge currently
-    # inapplicable, but experience must revise it; re-embodiment never erases
-    # or degrades it by fiat.
+    # private models, self-model, sensory learning and longitudinal BodySchema
+    # structure are preserved. The old episode archive retains the complete
+    # BodySchema; only its current-body boundary classification is reset above.
     if historical_bridge is not None:
         result["cognitive_bridge"] = historical_bridge
 

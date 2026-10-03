@@ -154,7 +154,7 @@ unverified semantics and evidence.
 | SYM-01 continuation-condition integrity | **Implemented locally**; schema 12 verifies a separate condition hash and rejects missing contemporary controls | Hash is unkeyed integrity, not authentication; no publication claim yet |
 | SYM-02 silent rebirth on missing checkpoint | **Resolved in this repository**; required restore fails and first-boot creation is explicitly named; the replay CLI uses required restore | External deployments are outside this checkout and cannot be audited here |
 | SYM-03 observer telemetry changes organism energy | **Regression fixed locally**; instrumentation-invariance test passes | Reconcile trajectory impact with approved Canonical Organism Profile v1; no owner-approved profile consequence recorded yet |
-| SYM-04 BodySchema historical knowledge vs current-body authority | **Partially addressed; open** | The action-domain boundary writer uses only the just-closed transition and current-embodiment agency estimates; per-item provenance and all other consumers remain unaudited |
+| SYM-04 BodySchema historical knowledge vs current-body authority | **Boundary authority addressed; broader semantics open** | Re-embodiment archives the prior schema and resets active boundary evidence; retained sensory/cognitive items still lack per-item provenance and all consumers are not audited |
 | SYM-05 exact checkpoint schema policy | **Implemented/documented**; only schema 12 restores | Historical checkpoints are archival evidence, not live-restorable organisms |
 | SYM-06 continuity register semantic correctness | **Partially addressed; open** | Integration checks cover registered fields through restore/re-embodiment, not the semantic correctness of every classification and consumer |
 | SYM-07 epistemic ownership | **Design proposed; audit open** | Ownership matrix is not yet populated and reconciled against all live mechanisms |
@@ -174,13 +174,15 @@ unverified semantics and evidence.
 
 BodySchema's current representation has no per-item body/episode provenance.
 Its values include learned sensory/cognitive structure and agency-boundary
-evidence. The action-domain boundary update now uses only the just-closed
-transition and agency estimates updated after the current embodiment began;
-unit and re-embodiment tests cover that path. Passive runtime snapshots and
-embodiment adaptation/continuity summaries remain consumers, and preserved
-knowledge is still stored in one mixed representation. SYM-04 remains open
-pending per-item provenance and a broader consumer audit; do not promote the
-prior to current-body fact or execution authority.
+evidence. Canonical re-embodiment now archives the complete prior schema and
+resets active boundary classes. The action-domain boundary update uses only
+channels from the just-closed transition and agency estimates newer than the
+current episode start; integration tests check that inference against Body B
+identities. Passive
+runtime snapshots and embodiment adaptation/continuity summaries remain
+consumers, and sensory/cognitive knowledge is still one mixed representation.
+SYM-04 remains open for those semantics and a broader consumer audit; do not
+promote prior knowledge to current-body fact or execution authority.
 
 ### Canonical-profile gate
 

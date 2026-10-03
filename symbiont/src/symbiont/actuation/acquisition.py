@@ -860,7 +860,10 @@ class AgencyAcquisition:
 
     # -- derived views --------------------------------------------------------
     def self_caused_features(
-        self, *, min_confidence: float, updated_after_tick: int | None = None
+        self,
+        *,
+        min_confidence: float,
+        updated_after_tick: int | None = None,
     ) -> set[str]:
         """Effect features the organism probably causes, from any causal source."""
         features: set[str] = set()
