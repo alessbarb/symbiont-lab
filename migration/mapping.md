@@ -53,6 +53,7 @@ New in the organism: `symbiont/src/symbiont/api.py` (public surface, re-exports 
 | `src/symbiont_lab/observation/demo.py`, server/CLI `--demo` | synthetic UI telemetry |
 | `observatory/` front-end: `index.html`, `app.js`, `styles.css`, `communication/`, `projection/`, `render/`, `state/`, `transport/`, `ui/` | legacy Observatory UI, including its demo state |
 | `src/symbiont_lab/app/{main,main_window,discovery,models,run_controller}.py`, `physics3d_*.py` facades, `app` command, `symbiont-lab-gui` | desktop workbench |
+| `_migrate_v1_to_v2` … `_migrate_v10_to_v11` in `symbiont/host/checkpoint.py`, `tests/compatibility/` | checkpoint migrations from schemas 1–10 |
 | `src/symbiont/core/lineage/heredity.py`, `core/canonical_birth.py`, telemetry and monitor facades, `tests/archive/` | removed-API stubs, forwarders, archived tests |
 
 Everything removed remains in the source repository and in this repository's

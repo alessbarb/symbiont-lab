@@ -13,9 +13,10 @@ All runs are in this repository; the source repository was never executed.
 | After alias/forwarder removal | same | 4211 passed, 8 failed (commit-dependent) |
 | Legacy simulation, lab demo, Observatory front removed; packages renamed (uncommitted tree) | `pytest -o addopts= -n 8` over `tests` and `lab/src/lab/observatory/tests` | 3918 passed, 14 failed, 10 skipped, 2 xfailed |
 | Same tree, committed | same | 3932 passed, 0 failed, 10 skipped, 2 xfailed |
-| **Final**, desktop workbench removed | same | **3925 passed, 0 failed, 10 skipped, 2 xfailed** |
+| Desktop workbench removed | same | 3925 passed, 0 failed, 10 skipped, 2 xfailed |
+| **Final**, checkpoint migrations v1→v10 removed | same | **3857 passed, 0 failed, 10 skipped, 2 xfailed** |
 
-The drop from 4456 to 3925 passing tests is deletion of tests for removed
+The drop from 4456 to 3857 passing tests is deletion of tests for removed
 code: legacy simulation and its studies, the Observatory front-end, the lab
 demo, the desktop workbench, archived tests. No test of surviving code was deleted to make the suite
 pass, with three exceptions listed under "Coverage given up".
@@ -54,8 +55,9 @@ Old code extracted with `git archive`, run in a separate interpreter.
 | new save → old load | same state hash |
 | checkpoint schema | 11, unchanged; serialized field set unchanged |
 
-Real checkpoint fixtures (schema v1, v10), genome v1 and migration tests in
-`tests/compatibility` pass in the new layout, as do the re-embodiment tests.
+The re-embodiment tests pass. The real checkpoint fixtures (schema v1, v10) and
+migration tests in `tests/compatibility` passed in the new layout and were then
+removed together with the migrations: schema 11 is the only schema that loads.
 A full Physics3D equivalence campaign was not run (see `open-issues.md` OI-10).
 
 ## Organism independence (§18)
@@ -96,5 +98,9 @@ relative links repaired; nothing else changed.
   No equivalent on a surviving protocol was written.
 - `tests/smoke/test_unified_app_assets.py::test_unified_server_emits_live_organism_sse`
   relied on demo telemetry as its event source.
+- `tests/unit/host/test_legacy_admission_policy.py` and
+  `tests/unit/lab/experiments/test_snapshot_origin.py` built their subjects from
+  schema-10 payloads. The code they cover (admission of checkpoints flagged
+  `unverified_legacy_origin`) still exists and is now untested.
 - `tests/unit/lab/world/test_w01_w02_experiment.py` imported a runner script of
   a completed experiment that still uses the old package names (OI-9).

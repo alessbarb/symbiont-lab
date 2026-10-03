@@ -9,7 +9,6 @@ from symbiont.cognition.structure import StructuralPlasticity
 from symbiont.cognition.types import EdgeKind, NodeKind
 from symbiont.core.cognition.bridge import CognitiveBridge
 from symbiont.host.adaptive import AdaptiveSenseModel
-from symbiont.host.checkpoint import normalize_checkpoint
 from symbiont.host.readings import ReadingPrivacyClass, ReadingQuality, SensorReading, Unit
 
 _GENOME_PAYLOAD = {
@@ -115,37 +114,6 @@ def test_under_sampled_seen_surface_stays_dormant_after_restore_without_stats() 
     assert restored.states == ()
     assert plan.dormant_count == 1
     assert plan.unknown_count == 1
-
-
-def test_v4_checkpoint_normalizes_once_for_all_resident_subsystems() -> None:
-    v4 = {
-        "schema_version": 4,
-        "saved_at_tick": 38,
-        "sensory_development": {
-            "states": [
-                {
-                    "capability_id": "compute.logical_cpu",
-                    "percept_name": "sense_example",
-                    "samples": 8,
-                    "available_samples": 8,
-                    "mean": 1.0,
-                    "m2": 2.0,
-                    "delta_ewma": 0.1,
-                }
-            ]
-        },
-        "cognitive_bridge": {"graph": None},
-    }
-
-    normalized = normalize_checkpoint(v4)
-
-    assert v4["schema_version"] == 4
-    assert normalized["schema_version"] == 11  # ADR-0042 rhythm step, then v11 identity
-    fingerprints = normalized["sensory_development"]["known_capability_fingerprints"]
-    assert len(fingerprints) == 1
-    assert len(fingerprints[0]) == 64
-    assert normalized["cognitive_bridge"]["previous_frame"] == {}
-    assert normalized["cognitive_bridge"]["structural_plasticity"] == {}
 
 
 def test_p5_p11_previous_frame_is_never_exported_and_cold_starts_on_restore() -> None:

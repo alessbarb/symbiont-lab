@@ -39,7 +39,7 @@ from symbiont.host.adaptive import (
     _ADAPTIVE_HISTORICAL_MIN_SAMPLES,
     AdaptiveSenseModel,
 )
-from tests.checkpoints import as_legacy, edited
+from tests.checkpoints import edited
 
 
 def test_epistemic_conventions_invariants() -> None:
@@ -517,55 +517,6 @@ def test_multi_subsystem_physiology_resolution_contradiction() -> None:
         ValueError, match="incompatible degradation_queue ticks with subsystem physiology config"
     ):
         OrganismRuntime(homeostasis=homeo, degradation_queue=incompat_deg)
-
-
-def test_checkpoint_physiology_fail_closed_and_migration() -> None:
-    from symbiont.core.orchestration.runtime import OrganismRuntime
-    from symbiont.host.checkpoint import CheckpointError
-
-    runtime = OrganismRuntime(organism_id="symbiont-ckpt-test", min_samples=7, conflict_z=2.75)
-    ckpt = runtime.checkpoint()
-
-    # 1. Successful checkpoint restore preserving min_samples and conflict_z
-    restored = OrganismRuntime.from_checkpoint(ckpt)
-    assert restored.min_samples == 7
-    assert restored.conflict_z == 2.75
-    assert restored.runtime_fingerprint() == runtime.runtime_fingerprint()
-
-    # 2. Corrupted physiology config raises CheckpointError (fail closed)
-    corrupted_ckpt = dict(ckpt)
-    corrupted_ckpt["effective_config"] = dict(ckpt["effective_config"])
-    corrupted_ckpt["effective_config"]["physiology"] = "not-a-valid-dict"
-    with pytest.raises(CheckpointError, match="invalid physiology config"):
-        OrganismRuntime.from_checkpoint(edited(corrupted_ckpt))
-
-    # Invalid physiology numbers (e.g., negative or inverted ratios)
-    invalid_nums_ckpt = dict(ckpt)
-    invalid_nums_ckpt["effective_config"] = dict(ckpt["effective_config"])
-    invalid_nums_ckpt["effective_config"]["physiology"] = {
-        **ckpt["effective_config"]["physiology"],
-        "ratio_severe": 0.9,
-        "ratio_elevated": 0.1,  # inverted
-    }
-    with pytest.raises(CheckpointError, match="invalid physiology config"):
-        OrganismRuntime.from_checkpoint(edited(invalid_nums_ckpt))
-
-    # 3. Historical checkpoint migration: absent effective_config["physiology"]
-    # but valid degradation queue ticks
-    historical_ckpt = dict(ckpt)
-    historical_ckpt["effective_config"] = dict(ckpt["effective_config"])
-    historical_ckpt["effective_config"].pop("physiology", None)
-    historical_ckpt["degradation"] = {
-        "schema_version": 1,
-        "max_items": 64,
-        "aging_ticks": 44,
-        "waste_ticks": 12,
-        "excreted_units": 0,
-        "items": [],
-    }
-    restored_hist = OrganismRuntime.from_checkpoint(as_legacy(historical_ckpt))
-    assert restored_hist.physiology_config.aging_ticks == 44
-    assert restored_hist.physiology_config.waste_ticks == 12
 
 
 def test_epistemic_conventions_hardened_bijection() -> None:

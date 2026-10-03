@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from hashlib import sha256
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from ..core.foundation.limits import OrganismLimits
 from .acclimation import CapabilityBaseline, HostAcclimation
@@ -39,16 +39,6 @@ _IDENTITY_EXCLUDED_FIELDS = frozenset(
     {"checkpoint_lineage", "runtime_provenance"}
     | {field.checkpoint_field for field in APPARATUS_FIELDS}
 )
-# v8 -> v9 removes the contaminated typed local-action-selection subsystem
-# (ActionKind/ExpectedOutcome/LocalActionModel and its scalar utility
-# function) from canonical symbiont.core.orchestration.runtime.  See _migrate_v8_to_v9:
-# it is a validation gate, not a compatibility shim.  A v8 checkpoint that
-# carries ``action_evidence``/``action_model``/``interoceptive_action_model``/
-# ``pending_action_observation`` payloads, or an ``autonomous_behavior``/
-# ``behavior_exploration`` effective_config, is hard-rejected with
-# CheckpointError; there is no decontaminated equivalent to migrate that
-# state into.  A v8 checkpoint that never populated those fields (the
-# canonical default) carries forward unchanged.
 MAX_HOST_CHECKPOINT_BYTES = OrganismLimits().max_host_checkpoint_bytes
 
 
@@ -77,11 +67,7 @@ def _seed_from_payload(entry: dict[str, Any]) -> ConsolidatedBaselineSeed:
 
 
 def _baseline_from_stats_entry(entry: dict[str, Any]) -> CapabilityBaseline:
-    """By the time this runs, normalize_checkpoint has already migrated any
-    older payload up to CHECKPOINT_SCHEMA_VERSION (design §14) -- only the
-    consolidated {center_class, scale_class, maturity_class} shape ever
-    reaches here now. The PR3 dual-read fallback this replaced is retired
-    now that _migrate_v5_to_v6 handles the boundary properly."""
+    """Only the consolidated {center_class, scale_class, maturity_class} shape reaches here."""
     return seed_capability_baseline(_seed_from_payload(entry))
 
 
@@ -149,297 +135,6 @@ def export_checkpoint(
             }
 
     return payload
-
-
-def _migrate_v1_to_v2(payload: dict[str, Any]) -> dict[str, Any]:
-    """v1 checkpoints predate ``saved_at_tick`` — v2 makes it explicit but
-    optional, defaulting to ``None`` (unknown) for anything migrated from
-    v1 rather than guessing a tick count that was never recorded."""
-    migrated = dict(payload)
-    migrated["schema_version"] = 2
-    migrated.setdefault("saved_at_tick", None)
-    return migrated
-
-
-def _migrate_v2_to_v3(payload: dict[str, Any]) -> dict[str, Any]:
-    """v2 checkpoints predate the organism self-model (roadmap v0.53) — v3
-    adds it as an empty, additive top-level key so a checkpoint saved before
-    this milestone restores with a cold-start self-model rather than
-    failing to load."""
-    migrated = dict(payload)
-    migrated["schema_version"] = 3
-    migrated.setdefault("self_model", {})
-    return migrated
-
-
-def _migrate_v3_to_v4(payload: dict[str, Any]) -> dict[str, Any]:
-    """v3 self_model entries predate per-sense last_observed_tick (roadmap
-    v0.54) — v4 backfills it to saved_at_tick (or 0) for every existing
-    entry, the most conservative assumption: as if every sense was observed
-    at the moment of the last save, so nothing decays as artificially idle
-    immediately after migrating an old checkpoint."""
-    migrated = dict(payload)
-    migrated["schema_version"] = 4
-    fallback_tick = migrated.get("saved_at_tick") or 0
-    self_model = dict(migrated.get("self_model", {}))
-    for sense_id, entry in self_model.items():
-        if isinstance(entry, dict) and "last_observed_tick" not in entry:
-            entry = dict(entry)
-            entry["last_observed_tick"] = fallback_tick
-            self_model[sense_id] = entry
-    migrated["self_model"] = self_model
-    return migrated
-
-
-def _migrate_v4_to_v5(payload: dict[str, Any]) -> dict[str, Any]:
-    """v5 makes resident continuity explicit without inventing historical
-    telemetry that v4 intentionally did not persist.
-
-    Established sensory states already contain their capability ids, so
-    their one-way recognition fingerprints can be derived safely. Immature
-    candidates omitted by v4 for privacy cannot be reconstructed and remain
-    unknown until they are sampled again. Cognitive previous-frame and
-    structural-candidate state likewise did not exist in v4; their migration
-    defaults are therefore empty rather than fabricated.
-    """
-    migrated = dict(payload)
-    migrated["schema_version"] = 5
-
-    raw_sensory = migrated.get("sensory_development")
-    if isinstance(raw_sensory, dict):
-        sensory = dict(raw_sensory)
-        fingerprints: list[str] = []
-        for entry in sensory.get("states", []):
-            if not isinstance(entry, dict):
-                continue
-            capability_id = entry.get("capability_id")
-            if not isinstance(capability_id, str) or not capability_id:
-                continue
-            fingerprint = _capability_fingerprint(capability_id)
-            if fingerprint not in fingerprints:
-                fingerprints.append(fingerprint)
-        sensory.setdefault("known_capability_fingerprints", fingerprints)
-        migrated["sensory_development"] = sensory
-
-    raw_bridge = migrated.get("cognitive_bridge")
-    if isinstance(raw_bridge, dict):
-        bridge = dict(raw_bridge)
-        bridge.setdefault("previous_frame", {})
-        bridge.setdefault("structural_plasticity", {})
-        migrated["cognitive_bridge"] = bridge
-
-    return migrated
-
-
-def _migrate_acclimation_style_entry(entry: dict[str, Any]) -> dict[str, Any]:
-    if "center_class" in entry:
-        return entry
-    seed = consolidate_baseline(
-        CapabilityBaseline(count=entry["count"], mean=entry["mean"], variance=entry["variance"])
-    )
-    return _seed_payload(seed)
-
-
-def _migrate_v5_to_v6(payload: dict[str, Any]) -> dict[str, Any]:
-    """v6 makes the biological-memory-consolidation model (design
-    docs/design/cognicion-y-plasticidad.md) the durable checkpoint
-    shape. This is a privacy-reducing projection, not a lossless migration
-    (§14): exact acclimation/rhythm/drift aggregates become consolidated
-    classes, and self_model's exact last_observed_tick becomes a
-    RecencyClass computed from this checkpoint's own saved_at_tick -- the
-    one migration step in this chain that legitimately derives from real
-    per-organism history, since it re-derives the *same* organism's own
-    already-recorded state at the moment it was actually saved, not a
-    fresh restart's fabricated history.
-    """
-    migrated = dict(payload)
-    migrated["schema_version"] = 6
-    saved_at_tick = migrated.get("saved_at_tick") or 0
-
-    raw_acclimation = migrated.get("acclimation")
-    if isinstance(raw_acclimation, dict):
-        migrated["acclimation"] = {
-            capability_id: _migrate_acclimation_style_entry(entry)
-            for capability_id, entry in raw_acclimation.items()
-            if isinstance(entry, dict)
-        }
-
-    raw_rhythms = migrated.get("rhythms")
-    if isinstance(raw_rhythms, list):
-        migrated_rhythms = []
-        for entry in raw_rhythms:
-            if not isinstance(entry, dict):
-                continue
-            stats = {
-                key: value
-                for key, value in entry.items()
-                if key not in ("percept_name", "time_bucket")
-            }
-            converted = _migrate_acclimation_style_entry(stats)
-            migrated_rhythms.append(
-                {
-                    "percept_name": entry["percept_name"],
-                    "time_bucket": entry["time_bucket"],
-                    **converted,
-                }
-            )
-        migrated["rhythms"] = migrated_rhythms
-
-    raw_drift = migrated.get("drift")
-    if isinstance(raw_drift, dict):
-        migrated["drift"] = {
-            name: _migrate_acclimation_style_entry(entry)
-            for name, entry in raw_drift.items()
-            if isinstance(entry, dict)
-        }
-
-    raw_self_model = migrated.get("self_model")
-    if isinstance(raw_self_model, dict):
-        from ..core.cognition.host_self_model import (
-            RecencyClass,  # local import: avoids a host->core module-load cycle
-        )
-
-        thresholds = (
-            (10, RecencyClass.CURRENT),
-            (40, RecencyClass.SHORT_IDLE),
-            (120, RecencyClass.IDLE),
-            (400, RecencyClass.LONG_IDLE),
-        )
-
-        def _idle_ticks_to_recency_class(idle_ticks: int) -> RecencyClass:
-            for threshold, recency in thresholds:
-                if idle_ticks < threshold:
-                    return recency
-            return RecencyClass.DORMANT
-
-        migrated_self_model = {}
-        for sense_id, entry in raw_self_model.items():
-            if not isinstance(entry, dict):
-                continue
-            if "last_observed_tick" in entry and "recency_class" not in entry:
-                idle_ticks = max(0, saved_at_tick - entry["last_observed_tick"])
-                entry = {key: value for key, value in entry.items() if key != "last_observed_tick"}
-                entry["recency_class"] = _idle_ticks_to_recency_class(idle_ticks).value
-            migrated_self_model[sense_id] = entry
-        migrated["self_model"] = migrated_self_model
-
-    return migrated
-
-
-_MIGRATIONS: dict[int, Callable[[dict[str, Any]], dict[str, Any]]] = {
-    1: _migrate_v1_to_v2,
-    2: _migrate_v2_to_v3,
-    3: _migrate_v3_to_v4,
-    4: _migrate_v4_to_v5,
-    5: _migrate_v5_to_v6,
-}
-
-
-def _migrate_v6_to_v7(payload: dict[str, Any]) -> dict[str, Any]:
-    """Add the opaque signal-knowledge block without reconstructing history."""
-    migrated = dict(payload)
-    migrated["schema_version"] = 7
-    # Older checkpoints have no valid identity key or claims.  Starting with
-    # NOTE(legacy): an empty block is explicit and safer than deriving knowledge from legacy
-    # narrative, adaptive correlations, or exact aggregates.
-    migrated.setdefault(
-        "signal_knowledge", {"schema_version": 1, "last_tick": None, "profiles": []}
-    )
-    return migrated
-
-
-_MIGRATIONS[6] = _migrate_v6_to_v7
-
-
-def _migrate_v7_to_v8(payload: dict[str, Any]) -> dict[str, Any]:
-    """Introduce organism-owned sensory phenotype persistence.
-
-    v7 knows external-source development and signal knowledge but has no
-    durable SensorState.  Migration therefore records an empty sensory
-    system rather than reconstructing acquired receptors from source
-    statistics or cognitive weights. Identity sensors are recreated
-    deterministically when those sources are actually observed again.
-    """
-    migrated = dict(payload)
-    migrated["schema_version"] = 8
-    migrated.setdefault("sensory_system", None)
-    effective = migrated.get("effective_config")
-    if isinstance(effective, dict):
-        effective = dict(effective)
-        effective.setdefault("sensory_plasticity", False)
-        migrated["effective_config"] = effective
-    return migrated
-
-
-_MIGRATIONS[7] = _migrate_v7_to_v8
-
-
-_CONTAMINATED_TOP_LEVEL_KEYS = (
-    "action_evidence",
-    "action_model",
-    "interoceptive_action_model",
-    "pending_action_observation",
-)
-_CONTAMINATED_EFFECTIVE_CONFIG_KEYS = ("autonomous_behavior", "behavior_exploration")
-
-
-def _migrate_v8_to_v9(payload: dict[str, Any]) -> dict[str, Any]:
-    """Refuse the removed typed local-action-selection subsystem outright.
-
-    v9 removes ``symbiont.core.behavior`` (``ActionKind``/``ExpectedOutcome``/
-    ``LocalActionModel`` and its scalar utility function) from canonical
-    ``symbiont.core.orchestration.runtime``.  This is not a migration of that state: there
-    is no decontaminated equivalent to migrate it into.  A v8 checkpoint
-    that never populated these fields (the canonical default, since
-    ``autonomous_behavior`` always defaulted to ``False``) carries forward
-    unchanged; one that does is hard-rejected rather than silently dropped,
-    so a checkpoint that depended on the removed behavior never resumes as
-    if that dependency were harmlessly absent.
-    """
-    present = [key for key in _CONTAMINATED_TOP_LEVEL_KEYS if payload.get(key) is not None]
-    effective = payload.get("effective_config")
-    if isinstance(effective, dict):
-        present.extend(key for key in _CONTAMINATED_EFFECTIVE_CONFIG_KEYS if key in effective)
-    if present:
-        raise CheckpointError(
-            "checkpoint carries the removed typed local-action-selection subsystem "
-            f"({', '.join(sorted(present))}); it cannot be restored"
-        )
-    migrated = dict(payload)
-    migrated["schema_version"] = 9
-    return migrated
-
-
-_MIGRATIONS[8] = _migrate_v8_to_v9
-
-
-def _migrate_v9_to_v10(payload: dict[str, Any]) -> dict[str, Any]:
-    """ADR-0042: rhythm contexts become internal macro-cycle phases.
-
-    v9 rhythm baselines were keyed by a wall-clock time-of-day bucket read
-    from the host OS. They cannot be re-keyed to the organism's internal
-    phase without inventing an alignment, so they are intentionally
-    discarded (both the public projection and the replay accumulators);
-    rhythms are relearned from causal ticks.
-    """
-    migrated = dict(payload)
-    migrated["schema_version"] = 10
-    migrated.pop("rhythms", None)
-    migrated.pop("rhythms_replay", None)
-    return migrated
-
-
-_MIGRATIONS[9] = _migrate_v9_to_v10
-
-
-def _migrate_v10_to_v11(payload: dict[str, Any]) -> dict[str, Any]:
-    """Longitudinal Integrity v1: v11 only tightens identity and required fields."""
-    migrated = dict(payload)
-    migrated["schema_version"] = 11
-    return migrated
-
-
-_MIGRATIONS[10] = _migrate_v10_to_v11
 
 
 def checkpoint_state_hash(payload: dict[str, Any]) -> str:
@@ -589,14 +284,11 @@ def require_current_schema_fields(payload: dict[str, Any], *, layer: str) -> Non
 
 
 def normalize_checkpoint(payload: dict[str, Any]) -> dict[str, Any]:
-    """Return one current-schema checkpoint for all restore consumers.
+    """Validate that a checkpoint is at the current schema and return a copy.
 
-    Runtime subsystems must all read the same migrated object. Historically
-    :func:`import_checkpoint` migrated a private copy while callers then read
-    newer top-level fields from the original payload, so a migration could
-    be effective for acclimation but invisible to the self-model or cognitive
-    bridge. Normalizing once at the runtime boundary removes that split-brain
-    restore path. The input object is never mutated.
+    Every restore consumer reads the object returned here, so they all see the
+    same payload. Older schemas are rejected: no migration path is kept. The
+    input object is never mutated.
     """
     if not isinstance(payload, dict):
         raise CheckpointError("checkpoint payload must be a JSON object")
@@ -612,25 +304,12 @@ def normalize_checkpoint(payload: dict[str, Any]) -> dict[str, Any]:
             f"({CHECKPOINT_SCHEMA_VERSION})"
         )
 
-    normalized = dict(payload)
-    version = schema_version
-    seen: set[int] = set()
-    while version != CHECKPOINT_SCHEMA_VERSION:
-        if version in seen:
-            raise CheckpointError(f"migration loop detected at schema_version {version!r}")
-        migration = _MIGRATIONS.get(version)
-        if migration is None:
-            raise CheckpointError(
-                f"unsupported checkpoint schema_version {version!r}; expected "
-                f"{CHECKPOINT_SCHEMA_VERSION} and no migration path is registered for it"
-            )
-        seen.add(version)
-        normalized = migration(normalized)
-        next_version = normalized.get("schema_version")
-        if isinstance(next_version, bool) or not isinstance(next_version, int):
-            raise CheckpointError("checkpoint migration produced a non-integer schema_version")
-        version = next_version
-    return normalized
+    if schema_version != CHECKPOINT_SCHEMA_VERSION:
+        raise CheckpointError(
+            f"unsupported checkpoint schema_version {schema_version!r}; this code loads only "
+            f"schema {CHECKPOINT_SCHEMA_VERSION} and carries no migrations from older schemas"
+        )
+    return dict(payload)
 
 
 def import_checkpoint(

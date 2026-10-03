@@ -5,7 +5,6 @@ from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.types import NodeKind
 from symbiont.core.orchestration.runtime import OrganismRuntime
 from tests.bodies import test_body_kwargs
-from tests.checkpoints import as_legacy
 
 
 def _cognitive_runtime() -> OrganismRuntime:
@@ -128,21 +127,6 @@ def test_runtime_checkpoint_round_trip_preserves_body_schema_and_private_identit
     )
     assert "id_salt" in checkpoint["body_schema"]
     assert "id_salt" not in before_representation
-
-
-def test_old_checkpoint_without_body_schema_restores_cold_and_learns_later():
-    runtime = OrganismRuntime(**test_body_kwargs(), min_samples=1, investigate_ticks=0)
-    runtime.run(10)
-    checkpoint = runtime.checkpoint()
-    checkpoint.pop("body_schema")
-
-    restored = OrganismRuntime.from_checkpoint(
-        as_legacy(checkpoint), min_samples=1, investigate_ticks=0
-    )
-
-    assert restored.body_schema.state == "undeveloped"
-    restored.tick()
-    assert restored.body_schema.state in {"developing", "established", "revising"}
 
 
 def test_checkpoint_body_schema_never_contains_raw_self_model_keys():

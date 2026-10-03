@@ -9,7 +9,6 @@ from .conftest import REPO_ROOT
 CITING_FILES = [
     "symbiont/src/symbiont/core/foundation/weight_stability.py",
     "symbiont/src/symbiont/host/consolidated_baseline.py",
-    "symbiont/src/symbiont/host/checkpoint.py",
     "symbiont/src/symbiont/core/cognition/consolidation.py",
     "tests/smoke/test_cli.py",
     "tests/unit/host/test_checkpoint.py",

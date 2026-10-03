@@ -11,10 +11,8 @@ from symbiont.core.embodiment.homeostasis import HomeostaticController
 from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont.core.signals.identity import SignalIdentity
 from symbiont.core.signals.knowledge_types import SignalObservation, SignalObservationBatch
-from symbiont.host.checkpoint import CheckpointError
 from symbiont.host.percepts import DEFAULT_PERCEPT_NAMES
 from tests.bodies import SIGNALS, test_body_kwargs
-from tests.checkpoints import as_legacy
 
 
 def test_rejects_non_positive_attention_budget():
@@ -37,24 +35,6 @@ def test_constitutive_repair_consumes_maintenance_and_is_bounded():
     repaired = runtime.homeostasis.integrity - before_integrity
     assert repaired == pytest.approx(runtime.physiology_config.autonomous_repair_rate)
     assert runtime.metabolism.snapshot().reserve["maintenance"] < before_reserve
-
-
-def test_pre_l5_checkpoint_without_living_body_fails_closed() -> None:
-    from symbiont.host.checkpoint import CheckpointError
-
-    runtime = OrganismRuntime(
-        bootstrap_semantic_senses=False,
-        discover_senses=False,
-    )
-    payload = runtime.checkpoint()
-    del payload["living_body"]
-
-    with pytest.raises(CheckpointError, match="Living Body L5"):
-        OrganismRuntime.from_checkpoint(
-            as_legacy(payload),
-            bootstrap_semantic_senses=False,
-            discover_senses=False,
-        )
 
 
 def test_embodied_work_is_checkpointed_and_charged_on_next_canonical_tick():
@@ -265,16 +245,6 @@ def test_restored_runtime_continues_ticking_normally(tmp_path):
 
     assert result.tick == 3
     assert restored.tick_count == 3
-
-
-def test_from_checkpoint_with_v1_payload_lacking_living_body_fails_closed():
-    v1_payload = {
-        "schema_version": 1,
-        "acclimation": {"cpu": {"count": 5, "mean": 1.0, "variance": 0.0}},
-    }
-
-    with pytest.raises(CheckpointError, match="Living Body L5"):
-        OrganismRuntime.from_checkpoint(v1_payload, min_samples=1)
 
 
 def test_narrative_entry_never_exposes_a_threat_or_classification_field():
