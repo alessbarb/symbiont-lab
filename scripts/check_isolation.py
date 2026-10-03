@@ -49,6 +49,13 @@ def check(library: str) -> bool:
         }
         venv = work / "venv"
         python = venv / "bin" / "python"
+        # install from a copy: the build must not leave artefacts in the repository
+        source = work / "source"
+        shutil.copytree(
+            ROOT / library,
+            source,
+            ignore=shutil.ignore_patterns("__pycache__", "build", "*.egg-info", "tests"),
+        )
         steps = [
             [
                 "uv",
@@ -65,7 +72,7 @@ def check(library: str) -> bool:
                 "--quiet",
                 "--python",
                 str(python),
-                str(ROOT / library),
+                str(source),
                 *TEST_TOOLS,
             ],
         ]

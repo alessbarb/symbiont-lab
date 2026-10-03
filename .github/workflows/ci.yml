@@ -278,6 +278,8 @@ jobs:
       - run: uv run --no-sync pytest -o addopts= tests/experimental_integrity -q
       - run: uv run --no-sync pytest -o addopts= symbiont/tests/experimental_integrity -q
       - run: uv run --no-sync pytest -o addopts= lab/tests/experimental_integrity -q
+      - name: Each library installed alone, tested outside the repository
+        run: uv run --no-sync python scripts/check_isolation.py
 
   runtime-contracts:
     name: runtime-contracts
