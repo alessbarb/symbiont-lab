@@ -63,7 +63,12 @@ def _body_vital_state(payload: Mapping[str, Any]) -> str:
 
 
 def _legacy_contract(_payload: Mapping[str, Any]) -> EmbodimentDescriptor:
-    # Every pre-epoch portable Physics3D checkpoint used anthropomorphic-v4.
+    """Apply the bounded legacy compatibility assumption for pre-epoch files.
+
+    This is not a current-body discovery mechanism: historical portable
+    Physics3D checkpoints without an epoch descriptor are interpreted as the
+    one known legacy profile. Do not reuse this fallback for new checkpoints.
+    """
     return EmbodimentDescriptor("anthropomorphic-v4", 107, 62)
 
 
