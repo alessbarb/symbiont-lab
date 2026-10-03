@@ -17,8 +17,10 @@ from lab.integration.organism import (
     create_canonical_organism,
     load_or_create_canonical_organism,
     restore_canonical_organism,
+    restore_canonical_resident,
 )
 from symbiont.core.orchestration import sense_requirements as requirements_module
+from symbiont.core.orchestration.canonical_birth import restore_resident_with_canonical_cognition
 from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont.core.orchestration.sense_requirements import (
     SenseRequirements,
@@ -153,3 +155,17 @@ def test_the_lab_does_not_interpret_checkpoint_controls() -> None:
     assert "effective_config" not in source
     assert "profile_version" not in source
     assert "session_controls" not in source
+
+
+@pytest.mark.parametrize("overrides", OVERRIDES)
+@pytest.mark.parametrize("options", CASES)
+def test_resident_restore_with_adopted_cognition_matches_the_organism_restore(
+    options, overrides
+) -> None:
+    # a genome-less checkpoint, so the restore goes down the adoption branch
+    payload = OrganismRuntime(**options).checkpoint()
+    assert payload["genome"] is None
+    _same(
+        restore_canonical_resident(payload, **overrides),
+        restore_resident_with_canonical_cognition(payload, **overrides),
+    )
