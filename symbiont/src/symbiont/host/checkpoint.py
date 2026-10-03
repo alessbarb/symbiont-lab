@@ -302,9 +302,11 @@ def _saved_by_current_schema(payload: dict[str, Any]) -> bool:
 def require_current_schema_fields(payload: dict[str, Any], *, layer: str) -> None:
     """Reject a current-schema checkpoint that lost acquired state.
 
-    Restore paths default an absent field to a fresh subsystem so that older
-    schemas can migrate. For a checkpoint saved by a current runtime the same
-    absence is loss, not history, and must not become a healthy empty subsystem.
+    Restore paths may default an absent field to a fresh subsystem when loading
+    partial or explicitly transformed payloads. This is not a schema migration:
+    this runtime accepts only its exact checkpoint schema. For a checkpoint
+    saved by the current runtime, absence is loss and must not become a healthy
+    empty subsystem.
     """
     if not _saved_by_current_schema(payload):
         return
