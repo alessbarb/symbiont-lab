@@ -152,7 +152,7 @@ unverified semantics and evidence.
 | Issue | Current status | Remaining boundary |
 | --- | --- | --- |
 | SYM-01 continuation-condition integrity | **Implemented locally**; schema 12 verifies a separate condition hash and rejects missing contemporary controls | Hash is unkeyed integrity, not authentication; no publication claim yet |
-| SYM-02 silent rebirth on missing checkpoint | **Implemented locally**; required restore fails and first-boot creation is explicitly named | Audit every external launcher/operational call site before closure |
+| SYM-02 silent rebirth on missing checkpoint | **Resolved in this repository**; required restore fails and first-boot creation is explicitly named; the replay CLI uses required restore | External deployments are outside this checkout and cannot be audited here |
 | SYM-03 observer telemetry changes organism energy | **Regression fixed locally**; instrumentation-invariance test passes | Reconcile trajectory impact with approved Canonical Organism Profile v1; no owner-approved profile consequence recorded yet |
 | SYM-04 BodySchema historical knowledge vs current-body authority | **Partially addressed; open** | Preserved BodySchema is documented as a fallible prior, but a complete audit of its retained evidence and all consumers has not established that stale facts cannot influence current-body inference |
 | SYM-05 exact checkpoint schema policy | **Implemented/documented**; only schema 12 restores | Historical checkpoints are archival evidence, not live-restorable organisms |
