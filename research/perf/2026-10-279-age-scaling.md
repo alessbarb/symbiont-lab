@@ -140,3 +140,13 @@ with this change the projection rebuild, which dominated, is gone, and the
 remaining scan does not justify change tracking. Whether retrospective
 reinterpretation should fire at all stays an owner decision.
 
+## Follow-up: retrospective reinterpretation removed from the tick
+
+Diagnosis (2026-10-03): the support the runtime built for a concept with `k`
+parents had `3k` tokens of which at most `k` could match an episode, an overlap
+of 1/3 against the 0.5 threshold, so no interpretation could ever be recorded;
+and no decision reads the interpretation index. The per-tick refresh was removed.
+From the age-5000 checkpoint, 30 ticks give the identical `state_hash()` at every
+tick; projection builds drop from 2,202 to 1,451 per tick and the organism tick
+from 244 to 214 ms (mean, this host, not idle).
+
