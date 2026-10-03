@@ -574,10 +574,28 @@ name = "embodiment"
 version = "0.90.0"
 source = { editable = "embodiment" }
 
+[package.optional-dependencies]
+physics3d = [
+    { name = "pybullet" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pybullet", marker = "extra == 'physics3d'", specifier = ">=3.2.7,<4" }]
+provides-extras = ["physics3d"]
+
 [[package]]
 name = "environment"
 version = "0.90.0"
 source = { editable = "environment" }
+
+[package.optional-dependencies]
+physics3d = [
+    { name = "pybullet" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pybullet", marker = "extra == 'physics3d'", specifier = ">=3.2.7,<4" }]
+provides-extras = ["physics3d"]
 
 [[package]]
 name = "execnet"
@@ -833,6 +851,9 @@ modeling = [
     { name = "torch" },
 ]
 physics3d = [
+    { name = "embodiment", extra = ["physics3d"] },
+    { name = "environment", extra = ["physics3d"] },
+    { name = "modality", extra = ["vision"] },
     { name = "numpy" },
     { name = "pillow" },
     { name = "pybullet" },
@@ -842,8 +863,11 @@ physics3d = [
 [package.metadata]
 requires-dist = [
     { name = "embodiment", editable = "embodiment" },
+    { name = "embodiment", extras = ["physics3d"], marker = "extra == 'physics3d'", editable = "embodiment" },
     { name = "environment", editable = "environment" },
+    { name = "environment", extras = ["physics3d"], marker = "extra == 'physics3d'", editable = "environment" },
     { name = "modality", editable = "modality" },
+    { name = "modality", extras = ["vision"], marker = "extra == 'physics3d'", editable = "modality" },
     { name = "numpy", marker = "extra == 'physics3d'", specifier = ">=1.26,<3" },
     { name = "pillow", marker = "extra == 'physics3d'", specifier = ">=10,<13" },
     { name = "pybullet", marker = "extra == 'physics3d'", specifier = ">=3.2.7,<4" },
@@ -1034,6 +1058,15 @@ wheels = [
 name = "modality"
 version = "0.90.0"
 source = { editable = "modality" }
+
+[package.optional-dependencies]
+vision = [
+    { name = "pybullet" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pybullet", marker = "extra == 'vision'", specifier = ">=3.2.7,<4" }]
+provides-extras = ["vision"]
 
 [[package]]
 name = "mpmath"

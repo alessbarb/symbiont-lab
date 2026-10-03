@@ -9,6 +9,10 @@ description = "Embodiment domain: couplings between the organism and a concrete 
 requires-python = ">=3.12"
 dependencies = []
 
+[project.optional-dependencies]
+# embodiment.physics3d drives PyBullet bodies directly.
+physics3d = ["pybullet>=3.2.7,<4"]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["embodiment*"]

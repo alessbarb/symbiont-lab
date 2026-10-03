@@ -21,6 +21,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 LIBRARIES = ("symbiont", "embodiment", "modality", "environment")
+# The extra that carries each library's declared external backend.
+EXTRAS = {"embodiment": "physics3d", "modality": "vision", "environment": "physics3d"}
 FIRST_PARTY = (*LIBRARIES, "lab")
 TEST_TOOLS = ("pytest", "pytest-xdist", "hypothesis")
 
@@ -72,7 +74,7 @@ def check(library: str) -> bool:
                 "--quiet",
                 "--python",
                 str(python),
-                str(source),
+                f"{source}[{EXTRAS[library]}]" if library in EXTRAS else str(source),
                 *TEST_TOOLS,
             ],
         ]

@@ -97,11 +97,7 @@ class VisualApparatus:
         position, orientation = self._link_pose()
         eye = self._world_point(position, orientation, self.mount_offset)
         target = self._world_point(position, orientation, self.gaze_offset)
-        up = (
-            self.p.rotateVector(orientation, (0.0, 0.0, 1.0))
-            if hasattr(self.p, "rotateVector")
-            else _rotate(orientation, (0.0, 0.0, 1.0))
-        )
+        up = self.p.rotateVector(orientation, (0.0, 0.0, 1.0))
         view = self.p.computeViewMatrix(eye, target, up)
         _w, _h, rgba, _depth, _seg = self.p.getCameraImage(
             self.side,
@@ -126,15 +122,6 @@ def _flatten(values):
         return values.reshape(-1).tolist()  # numpy build of pybullet
     except AttributeError:
         return list(values)
-
-
-def _rotate(quaternion, vector):
-    x, y, z, w = quaternion
-    vx, vy, vz = vector
-    # v' = v + 2w(q×v) + 2q×(q×v)
-    cx, cy, cz = y * vz - z * vy, z * vx - x * vz, x * vy - y * vx
-    cx2, cy2, cz2 = y * cz - z * cy, z * cx - x * cz, x * cy - y * cx
-    return (vx + 2 * (w * cx + cx2), vy + 2 * (w * cy + cy2), vz + 2 * (w * cz + cz2))
 
 
 __all__ = [

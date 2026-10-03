@@ -106,7 +106,9 @@ source_modules = ["symbiont", "embodiment", "modality", "environment"]
 forbidden_modules = ["lab"]
 
 [[tool.importlinter.contracts]]
-name = "Heavy numeric and physics libraries are imported only by the Lab"
+# Independence is between the domains, not from technology: Embodiment, Modality
+# and Environment may use the external backends they declare. The organism may not.
+name = "The organism imports no physics, tensor or imaging backend"
 type = "forbidden"
-source_modules = ["symbiont", "embodiment", "modality", "environment"]
+source_modules = ["symbiont"]
 forbidden_modules = ["pybullet", "torch", "numpy", "PIL"]
