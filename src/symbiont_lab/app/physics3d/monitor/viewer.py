@@ -439,6 +439,18 @@ class UnifiedViewerProcess:
             self._process.join(timeout=1.0)
 
 
+ECOLOGY_FIELD_LABELS = (
+    ("reserve", "Reserva / Absorbido"),
+    ("distance", "Distancia Recurso"),
+    ("progress", "Progreso Neto"),
+    ("displacement", "Desplazamiento Origen"),
+    ("repertoire", "Repertorio / Cobertura"),
+    ("competences", "Competencias motoras"),
+    ("control", "Control / Dirección"),
+    ("sources", "Orígenes C/B/P/M/S"),
+)
+
+
 class QueueViewerBridge:
     """Viewer transport backed by queues owned by the desktop application.
 
@@ -1321,19 +1333,7 @@ def _viewer_main(
     reserve_bar_rect = reserve_bar_canvas.create_rectangle(0, 0, 0, 8, fill=green, width=0)
 
     eco_vars = {}
-    for r_i, (k, l_txt) in enumerate(
-        (
-            ("reserve", "Reserva / Absorbido"),
-            ("distance", "Distancia Recurso"),
-            ("progress", "Progreso Neto"),
-            ("displacement", "Desplazamiento Origen"),
-            ("repertoire", "Repertorio / Cobertura"),
-            ("primitives", "Primitivas / Cognitivas"),
-            ("control", "Control / Dirección"),
-            ("origins", "Orígenes C/B/P/M/S"),
-        ),
-        start=1,
-    ):
+    for r_i, (k, l_txt) in enumerate(ECOLOGY_FIELD_LABELS, start=1):
         tk.Label(
             eco_content, text=l_txt, bg=sub_bg, fg=muted, font=("TkDefaultFont", 7), anchor="w"
         ).grid(row=r_i, column=0, sticky="w", pady=1)
