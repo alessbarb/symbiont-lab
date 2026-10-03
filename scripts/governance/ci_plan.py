@@ -146,6 +146,9 @@ def build_plan(base: str, head: str) -> CIPlan:
                     "symbiont/src/symbiont/host/",
                     "tests/unit/host/",
                     "lab/src/lab/physics3d/",
+                    "embodiment/src/embodiment/",
+                    "modality/src/modality/",
+                    "environment/src/environment/physics3d/",
                 ),
             )
             for path in paths
@@ -158,6 +161,9 @@ def build_plan(base: str, head: str) -> CIPlan:
                 path,
                 (
                     "lab/src/lab/physics3d/",
+                    "embodiment/src/embodiment/",
+                    "modality/src/modality/",
+                    "environment/src/environment/physics3d/",
                     "tests/unit/lab/physics3d/",
                     "tests/integration/test_physics3d",
                 ),
@@ -190,8 +196,11 @@ def build_plan(base: str, head: str) -> CIPlan:
                 (
                     "symbiont/src/symbiont/",
                     "lab/src/lab/physics3d/",
+                    "embodiment/src/embodiment/",
+                    "modality/src/modality/",
+                    "environment/src/environment/physics3d/",
                     "lab/src/lab/modeling/",
-                    "observatory/",
+                    "lab/src/lab/observatory/",
                     "lab/src/lab/workbench/",
                 ),
             )

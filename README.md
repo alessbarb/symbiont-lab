@@ -70,25 +70,26 @@ AGI, consciousness, culture and Sim-to-Real are possible future interpretations 
 
 ## Architecture
 
-The repository has three strict code responsibilities:
+The repository is five domains, each its own distribution in one uv workspace:
 
-| Package | Responsibility |
-| --- | --- |
-| `src/symbiont/` | organism / research subject |
-| `src/symbiont_lab/` | apparatus, experiments, evaluation and reproduction/evolution orchestration |
-| `src/symbiont_world/` | external laws and environmental dynamics |
+| Domain | Import package | Responsibility |
+| --- | --- | --- |
+| `symbiont/` | `symbiont` | the organism / research subject |
+| `embodiment/` | `embodiment` | couplings between the organism and a concrete form of existence |
+| `modality/` | `modality` | signal channels; no cognitive meaning |
+| `environment/` | `environment` | external laws, dynamics and ground truth |
+| `lab/` | `lab` | composition, experiments, studies, observation, analysis |
 
-`observatory/` is passive.
-
-Normative dependency rule:
+Normative dependency rule, enforced by
+`tests/experimental_integrity/test_five_domain_architecture.py`:
 
 ```text
-symbiont       -X-> symbiont_lab
-symbiont       -X-> symbiont_world
-symbiont_world -X-> symbiont
-symbiont_world -X-> symbiont_lab
+symbiont    -X-> lab, environment, modality, embodiment
+environment -X-> symbiont, lab, modality, embodiment
+modality    -X-> symbiont, embodiment, environment, lab
+embodiment  -X-> lab
 
-symbiont_lab -> may connect World and Symbiont
+lab -> may depend on everything
 ```
 
 Ground truth belongs to Lab/evaluator and must never become organism cognition.
@@ -157,13 +158,16 @@ Agents execute authorised work. They do not choose the scientific direction.
 
 | Path | Purpose |
 | --- | --- |
-| `src/symbiont/` | research subject |
-| `src/symbiont_lab/` | apparatus |
-| `src/symbiont_world/` | world |
-| `observatory/` | passive observer |
+| `symbiont/` | research subject |
+| `embodiment/` | bodies, apparatus adapters, re-embodiment |
+| `modality/` | signal channels |
+| `environment/` | world |
+| `lab/src/lab/` | apparatus |
+| `lab/src/lab/observatory/` | passive observation back-end |
+| `lab/experiments/` | scientific campaigns |
+| `lab/research/` | evidence and interpretation |
 | `tests/` | mechanical verification |
-| `experiments/` | scientific campaigns |
-| `research/` | evidence and interpretation |
+| `migration/` | record of the move to this layout |
 | `docs/design/` | designs and preregistrations |
 | `docs/adr/` | architectural decisions |
 | `docs/history/` | historical record |
@@ -174,10 +178,8 @@ Agents execute authorised work. They do not choose the scientific direction.
 Python 3.12+:
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e '.[dev]'
-pytest
+uv sync --extra dev --extra physics3d
+uv run pytest
 ```
 
 Useful validation layers:
@@ -185,9 +187,9 @@ Useful validation layers:
 ```bash
 pytest tests/unit tests/docs tests/smoke
 pytest -o addopts= tests/integration tests/experimental_integrity
-pytest -o addopts= tests/contract tests/compatibility tests/experiments
-ruff check src/ observatory/ tests/
-ruff format --check src/ observatory/ tests/
+pytest -o addopts= tests/contract tests/experiments
+ruff check symbiont/src environment/src modality/src embodiment/src lab/src tests
+ruff format --check symbiont/src environment/src modality/src embodiment/src lab/src tests
 python scripts/agentctl.py verify
 ```
 

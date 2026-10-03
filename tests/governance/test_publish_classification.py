@@ -37,8 +37,8 @@ def test_observatory_presentation_is_ordinary() -> None:
     result = assess(
         ROOT,
         "HEAD",
-        ["observatory/ui/view.js"],
-        "diff --git a/observatory/ui/view.js b/observatory/ui/view.js\n+ renderLabel()",
+        ["lab/src/lab/observatory/server.py"],
+        "diff --git a/lab/src/lab/observatory/server.py b/lab/src/lab/observatory/server.py\n+ renderLabel()",
     )
     assert result.classification == ChangeClass.ORDINARY
 

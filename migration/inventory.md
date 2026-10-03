@@ -1,75 +1,95 @@
-# Architectural inventory (Phase 1)
+# Architectural inventory
 
-> Written before the packages took their domain names and before the legacy
-> removals. `symbiont_lab` is now `lab`, `symbiont_world` is `environment`, and
-> `symbiont.simulation`, `symbiont.environment`, `observatory` (front-end) and the
-> legacy studies no longer exist. See `mapping.md` for the current paths.
-
-One row per package unit. Sizes, dependencies and consumers come from
-`migration/tools/depgraph.py` (static import graph, runtime imports only).
-Classification is based on what the code imports and does, not on its name.
+One row per package unit, in the final layout. Sizes, dependencies and consumers
+come from `migration/tools/depgraph.py` (static import graph, runtime imports
+only; 548 modules, 3855 import edges). Classification is based on what the code
+imports and does, not on its name.
 
 Confidence: **high** = ownership follows from the import graph; **medium** =
 ownership is clear but the unit is entangled; **low** = mixed responsibilities.
 
-## Organism — `symbiont/src/symbiont`
+| Domain | Import package | Files | Lines |
+|---|---|---|---|
+| Symbiont | `symbiont` | 234 | 63062 |
+| Environment | `environment` | 17 | 2031 |
+| Modality | `modality` | 2 | 150 |
+| Embodiment | `embodiment` | 13 | 4839 |
+| Lab | `lab` | 263 | 64691 |
+
+## Symbiont — `symbiont/src/symbiont`
 
 | Unit | Files / LOC | Responsibility | Depends on | Main consumers | Persisted formats | Tests | Scientific impact | Domain | Confidence |
 |---|---|---|---|---|---|---|---|---|---|
-| `core.orchestration` | 8 / 4789 | `OrganismRuntime`, tick, checkpoint, governor, resident | actuation, host, core.embodiment, core.domains | lab.studies, lab.cli, modeling | organism checkpoint v11 | `tests/unit/core` | very high | SYMBIONT | high |
-| `core.cognition` | 20 / 6798 | agent, attention, memory, bridge to cognition graph | cognition, host, genetics | core.domains, lab.studies | checkpoint | `tests/unit/core` | very high | SYMBIONT | high |
-| `core.domains` | 13 / 5513 | per-tick domains (action, perception, physiology…) | actuation, host, agency, sensory | core.orchestration | checkpoint | `tests/unit/core` | very high | SYMBIONT | high |
-| `core.embodiment` | 22 / 6281 | body, body schema, physiology, metabolism, re-embodiment, embodiment session/episode | actuation | lab.studies, lab.physics3d | checkpoint (embodiment history) | `tests/unit/core` | very high | SYMBIONT + EMBODIMENT | low |
-| `core.foundation` | 8 / 867 | host model, fingerprint, limits | cognition, genetics, host | everything in core | — | `tests/unit/core` | medium | SYMBIONT | high |
-| `core.lineage` | 5 / 211 | germline, heritage, inheritance | genetics | lab.studies | checkpoint lineage | `tests/unit/core` | high | SYMBIONT | high |
-| `core.regulation`, `core.signals`, `core.social`, `core.host` | 25 / 3397 | innate reactivity, signal knowledge, social ledger, advisories | core.foundation, host | core.orchestration, lab.studies | checkpoint | `tests/unit/core` | high | SYMBIONT | high |
-| `cognition` | 36 / 5904 | cognition graph, learning, plasticity, generative | genetics | lab.studies, observatory, core | cognition checkpoint | `tests/unit/cognition` | very high | SYMBIONT | high |
-| `genetics` | 8 / 2067 | genome, schema, germline, migration | — | cognition, lab.evolution | genome | `tests/unit/genetics` | very high | SYMBIONT | high |
+| `core.orchestration` | 8 / 4781 | `OrganismRuntime`, tick, checkpoint, governor, resident | actuation, host, core.embodiment, core.domains | lab.studies, lab.cli, `symbiont.api` | organism checkpoint (schema 11) | `tests/unit/core` | very high | SYMBIONT | high |
+| `core.cognition` | 15 / 6200 | attention, memory, consolidation, bridge to the cognition graph | cognition, host, genetics | core.domains, lab.studies | checkpoint | `tests/unit/core` | very high | SYMBIONT | high |
+| `core.domains` | 13 / 5513 | per-tick domains (action, perception, physiology, …) | actuation, host, agency, sensory | core.orchestration | checkpoint | `tests/unit/core` | very high | SYMBIONT | high |
+| `core.embodiment` | 22 / 6281 | body, body schema, physiology, metabolism, embodiment session/episode, re-embodiment | actuation | lab.studies, embodiment | checkpoint (embodiment history) | `tests/unit/core` | very high | SYMBIONT + EMBODIMENT | low |
+| `core.foundation` | 7 / 747 | fingerprint, limits, epistemic | cognition, genetics, host | everything in core | — | `tests/unit/core` | medium | SYMBIONT | high |
+| `core.lineage` | 4 / 187 | germline, heritage, inheritance | genetics | lab.studies, `symbiont.api` | checkpoint lineage | `tests/unit/core` | high | SYMBIONT | high |
+| `core.regulation`, `core.signals`, `core.social`, `core.host` | 24 / 3278 | innate reactivity, signal knowledge, social relations, advisories | core.foundation, host | core.orchestration, lab.studies | checkpoint | `tests/unit/core` | high | SYMBIONT | high |
+| `cognition` | 36 / 5879 | cognition graph, learning, plasticity, generative | genetics | lab.studies, lab.observatory, core | cognition checkpoint | `tests/unit/cognition` | very high | SYMBIONT | high |
+| `genetics` | 7 / 1830 | genome (schema 2), germline, expression | — | cognition, lab.evolution | genome | `tests/unit/genetics` | very high | SYMBIONT | high |
 | `agency` | 13 / 2218 | intention, policy, prospective agency | actuation | core.domains, modeling | checkpoint | `tests/unit/agency` | high | SYMBIONT | high |
 | `modeling` | 18 / 9426 | private models, episodic, culture, symbols | agency, cognition, core.orchestration | lab.studies, lab.modeling, lab.physics3d | private-model state | `tests/unit/modeling` | high | SYMBIONT | medium |
-| `actuation` | 26 / 8500 | sensorimotor v2: binding, effects, surface, acquisition | host | core.domains, core.orchestration, agency | checkpoint | `tests/unit/actuation` | very high | SYMBIONT + EMBODIMENT | low |
-| `sensory` | 11 / 1739 | organism-owned transduction, `SensoryModality` substrate families | host | core.domains, lab.physics3d | checkpoint | `tests/unit/sensory` | high | SYMBIONT + MODALITY | low |
-| `host` | 23 / 6025 | boundary with a consenting local host: readings, acclimation, drift, checkpoint file I/O, `providers/` | core.foundation | core.orchestration, lab.cli, lab.physics3d | checkpoint file format and migrations | `tests/unit/host` | high | MODALITY (host) + persistence | low |
-| `environment` | 4 / 234 | legacy synthetic host events and RNG streams | core.foundation | simulation, lab.studies, lab.cli | — | `tests/unit/environment` | legacy studies | ENVIRONMENT (legacy) | high |
-| `simulation` | 7 / 894 | legacy agent-population simulation engine | core.cognition, environment | lab.studies, lab.cli, lab.archive | run results | `tests/integration` | legacy studies | LAB (legacy) | high |
-| `api` (new) | 1 / 66 | public surface, re-exports only | core, host.checkpoint | — | — | architecture test | none | SYMBIONT | high |
+| `actuation` | 26 / 8500 | sensorimotor: binding, effects, surface, acquisition | host | core.domains, core.orchestration, agency | checkpoint | `tests/unit/actuation` | very high | SYMBIONT + EMBODIMENT | low |
+| `sensory` | 11 / 1739 | organism-owned transduction, `SensoryModality` substrate families | host | core.domains, embodiment | checkpoint | `tests/unit/sensory` | high | SYMBIONT + MODALITY | low |
+| `host` | 23 / 5704 | boundary with a consenting local host: readings, acclimation, drift, checkpoint file I/O, `providers/` | core.foundation | core.orchestration, lab.cli, embodiment | checkpoint file format | `tests/unit/host` | high | MODALITY (host) + persistence | low |
+| `api` | 1 / 63 | public surface, re-exports only | core, host.checkpoint | none yet | — | architecture + independence tests | none | SYMBIONT | high |
+| `capacity`, `provenance` | 2 / 285 | capacity accounting, causal provenance | — | actuation, agency, modeling | — | `tests/unit` | medium | SYMBIONT | high |
 
-## Environment — `environment/src/symbiont_world`
+## Environment — `environment/src/environment`
 
 | Unit | Files / LOC | Responsibility | Depends on | Main consumers | Persisted formats | Tests | Domain | Confidence |
 |---|---|---|---|---|---|---|---|---|
-| `symbiont_world` | 12 / 1019 | hex world: topology, laws, state, ground truth, local observation, checkpoint | stdlib only | lab.world, lab.studies, lab.physics3d | world checkpoint | `tests/unit/world` | ENVIRONMENT | high |
+| hex world (`topology`, `laws`, `state`, `genesis`, `observation`, `checkpoint`, `events`, …) | 12 / 1019 | world state, laws, ground truth, local observation | stdlib | lab.world, embodiment.world | world checkpoint | `tests/unit/world` | ENVIRONMENT | high |
+| `terrain`, `genesis_v1`, `genesis_v2` | 3 / 773 | terrain generation and world genesis recipes | environment | lab.world, lab.studies | — | `tests/unit/lab/world` | ENVIRONMENT | high |
+| `physics3d.environments` | 1 / 239 | Physics3D fixtures and their dynamics | `environment.rng` | lab.physics3d | — | `tests/unit/lab/physics3d` | ENVIRONMENT | high |
 
-## Lab — `lab/src/symbiont_lab`, `lab/experiments`, `lab/research`, `lab/examples`
+## Modality — `modality/src/modality`
+
+| Unit | Files / LOC | Responsibility | Depends on | Main consumers | Tests | Domain | Confidence |
+|---|---|---|---|---|---|---|---|
+| `vision` | 1 / 144 | square receptor array on a body link: bounded luminance per opaque receptor, receptor adjacency | — | embodiment.physics3d.vision | `tests/unit/lab/physics3d/test_vision_apparatus.py` | MODALITY | high |
+
+## Embodiment — `embodiment/src/embodiment`
+
+| Unit | Files / LOC | Responsibility | Depends on | Main consumers | Tests | Domain | Confidence |
+|---|---|---|---|---|---|---|---|
+| `physics3d.humanoid`, `articulated`, `alternative_bodies`, `bodies` | 4 | Physics3D bodies and their receptor/effector contracts | modality (via `vision`) | lab.physics3d, lab.app, lab.studies | `tests/unit/lab/physics3d` | EMBODIMENT | high |
+| `physics3d.vision` | 1 | vision body kind: binds the receptor array to the humanoid | modality | lab.physics3d | same | EMBODIMENT | high |
+| `physics3d.apparatus` | 1 | adapters presenting a Physics3D body to the organism as discovery/reading providers and an actuator surface | symbiont (host, sensory, actuation, cognition.birth/limits) | lab.physics3d | same | EMBODIMENT | medium |
+| `physics3d.reembodiment`, `longitudinal` | 2 | re-embodiment of a checkpoint into another body; epoch summaries | symbiont (host.checkpoint, core.embodiment, actuation) | lab.physics3d, lab.studies | `tests/unit/lab/physics3d/test_reembodiment.py` | EMBODIMENT | high |
+| `world.adapter`, `world.deferred` | 2 | coupling between the hex world and an organism | environment, symbiont | lab.world | `tests/unit/lab/world` | EMBODIMENT | medium |
+
+## Lab — `lab/`
 
 | Unit | Files / LOC | Responsibility | Depends on | Domain | Confidence |
 |---|---|---|---|---|---|
-| `studies` | 151 / 32900 | study protocols and runners | organism, lab.physics3d, lab.modeling | LAB | high |
-| `experiments` | 11 / 2229 | registry, runner, manifest, execution fingerprint | lab.studies | LAB | high |
-| `cli`, `app`, `server`, `workbench` | 39 / 9763 | entry points, UI, local server | everything | LAB | high |
-| `archive`, `evaluation`, `evolution`, `experience`, `integration`, `reproduction`, `kernel_characterization` | 27 / 3353 | analysis, baselines, composition | organism | LAB | high |
-| `modeling` | 15 / 2586 | private-model training (torch) | symbiont.modeling | LAB | high |
-| `observation` | 13 / 3393 | projection of runs for observation | observatory, lab.physics3d | LAB / OBSERVABILITY | medium |
-| `world` | 11 / 4486 | adapter between `symbiont_world` and the organism, population runtime, persistence | symbiont_world, organism internals | EMBODIMENT + ENVIRONMENT + LAB | low |
-| `physics3d` | 50 / 17615 | PyBullet engine, humanoid and bodies, vision, apparatus, re-embodiment, telemetry | organism internals, lab.app, lab.modeling, lab.observation | ENVIRONMENT + EMBODIMENT + MODALITY | low |
-| `lab/experiments` | 377 files | experiment specs, runners, results (some frozen) | — | LAB | high |
+| `studies` | 133 / 28147 | study protocols and runners | symbiont, embodiment, lab.physics3d, lab.modeling | LAB | high |
+| `experiments` | 11 / 2189 | registry, runner, manifest, execution fingerprint | lab.studies | LAB | high |
+| `cli`, `server`, `workbench` | 18 / 3260 | entry points, local server, web workbench | everything | LAB | high |
+| `app` | 8 / 4592 | Physics3D run store, session and viewer | embodiment, lab.physics3d | LAB | high |
+| `evaluation`, `evolution`, `experience`, `integration`, `reproduction`, `kernel_characterization` | 23 / 3086 | analysis, baselines, composition | symbiont | LAB | high |
+| `modeling` | 15 / 2610 | private-model training (torch) | symbiont.modeling | LAB | high |
+| `observation`, `observatory` | 23 / 6188 | projection of runs for observation; adapter, journal, schemas | symbiont, each other | LAB / OBSERVABILITY | medium |
+| `physics3d` | 25 / 11808 | PyBullet engine, runtime (composition of organism + body + environment), persistence, telemetry v4.1, `resource`, `observer_semantics` | embodiment, environment, symbiont, lab.app/modeling/observation | LAB (composition) with ENVIRONMENT residue | medium |
+| `world` | 6 / 2808 | population runtime, transactions, persistence, CLI view | environment, embodiment, symbiont | LAB (composition) | medium |
+| `lab/experiments` | 362 files | experiment specs, runners, results | — | LAB | high |
 | `lab/research` | 91 files | evidence registry, audits, protocols | — | LAB | high |
-| `lab/examples` | 3 files | example genome/graph, replay | — | LAB | high |
+| `lab/examples` | 3 files | example genome, graph, replay | — | LAB | high |
 
-## Left in place
+## Left at the repository root
 
 | Path | Classification | Reason |
 |---|---|---|
-| `observatory/` | OBSERVABILITY | §15: auxiliary system, not forced into the five domains |
-| `scripts/agentctl.py`, `scripts/governance/`, `docs/governance/` | GOVERNANCE | §15 |
-| `scripts/bench_*.py`, `characterize_kernel.py`, `aggregate_e8_*`, `run_e8_*`, `reprofile_performance.py` | LAB candidate | benchmarks and analysis; not moved, see `open-issues.md` OI-7 |
-| `tests/` | SHARED-UNRESOLVED | spans every domain; split per domain is a later step (OI-8) |
+| `scripts/agentctl.py`, `scripts/governance/`, `docs/governance/` | GOVERNANCE | §15: auxiliary system |
+| `scripts/bench_*.py`, `characterize_kernel.py`, `aggregate_e8_*`, `run_e8_*`, `reprofile_performance.py` | LAB candidate | OI-7 |
+| `tests/` | SHARED-UNRESOLVED | spans every domain (OI-8) |
 | `docs/`, `assets/` | SHARED-UNRESOLVED | project-wide |
 
-## Units not migrated because ownership is mixed
+## Units whose ownership is still mixed
 
-`core.embodiment`, `actuation`, `sensory`, `host`, `symbiont_lab.physics3d`
-and `symbiont_lab.world` each combine more than one target domain. They were
-relocated with the package that currently contains them and left internally
-unchanged. `embodiment/README.md` and `modality/README.md` list the candidates
-and the import edges that block extraction.
+`symbiont.core.embodiment`, `symbiont.actuation`, `symbiont.sensory` and
+`symbiont.host` each combine organism state with coupling or channel code and
+were left inside the organism. `open-issues.md` OI-3 gives the import edges that
+block extraction.

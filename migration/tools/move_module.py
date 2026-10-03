@@ -29,6 +29,8 @@ SOURCE_ROOTS = [
     ROOT / domain / "src" for domain in ("symbiont", "environment", "modality", "embodiment", "lab")
 ]
 SCAN = [*SOURCE_ROOTS, ROOT / "tests", ROOT / "observatory", ROOT / "scripts"]
+# source-root prefixes of the move in progress, e.g. {"old": "lab/src", "new": "embodiment/src"}
+PATH_PREFIX = {"old": "", "new": ""}
 TEXT_SCAN = [ROOT / "docs" / "governance", ROOT / "pyproject.toml", ROOT / ".github"]
 
 
@@ -125,6 +127,12 @@ def rewrite_file(
     else:
         text = pattern.sub(new, text)
         old_file, new_file = old.replace(".", "/"), new.replace(".", "/")
+        # repo-relative paths carry the source root, which changes with the domain
+        for suffix in (".py", "/"):
+            text = text.replace(
+                f"{PATH_PREFIX['old']}/{old_file}{suffix}",
+                f"{PATH_PREFIX['new']}/{new_file}{suffix}",
+            )
         text = text.replace(old_file + ".py", new_file + ".py").replace(
             old_file + "/", new_file + "/"
         )
@@ -151,6 +159,8 @@ def main(argv: list[str]) -> int:
     if target.exists():
         raise SystemExit(f"{target} already exists")
     target.parent.mkdir(parents=True, exist_ok=True)
+    PATH_PREFIX["old"] = old_root.relative_to(ROOT).as_posix()
+    PATH_PREFIX["new"] = (new_root or root_for(new)).relative_to(ROOT).as_posix()
     base = new_root or root_for(new)
     package_dir = target.parent
     while package_dir != base:

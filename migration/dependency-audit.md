@@ -1,67 +1,74 @@
-# Dependency audit (Phase 2)
+# Dependency audit
 
-> Written before the packages took their domain names and before the legacy
-> removals. `symbiont_lab` is now `lab`, `symbiont_world` is `environment`, and
-> `symbiont.simulation`, `symbiont.environment`, `observatory` (front-end) and the
-> legacy studies no longer exist. See `mapping.md` for the current paths.
-
-Source: `migration/tools/depgraph.py` over `symbiont/src`, `environment/src`,
-`lab/src` and `.` (observatory): 636 modules, 4292 import edges. Counts are
-runtime imports (`top` = at import time, `lazy` = inside a function);
-`TYPE_CHECKING` imports are excluded.
+Final layout. Source: `migration/tools/depgraph.py` over the five source roots:
+548 modules, 3855 import edges. Counts are runtime imports (`top` = at import
+time, `lazy` = inside a function); `TYPE_CHECKING` imports are excluded.
 
 Reproduce:
 
 ```bash
 python migration/tools/depgraph.py --root symbiont/src --root environment/src \
-    --root lab/src --root . --edges-from symbiont
+    --root modality/src --root embodiment/src --root lab/src --edges-from embodiment
 ```
 
-## Required pairs (§7)
+## Domain-level graph
+
+| From → To | Edges | Class |
+|---|---|---|
+| symbiont → environment / modality / embodiment / lab | 0 | VALID (enforced) |
+| symbiont → pybullet, torch, numpy, PIL | 0 | VALID (enforced) |
+| environment → anything first-party | 0 | VALID (enforced) |
+| modality → anything first-party | 0 | VALID (enforced) |
+| embodiment → modality | 2 | VALID |
+| embodiment → environment | 12 | VALID (world adapter) |
+| embodiment → symbiont | 50 | TRANSITIONAL: into organism internals, not `symbiont.api` |
+| embodiment → lab | 0 | VALID (enforced) |
+| lab → symbiont | 793 | TRANSITIONAL: into organism internals (OI-5) |
+| lab → embodiment | 66 | VALID |
+| lab → environment | 62 | VALID |
+| lab → pybullet, torch, numpy, PIL | 20 | VALID: heavy libraries live only in the Lab |
+
+## Pairs required by the instructions (§7)
 
 | Pair | Finding | Class |
 |---|---|---|
-| Symbiont → World (`symbiont_world`) | 0 edges | VALID |
-| World → Symbiont | 0 edges; `symbiont_world` imports only the standard library | VALID |
-| Symbiont → Physics3D | 0 edges; no `pybullet`, `torch`, `numpy` or `PIL` import anywhere in `symbiont` | VALID |
-| Symbiont → Lab | 0 edges | VALID |
-| Symbiont → Observatory | 0 edges | VALID |
-| Lab → Symbiont | 863 edges into organism internals, not through an API | TRANSITIONAL (OI-5) |
-| Observatory → Symbiont | 48 edges into `symbiont.cognition`, `symbiont.core`, `symbiont.host`, `symbiont.genetics` | TRANSITIONAL (OI-5) |
-| Observatory ↔ Lab | observatory → `symbiont_lab.observation`/`server` (6); lab → observatory (26) | UNCERTAIN: mutual dependency between two auxiliary systems |
-| Symbiont ↔ Embodiment | not separable today: `core.orchestration` → `actuation` 46, `core.domains` → `actuation` 48, `core.embodiment` → `actuation` 6 | ARCHITECTURAL VIOLATION of the target (OI-3) |
-| Embodiment ↔ Physics3D | `symbiont_lab.physics3d` → `symbiont.core.embodiment` 15, → `symbiont.actuation` 7, → `symbiont.sensory` 2 | TRANSITIONAL |
-| Modality ↔ Environment | `symbiont.sensory` → `symbiont.host` 7; `physics3d.vision` lives inside the physics package | UNCERTAIN |
+| Symbiont ↔ World | no edge either way | VALID |
+| Symbiont ↔ Physics3D | no edge from the organism; no heavy library in it | VALID |
+| Symbiont ↔ Lab | no edge from the organism | VALID |
+| Symbiont ↔ Observatory | no edge from the organism; `lab.observatory` → `symbiont` 48 | TRANSITIONAL |
+| Symbiont ↔ Embodiment | the `embodiment` package depends on the organism (50). Inside the organism, `core.orchestration` → `actuation` 46 and `core.domains` → `actuation` 48 still tie the core to coupling code | ARCHITECTURAL VIOLATION of the target, inside the organism (OI-3) |
+| Embodiment ↔ Physics3D | bodies and apparatus are in `embodiment`; the engine and runtime in `lab.physics3d` compose them | VALID |
+| Modality ↔ Environment | no edge | VALID |
 
 ## Violations of the target architecture
 
 | # | Edge | Evidence | Class |
 |---|---|---|---|
 | V1 | organism core → concrete host modality implementations | `core.orchestration.runtime` → `host.providers.{stdlib, stdlib_readings}` (top), `{interoception, linux_surfaces, portable_surfaces}` (lazy); `core.domains.perception` → `host.providers.interoception` (lazy) | ARCHITECTURAL VIOLATION, pinned by ratchet |
-| V2 | organism core ↔ host boundary is circular | `core.*` → `symbiont.host` 78 edges; `symbiont.host` → `core.foundation` 7, → `core.cognition` 1 (lazy) | ARCHITECTURAL VIOLATION |
-| V3 | physics apparatus → cognition internals | `physics3d.apparatus` → `cognition.{birth, limits}`; `physics3d.runtime` → `cognition.{generative, limits, types}` | ARCHITECTURAL VIOLATION, pinned by ratchet |
-| V4 | physics (environment/embodiment candidate) → lab | `physics3d` → `symbiont_lab.{app 5, experiments 1, observation 3, modeling 9}` | ARCHITECTURAL VIOLATION: blocks moving physics3d out of Lab |
-| V5 | world adapter → organism internals | `symbiont_lab.world.adapter` → 21 organism modules (`actuation`, `cognition`, `core.embodiment`, `core.orchestration`, `host`, `genetics`, `modeling`) | TRANSITIONAL |
-| V6 | legacy synthetic environment inside the organism namespace | `symbiont.environment`, `symbiont.simulation`; `symbiont/__init__.py` re-exports `symbiont.simulation` | TRANSITIONAL, pinned by guard (OI-2) |
-| V7 | organism submodules → top-level `symbiont` | `core.orchestration.canonical_birth` (top), `core.orchestration.runtime` and `core.foundation.fingerprint` (lazy), for `__version__` | VALID but it makes the legacy simulation load with every organism import |
+| V2 | organism core ↔ host boundary is circular | `core.*` → `symbiont.host` 78; `symbiont.host` → `symbiont.core` 7 | ARCHITECTURAL VIOLATION |
+| V3 | embodiment and physics runtime → cognition internals | `embodiment.physics3d.apparatus` and `embodiment.world.adapter` → `symbiont.cognition.{birth, limits}`; `lab.physics3d.runtime` → `symbiont.cognition.{generative, limits, types}` | ARCHITECTURAL VIOLATION, pinned by ratchet |
+| V4 | physics runtime → other Lab units | `lab.physics3d` → `lab.app` 4, `lab.modeling` 9, `lab.observation` 3, `lab.experiments` 1 | TRANSITIONAL: keeps engine, runtime and persistence in the Lab |
+| V5 | embodiment → organism internals | `apparatus` → host, sensory, actuation, core.embodiment; `world.adapter` → 21 organism modules including `core.orchestration` and `modeling.runtime` | TRANSITIONAL (OI-5) |
+| V6 | observation ↔ observatory cycle | `lab.observation` → `lab.observatory` 4; `lab.observatory` → `lab.observation` 4, → `lab.server` 2 | UNCERTAIN |
+| V7 | organism submodules → top-level `symbiont` | for `__version__`; and `symbiont/__init__.py` imports `symbiont.core` to hold a pre-existing import cycle in order (OI-6) | PRE-EXISTING |
 
-## Edges that are valid
+## Resolved during the migration
 
-- `symbiont.genetics` and `symbiont_world` have no first-party dependencies.
-- `symbiont.cognition` depends only on `genetics`, `core.foundation`, `capacity`.
-- Lab depends on everything; nothing in `symbiont` or `symbiont_world` depends on Lab.
+- `symbiont.environment` and `symbiont.simulation` (legacy synthetic environment
+  and simulation inside the organism namespace) no longer exist.
+- Physics3D bodies, apparatus, re-embodiment and the world adapter no longer
+  live in the Lab, so the Lab is no longer the only place a body can be defined.
+- The vision receptor array is separated from the body that carries it.
 
 ## Enforcement
 
-`tests/experimental_integrity/test_five_domain_architecture.py` (19 tests):
+`tests/experimental_integrity/test_five_domain_architecture.py` (25 tests):
 
-- hard rules: `symbiont` ✗→ `symbiont_lab`, `symbiont_world`, `observatory`,
-  pybullet, torch, numpy, PIL; `symbiont_world` ✗→ `symbiont`, `symbiont_lab`,
-  `observatory`, and the same heavy libraries;
-- ratchets for V1, V3 and V6: the exact current edge set is asserted, so the
-  debt cannot grow, and a reduction forces the baseline to be tightened;
-- each source root holds exactly its domain package.
+- hard rules for every 0-edge row above;
+- each source root holds exactly its domain package;
+- ratchets on V1 and V3: the exact current edge set is asserted, so the debt
+  cannot grow, and a reduction forces the baseline to be tightened;
+- `symbiont.api` resolves and carries no modality-specific types.
 
-Not yet enforced: `symbiont` ✗→ embodiment and `embodiment`/`modality` ✗→
-cognition internals as package-level rules, because those domains are not
-separate packages yet (OI-3).
+Not enforced: "embodiment / modality / environment use only `symbiont.api`".
+Today embodiment needs organism internals that the API does not expose (OI-5).

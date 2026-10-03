@@ -22,6 +22,9 @@ Persisted formats did not change, so no data shim is needed:
 - organism checkpoints (schema 11) written by the old code load in the new code
   with the same state hash, and a re-save is byte-identical to the old code's
   re-save (`migration/tools/identity_check.py`);
+- inline genome payloads were converted from schema 1 to schema 2 and verified
+  to load to the same genome (same genome hash and genotype hash) before the
+  schema-1 migration was removed;
 - no persisted format stores a Python module path, so the package renames do
   not affect saved state.
 
@@ -34,6 +37,11 @@ trigger it), which a pre-existing import cycle depends on. See OI-6.
 
 ## Consequences of having no shim
 
+- Data written in removed formats no longer loads: organism checkpoints of
+  schema 1–10, genomes of schema 1, checkpoints carrying a `HeritableGenome`
+  payload, and Physics3D telemetry v3/v4. This includes anything of that age
+  under `.symbiont/` in the source repository. Schema-11 checkpoints and v4.1
+  telemetry are unaffected.
 - External code or notebooks that import `symbiont_lab`, `symbiont_world`,
   `observatory` or the old `symbiont.core.<name>` aliases must be updated.
 - Experiment runner scripts inside completed experiments

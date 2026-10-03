@@ -90,7 +90,7 @@ def test_observatory_change_uses_targeted_observatory_lane(monkeypatch) -> None:
     plan = _plan(
         monkeypatch,
         ChangeClass.ORDINARY,
-        ["observatory/server.py"],
+        ["lab/src/lab/observatory/server.py"],
         sections=("observatory",),
         lanes={"observatory", "architecture_integrity"},
     )
