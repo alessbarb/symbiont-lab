@@ -218,7 +218,7 @@ def test_full_runtime_checkpoint_contains_bounded_signal_knowledge(tmp_path):
 # --- Durable state: save, strict restore, and explicit first boot ---
 
 
-def test_save_and_load_or_create_resumes_tick_count(tmp_path):
+def test_save_and_load_required_resumes_tick_count(tmp_path):
     path = tmp_path / "state.json"
     runtime = OrganismRuntime(**test_body_kwargs(), min_samples=1, investigate_ticks=0)
     runtime.run(3)
@@ -230,7 +230,7 @@ def test_save_and_load_or_create_resumes_tick_count(tmp_path):
     assert restored.acclimation.acclimated_capabilities
 
 
-def test_load_or_create_starts_fresh_when_no_file_exists(tmp_path):
+def test_explicit_first_boot_starts_fresh_when_no_file_exists(tmp_path):
     restored = OrganismRuntime.load_or_create_for_first_boot(
         tmp_path / "missing.json", min_samples=1
     )
