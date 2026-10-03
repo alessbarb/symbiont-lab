@@ -73,6 +73,7 @@ from ...host.providers.stdlib import StandardLibraryProvider
 from ...host.providers.stdlib_readings import StandardLibraryReadingProvider
 from ...host.readings import ReadingProvider
 from ...host.rhythms import RhythmModel
+from ...host.sources import HostSenseSources
 from ...provenance import ProvenanceLog
 from ...sensory import SensorySystem
 from ..cognition.attention import AttentionAllocation
@@ -273,6 +274,7 @@ class OrganismRuntime:
         discovery_policy: DiscoveryPolicy | None = None,
         host_lifecycle: HostLifecycle | None = None,
         host_reading_providers: tuple[ReadingProvider, ...] | None = None,
+        host_sense_sources: HostSenseSources | None = None,
         attention_budget: float = 1.0,
         investigate_ticks: int = 2,
         conflict_z: float = 2.0,
@@ -428,42 +430,51 @@ class OrganismRuntime:
         self._interoception_mode = interoception_mode
         self._interoception_enabled = interoception_mode != "absent"
 
-        if bootstrap_semantic_senses:
-            discovery_providers.append(StandardLibraryProvider())
-            reading_providers.append(StandardLibraryReadingProvider())
-
-        # The interoceptive surface is only offered alongside host-sense
-        # discovery, so gaining it never gives the research subject platform
-        # topology on its own. Linux exposes procfs/sysfs; macOS and Windows
-        # expose the portable aggregate surfaces.
         host_system = platform.system()
-        if discover_senses and host_system in _HOST_SENSE_SYSTEMS:
-            from ...host.providers.interoception import (
-                InteroceptionProvider,
-                ShamInteroceptionProvider,
-            )
-
-            if host_system == "Linux":
-                from ...host.providers.linux_surfaces import LinuxSurfaceProvider
-
-                host_provider: Any = LinuxSurfaceProvider()
-            else:
-                from ...host.providers.portable_surfaces import PortableSurfaceProvider
-
-                host_provider = PortableSurfaceProvider(system=host_system)
-            discovery_providers.append(host_provider)
-            reading_providers.append(host_provider)
-
-            provider_type = (
-                ShamInteroceptionProvider if interoception_mode == "sham" else InteroceptionProvider
-            )
-            self._interoception_provider = provider_type() if self._interoception_enabled else None
-            if self._interoception_provider is not None:
-                discovery_providers.append(self._interoception_provider)
-                reading_providers.append(self._interoception_provider)
+        if host_sense_sources is not None:
+            # Sources composed outside the organism. It attaches what it is given.
+            discovery_providers.extend(host_sense_sources.discovery_providers)
+            reading_providers.extend(host_sense_sources.reading_providers)
+            self._interoception_provider = host_sense_sources.interoception_provider
         else:
-            self._interoception_provider = None
+            if bootstrap_semantic_senses:
+                discovery_providers.append(StandardLibraryProvider())
+                reading_providers.append(StandardLibraryReadingProvider())
 
+            # The interoceptive surface is only offered alongside host-sense
+            # discovery, so gaining it never gives the research subject platform
+            # topology on its own. Linux exposes procfs/sysfs; macOS and Windows
+            # expose the portable aggregate surfaces.
+            if discover_senses and host_system in _HOST_SENSE_SYSTEMS:
+                from ...host.providers.interoception import (
+                    InteroceptionProvider,
+                    ShamInteroceptionProvider,
+                )
+
+                if host_system == "Linux":
+                    from ...host.providers.linux_surfaces import LinuxSurfaceProvider
+
+                    host_provider: Any = LinuxSurfaceProvider()
+                else:
+                    from ...host.providers.portable_surfaces import PortableSurfaceProvider
+
+                    host_provider = PortableSurfaceProvider(system=host_system)
+                discovery_providers.append(host_provider)
+                reading_providers.append(host_provider)
+
+                provider_type = (
+                    ShamInteroceptionProvider
+                    if interoception_mode == "sham"
+                    else InteroceptionProvider
+                )
+                self._interoception_provider = (
+                    provider_type() if self._interoception_enabled else None
+                )
+                if self._interoception_provider is not None:
+                    discovery_providers.append(self._interoception_provider)
+                    reading_providers.append(self._interoception_provider)
+            else:
+                self._interoception_provider = None
         self._reading_providers = tuple(reading_providers)
         # The host is one sense source among others (Body, vision, ...). Where
         # it cannot be read the organism is still born, and says so (ADR-0062).
@@ -471,6 +482,8 @@ class OrganismRuntime:
             self._host_sense_source = "embodied"
         elif not discover_senses:
             self._host_sense_source = "not_requested"
+        elif host_sense_sources is not None:
+            self._host_sense_source = host_sense_sources.availability
         elif host_system in _HOST_SENSE_SYSTEMS:
             self._host_sense_source = "available"
         else:
