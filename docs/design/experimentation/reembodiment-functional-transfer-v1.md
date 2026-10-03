@@ -15,11 +15,12 @@ language: en
 
 # Re-embodiment Functional Transfer v1 — Frozen Preregistration
 
-**Status:** **approved and frozen (r7, 2026-10-03)**. The owner approved the
+**Status:** **approved and frozen (r8, 2026-10-03)**. The owner approved the
 synthetic causal Body, the proposed numbers and the confirmation seeds (r5), the
-subject configuration (r6), and the family rule and development seeds of r7
-(§4.2.1, §4.4, §10.2). Regime: **confirmatory**. The r5 and r6 development
-stages are superseded; **no r7 development or confirmation seed has been run**.
+subject configuration (r6), the family rule and development seeds (r7), and
+`D_max = 2000` (r8, §10.2). Regime: **confirmatory**. The r5, r6 and r7
+development stages are superseded; **no r8 development or confirmation seed has
+been run**.
 
 **Acceptance test.** The owner requires that an organism re-embodied in a new
 Body manages it sooner than a newborn (canonical organism profile register,
@@ -193,7 +194,8 @@ is approved and frozen. Development seeds are used only for §4.2.1 and §4.5.
 Both horizons are computed by rule from the development seeds. Nobody chooses
 them, and neither rule looks at arm T.
 
-- **`D`** — the smallest multiple of 100 ticks, up to `D_max = 1000`, at which
+- **`D`** — the smallest multiple of 100 ticks, up to `D_max = 2000` (r8; 1000
+  before), at which
   every development organism holds at least one `VALID` execution binding in
   every source Body of the family (the R1, R2 and R3 sources and the sham
   Body). If that does not happen by `D_max`, the study is **not runnable** and
@@ -443,6 +445,17 @@ identical to the source, could be built):
   outcome, and that `H = 2 × median naive M1` capped at `D` may censor arm T.
 
 ## 10.2 Revision history
+
+- **r8, 2026-10-03 — approved and frozen.** The r7 development stage chose a
+  family with no difficulty spread but did not reach `D` by `D_max = 1000`: a few
+  slow development organisms did not hold a valid binding at the same cut. An
+  exploratory diagnostic on the development seeds found all 36 holding one at
+  1500 ticks, and Competence Establishment Evidence v1 showed that a stricter
+  competence gate does not help (no change). Owner decision: `D_max` becomes
+  2000; the rule for `D` is unchanged. Execution only: the confirmation stage
+  may run its 108 arm runs in up to four processes and rewrites a progress file
+  after every run. No threshold, seed, arm, relation or decision rule changes.
+  The r7 development outputs are kept under `development-r7/`.
 
 - **r7, 2026-10-03 — approved and frozen.** The r6 development stage found the
   hand-built family outside the 15% spread (medians 87/73/73/93, spread 0.25):
