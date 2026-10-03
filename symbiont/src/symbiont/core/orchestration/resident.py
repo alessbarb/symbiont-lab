@@ -134,15 +134,12 @@ class ResidentOrganism:
         except Exception:
             logger.exception("resident capsule publication failed")
 
-        # 2. Ingest peer capsules and update trust / evidence
-        try:
-            peer_capsules = self.habitat.poll_capsules(exclude_signer=self.keypair.public_bytes)
-            for cap in peer_capsules:
-                pass
-        except Exception:
-            logger.exception("resident capsule ingestion failed")
+        # Peer capsule ingestion is intentionally not performed here: the
+        # resident has no canonical evidence/trust policy for remote claims.
+        # Do not poll and silently discard them; add ingestion alongside that
+        # policy when social evidence ownership is resolved.
 
-        # 3. Reproductive budding if conditions are met
+        # 2. Reproductive budding if conditions are met
         try:
             reserve = self.runtime.metabolism.snapshot().reserve.get("maintenance", 0.0)
             if reserve >= 0.75 and ticks >= 20 and self.habitat.count_incubated() < 2:
