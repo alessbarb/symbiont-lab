@@ -28,7 +28,7 @@ def test_portal_index_points_at_merged_file():
 
 
 def test_fuentes_taxonomy_points_at_merged_file():
-    text = (REPO_ROOT / "docs" / "explanation" / "concepts" / "SOURCES.md").read_text(
+    text = (REPO_ROOT / "symbiont" / "docs" / "explanation" / "concepts" / "SOURCES.md").read_text(
         encoding="utf-8"
     )
     assert "docs/architecture.md" in text
@@ -79,7 +79,7 @@ def test_root_readme_points_at_merged_file():
 
 
 def test_web_readme_points_at_merged_file():
-    text = (REPO_ROOT / "docs" / "explanation" / "concepts" / "README.md").read_text(
+    text = (REPO_ROOT / "symbiont" / "docs" / "explanation" / "concepts" / "README.md").read_text(
         encoding="utf-8"
     )
     assert "docs/architecture/" not in text

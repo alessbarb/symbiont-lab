@@ -30,4 +30,4 @@ v1.0.0 / Cognitive Limits Specification.
 
 ## Evidence
 
-`src/symbiont/cognition/types.py` (L28, L32), `src/symbiont/cognition/learning.py` (L9), `docs/explanation/math/09-endogenous-plasticity-and-recurrent-networks.md`.
+`src/symbiont/cognition/types.py` (L28, L32), `src/symbiont/cognition/learning.py` (L9), `symbiont/docs/explanation/math/09-endogenous-plasticity-and-recurrent-networks.md`.

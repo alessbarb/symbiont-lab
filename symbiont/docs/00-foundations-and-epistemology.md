@@ -45,6 +45,6 @@ The scientific question is not whether the metaphors sound biological. It is whe
 - `docs/architecture.md`
 - `docs/adr/ADR-0001-two-package-boundary.md`
 - `docs/adr/ADR-0002-ground-truth-isolation.md`
-- `docs/explanation/concepts/01-what-is-a-symbiont.md`
+- `symbiont/docs/explanation/concepts/01-what-is-a-symbiont.md`
 - `src/symbiont/core/orchestration/runtime.py::OrganismRuntime`
 - `src/symbiont/sensory/system.py::SensorySystem`

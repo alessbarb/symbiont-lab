@@ -4,7 +4,7 @@ from .conftest import REPO_ROOT, VALID_TYPES
 
 
 def test_fuentes_declares_the_taxonomy():
-    text = (REPO_ROOT / "docs" / "explanation" / "concepts" / "SOURCES.md").read_text(
+    text = (REPO_ROOT / "symbiont" / "docs" / "explanation" / "concepts" / "SOURCES.md").read_text(
         encoding="utf-8"
     )
     for type_name in VALID_TYPES:

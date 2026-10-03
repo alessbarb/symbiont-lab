@@ -52,6 +52,6 @@ It is directly proven that an infinite uncertainty always wins over any finite u
 
 ## Formal backing
 
-The greedy Dantzig heuristic for the 0/1 knapsack, the coefficient of variation as a dimensionless dispersion measure, and the formal decoupling between ranking cost and physical cost are in [`docs/explanation/math/04-causal-attention-and-budgets.md`](../math/04-causal-attention-and-budgets.md).
-The Bayesian update with pseudo-observations, bounded evidence saturation and the dissent Z-test are in [`docs/explanation/math/05-bayesian-beliefs-and-dissent.md`](../math/05-bayesian-beliefs-and-dissent.md).
-Collective consensus without an external oracle is in [`docs/explanation/math/06-collective-consensus-and-trust.md`](../math/06-collective-consensus-and-trust.md).
+The greedy Dantzig heuristic for the 0/1 knapsack, the coefficient of variation as a dimensionless dispersion measure, and the formal decoupling between ranking cost and physical cost are in [`symbiont/docs/explanation/math/04-causal-attention-and-budgets.md`](../math/04-causal-attention-and-budgets.md).
+The Bayesian update with pseudo-observations, bounded evidence saturation and the dissent Z-test are in [`symbiont/docs/explanation/math/05-bayesian-beliefs-and-dissent.md`](../math/05-bayesian-beliefs-and-dissent.md).
+Collective consensus without an external oracle is in [`symbiont/docs/explanation/math/06-collective-consensus-and-trust.md`](../math/06-collective-consensus-and-trust.md).

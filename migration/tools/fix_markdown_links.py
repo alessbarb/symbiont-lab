@@ -19,6 +19,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 # old repo-relative prefix -> new repo-relative prefix (longest first)
 MOVES = [
+    # documentation owned by the organism (longest new prefix first)
+    ("docs/explanation", "symbiont/docs/explanation"),
+    ("docs/symbiont", "symbiont/docs"),
     # original layout
     ("src/symbiont_lab/physics3d/humanoid.py", "embodiment/src/embodiment/physics3d/humanoid.py"),
     ("src/symbiont_lab/physics3d/vision.py", "embodiment/src/embodiment/physics3d/vision.py"),

@@ -28,4 +28,4 @@ v0.26.0 (Lineage & Reproduction Architecture).
 
 ## Evidence
 
-`src/symbiont/core/orchestration/canonical_birth.py`, `docs/architecture.md` (L592), `docs/explanation/06-reproduction-and-lineage.md`.
+`src/symbiont/core/orchestration/canonical_birth.py`, `docs/architecture.md` (L592), `symbiont/docs/explanation/06-reproduction-and-lineage.md`.

@@ -14,7 +14,7 @@ language: en
 
 > **Status:** IMPLEMENTED  
 > **Type:** COOPERATIVE PROTOCOL AND REPUTATION DYNAMICS  
-> **Related modules:** [`symbiont.core.social.evidence_trust`](../../../symbiont/src/symbiont/core/social/evidence_trust.py), `symbiont.core.social.ledger`, [`symbiont.core.heritage`](../../../symbiont/src/symbiont/core/lineage/heritage.py)
+> **Related modules:** [`symbiont.core.social.evidence_trust`](../../../src/symbiont/core/social/evidence_trust.py), `symbiont.core.social.ledger`, [`symbiont.core.heritage`](../../../src/symbiont/core/lineage/heritage.py)
 
 ---
 
@@ -31,7 +31,7 @@ The system addresses two simultaneous mathematical problems:
 1. **Evidence Aggregation:** How to combine the discrete votes of multiple sources to infer a coherent collective belief?
 2. **Endogenous Trust Evaluation (*Trust Modeling*):** How to evaluate if a source is reliable without having external truth labels to contrast their claims?
 
-Symbiont implements these mechanisms in [`SourceEvidenceState`](../../../symbiont/src/symbiont/core/social/source_evidence.py), `SocialEvidenceLedger` and [`SpeciesHeritage`](../../../symbiont/src/symbiont/core/lineage/heritage.py).
+Symbiont implements these mechanisms in [`SourceEvidenceState`](../../../src/symbiont/core/social/source_evidence.py), `SocialEvidenceLedger` and [`SpeciesHeritage`](../../../src/symbiont/core/lineage/heritage.py).
 
 ---
 
@@ -39,9 +39,9 @@ Symbiont implements these mechanisms in [`SourceEvidenceState`](../../../symbion
 
 > **Classification:** CODE IDENTITY / HEAVY-TAILED SIMILARITY METRIC
 
-When a host receives a knowledge capsule ([`KnowledgeCapsule`](../../../symbiont/src/symbiont/core/social/capsule.py)) cryptographically signed with Ed25519, it extracts the claimed remote mean $\mu_{\text{remote}}$ for a capability $c_k$.
+When a host receives a knowledge capsule ([`KnowledgeCapsule`](../../../src/symbiont/core/social/capsule.py)) cryptographically signed with Ed25519, it extracts the claimed remote mean $\mu_{\text{remote}}$ for a capability $c_k$.
 
-The local organism compares this claim with its own acclimated distribution $\mathcal{N}(\mu_{\text{local}}, \sigma_{\text{local}}^2)$ via [`EvidenceTrust`](../../../symbiont/src/symbiont/core/social/evidence_trust.py):
+The local organism compares this claim with its own acclimated distribution $\mathcal{N}(\mu_{\text{local}}, \sigma_{\text{local}}^2)$ via [`EvidenceTrust`](../../../src/symbiont/core/social/evidence_trust.py):
 
 If the capability is not locally acclimated or $\sigma_{\text{local}} = 0.0$, the system returns `None` (epistemic silence given the lack of comparative baseline). Otherwise:
 
@@ -150,7 +150,7 @@ Under the strict assumption of a stable and uncorrelated honest majority, honest
 
 > **Classification:** COMPRESSION POLICY AND PRIORS ATTENUATION
 
-Between generations of agents, accumulated knowledge is transferred as a **compressed epigenetic distillation** ([`SpeciesHeritage`](../../../symbiont/src/symbiont/core/lineage/heritage.py)).
+Between generations of agents, accumulated knowledge is transferred as a **compressed epigenetic distillation** ([`SpeciesHeritage`](../../../src/symbiont/core/lineage/heritage.py)).
 
 ### 5.1 Quadruple Selection Criteria
 

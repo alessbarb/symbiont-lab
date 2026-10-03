@@ -14,7 +14,7 @@ language: en
 
 > **Status:** IMPLEMENTED  
 > **Type:** ADAPTIVE FILTER WITH BAYESIAN MOTIVATION  
-> **Related modules:** `symbiont.core.beliefs`, [`symbiont.core.evidence`](../../../symbiont/src/symbiont/core/cognition/evidence.py)
+> **Related modules:** `symbiont.core.beliefs`, [`symbiont.core.evidence`](../../../src/symbiont/core/cognition/evidence.py)
 
 ---
 
@@ -27,7 +27,7 @@ The model pursues four operational properties:
 1. **Smooth Accumulation:** As consistent evidence is observed, subjective certainty increases.
 2. **Reversibility:** If the host's behavior changes, the belief can cross the decision boundary ($p \ge 0.5 \leftrightarrow p < 0.5$).
 3. **Conflict Sensitivity:** If successive observations conflict with each other, certainty decays.
-4. **Dissent Preservation:** If a batch of evidence strongly disagrees with the established baseline, the disagreement is recorded immutably as an explicit historical event ([`symbiont.core.evidence`](../../../symbiont/src/symbiont/core/cognition/evidence.py)).
+4. **Dissent Preservation:** If a batch of evidence strongly disagrees with the established baseline, the disagreement is recorded immutably as an explicit historical event ([`symbiont.core.evidence`](../../../src/symbiont/core/cognition/evidence.py)).
 
 ---
 
@@ -122,7 +122,7 @@ To avoid pedagogical ambiguities, the compendium formalizes three orthogonal dim
 
 When the organism executes a high-resolution inspection (*second look*), it collects a batch of discrete readings $\mathcal{X}_{\text{batch}} = \{x_1, \dots, x_m\}$.
 
-[`EvidenceRevisionLedger`](../../../symbiont/src/symbiont/core/cognition/evidence.py) evaluates whether this batch clashes with the acclimated baseline $(\mu_{\text{prior}}, \sigma_{\text{prior}})$.
+[`EvidenceRevisionLedger`](../../../src/symbiont/core/cognition/evidence.py) evaluates whether this batch clashes with the acclimated baseline $(\mu_{\text{prior}}, \sigma_{\text{prior}})$.
 
 ### 5.1 Standardized Displacement Discrepancy
 
@@ -139,11 +139,11 @@ If the previous baseline is acclimated ($\sigma_{\text{prior}} > 0$) and the dis
 
 $$|Z_{\text{batch}}| \ge z_{\text{conflict}} \quad (\text{by default } z_{\text{conflict}} = 2.0)$$
 
-An immutable [`DissentRecord`](../../../symbiont/src/symbiont/core/cognition/evidence.py) log is generated:
+An immutable [`DissentRecord`](../../../src/symbiont/core/cognition/evidence.py) log is generated:
 
 $$\text{DissentRecord} = \big( \text{capability\_id}, \; \mu_{\text{prior}}, \; \sigma_{\text{prior}}, \; \bar{x}_{\text{batch}}, \; Z_{\text{batch}} \big)$$
 
 The organism applies a deliberate double movement:
 
 1. **Adapts the baseline:** The readings are transferred to acclimation (`acclimation.observe`), allowing the organism to assimilate the observed reality.
-2. **Preserves the discord:** The disagreement record is stored in a circular queue of size 256, allowing the narrative layer ([`symbiont.core.narrative`](../../../symbiont/src/symbiont/core/foundation/narrative.py)) to report to the human operator that the belief was modified under conditions of statistical contestation.
+2. **Preserves the discord:** The disagreement record is stored in a circular queue of size 256, allowing the narrative layer ([`symbiont.core.narrative`](../../../src/symbiont/core/foundation/narrative.py)) to report to the human operator that the belief was modified under conditions of statistical contestation.

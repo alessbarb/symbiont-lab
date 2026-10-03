@@ -56,7 +56,7 @@ permitted forms.
 | ground-truth-adr2 | normative | 01#mecanismo | docs/adr/ADR-0002-ground-truth-isolation.md |
 | boundary-enforced-import | implementation | 01#evidencia | tests/experimental_integrity/test_ground_truth_boundary.py::test_ast_symbiont_never_imports_symbiont_lab |
 | kernel-inmutable-limits | implementation | 01#mecanismo | symbiont/src/symbiont/cognition/limits.py::KernelLimits |
-| kernel-inmutable-design | normative | 01#mecanismo | docs/explanation/concepts/03-cognition-and-plasticity.md |
+| kernel-inmutable-design | normative | 01#mecanismo | symbiont/docs/explanation/concepts/03-cognition-and-plasticity.md |
 | funcion-no-decoracion | normative | 01#no-metafora | docs/architecture.md |
 | privacidad-capability | implementation | 02#mecanismo | symbiont/src/symbiont/host/contracts.py::Capability |
 | privacidad-reading-class | implementation | 02#mecanismo | symbiont/src/symbiont/host/readings.py::ReadingPrivacyClass |
@@ -95,7 +95,7 @@ permitted forms.
 | excretion-observed | empirical | 05#evidencia | symbiont/tests/unit/core/test_degradation.py::test_state_ages_and_is_excreted |
 | ontogeny-controller | implementation | 06#mecanismo | symbiont/src/symbiont/core/embodiment/ontogeny.py::OntogenyController |
 | reproduction-boundary | implementation | 06#mecanismo | symbiont/src/symbiont/core/orchestration/runtime.py::OrganismRuntime |
-| reproduction-design | normative | 06#respaldo-formal | docs/explanation/concepts/06-reproduction-and-lineage.md |
+| reproduction-design | normative | 06#respaldo-formal | symbiont/docs/explanation/concepts/06-reproduction-and-lineage.md |
 | growth-costs-energy-observed | empirical | 06#evidencia | symbiont/tests/unit/core/test_ontogeny.py::test_growth_is_constitutive_and_consumes_physical_energy |
 | denied-birth-preserves-energy-observed | empirical | 06#evidencia | lab/tests/integration/test_lab_reproduction.py::test_denied_birth_does_not_consume_parent_energy |
 | birth-conserves-energy-observed | empirical | 06#evidencia | lab/tests/integration/test_lab_reproduction.py::test_materialized_birth_conserves_parent_child_energy |
@@ -103,14 +103,14 @@ permitted forms.
 | social-relation | implementation | 07#mecanismo | symbiont/src/symbiont/core/social/relations.py::SocialRelation |
 | resource-evidence-ledger | implementation | 07#mecanismo | symbiont/src/symbiont/core/social/relations.py::ResourceEvidenceLedger |
 | social-habitat | implementation | 07#mecanismo | symbiont/src/symbiont/core/social/relations.py::SocialHabitat |
-| diseno-sociabilidad-k | normative | 07#respaldo-formal | docs/explanation/concepts/07-ecology-and-sociability.md |
+| diseno-sociabilidad-k | normative | 07#respaldo-formal | symbiont/docs/explanation/concepts/07-ecology-and-sociability.md |
 | valence-evidence-based-observed | empirical | 07#evidencia | symbiont/tests/unit/core/test_social.py::test_relation_valence_is_evidence_based |
 | relation-dimensions-separate-observed | empirical | 07#evidencia | symbiont/tests/unit/core/test_social.py::test_relation_tracks_reciprocity_conflict_and_freshness |
 | resource-evidence-revision-observed | empirical | 07#evidencia | symbiont/tests/unit/core/test_social.py::test_resource_evidence_revises_a_previously_useful_token_after_repeated_denials |
 | autonomous-emergence-observed | empirical | 07#implementado | lab/tests/integration/studies/test_social_runtime_emergence.py::test_runtime_emergence_study_is_deterministic_and_uses_local_choices |
 | shadow-lifecycle-j | implementation | 08#mecanismo | symbiont/src/symbiont/cognition/learning.py::ShadowPrediction |
 | structural-plasticity | implementation | 08#mecanismo | symbiont/src/symbiont/cognition/structure.py::StructuralPlasticity |
-| diseno-predictivo-j | normative | 08#respaldo-formal | docs/explanation/concepts/08-predictive-development.md |
+| diseno-predictivo-j | normative | 08#respaldo-formal | symbiont/docs/explanation/concepts/08-predictive-development.md |
 | no-promotion-without-gain-observed | empirical | 08#evidencia | symbiont/tests/unit/cognition/test_shadow_prediction.py::test_shadow_prediction_does_not_promote_without_gain |
 | structural-memory-bounded-observed | empirical | 08#evidencia | symbiont/tests/unit/cognition/test_structure.py::test_reconcile_bounds_memory_growth_over_many_distinct_pairs |
 | methodology-principles | normative | 09#metodologia | docs/methodology/README.md |

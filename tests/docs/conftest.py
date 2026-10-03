@@ -6,11 +6,11 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-# Source-type taxonomy for docs/explanation/concepts/SOURCES.md — shared so a new type added
+# Source-type taxonomy for symbiont/docs/explanation/concepts/SOURCES.md — shared so a new type added
 # to the taxonomy only needs to change in one place.
 VALID_TYPES = {"normative", "formal", "implementation", "empirical", "historica"}
 
-# The docs/explanation/concepts/ chapter sequence, in order — shared by every test that needs
+# The symbiont/docs/explanation/concepts/ chapter sequence, in order — shared by every test that needs
 # to enumerate or validate the full chapter set.
 CHAPTERS = [
     "01-what-is-a-symbiont.md",

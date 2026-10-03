@@ -158,6 +158,12 @@ classification = "ORDINARY"
 
 # The suites owned by each domain. The experimental-integrity and experiment
 # layers are elevated by `scientific-evidence-tests`.
+# Documentation owned by a domain.
+[[surface]]
+id = "domain-docs"
+paths = ["symbiont/docs/**"]
+classification = "ORDINARY"
+
 [[surface]]
 id = "domain-test-suites"
 paths = [

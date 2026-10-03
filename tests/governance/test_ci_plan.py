@@ -38,7 +38,7 @@ def test_ordinary_docs_change_runs_docs_lane_only(monkeypatch) -> None:
     plan = _plan(
         monkeypatch,
         ChangeClass.ORDINARY,
-        ["docs/explanation/readme.md"],
+        ["symbiont/docs/explanation/readme.md"],
         sections=("docs",),
         lanes={"docs"},
     )

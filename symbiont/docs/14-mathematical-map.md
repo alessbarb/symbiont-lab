@@ -16,13 +16,13 @@ A reader should normally encounter these equations after the corresponding scien
 
 ## Formal reference
 
-- `docs/explanation/math/01-fundamentals-and-epistemology.md`
-- `docs/explanation/math/02-perception-acclimation-and-relations.md`
-- `docs/explanation/math/03-drift-detection-and-regimes.md`
-- `docs/explanation/math/04-causal-attention-and-budgets.md`
-- `docs/explanation/math/05-bayesian-beliefs-and-dissent.md`
-- `docs/explanation/math/06-collective-consensus-and-trust.md`
-- `docs/explanation/math/07-agent-cognition-and-metacognition.md`
-- `docs/explanation/math/08-self-model-and-adaptive-sensors.md`
-- `docs/explanation/math/09-endogenous-plasticity-and-recurrent-networks.md`
-- `docs/explanation/math/10-causal-selection-and-statistical-evaluation.md`
+- `symbiont/docs/explanation/math/01-fundamentals-and-epistemology.md`
+- `symbiont/docs/explanation/math/02-perception-acclimation-and-relations.md`
+- `symbiont/docs/explanation/math/03-drift-detection-and-regimes.md`
+- `symbiont/docs/explanation/math/04-causal-attention-and-budgets.md`
+- `symbiont/docs/explanation/math/05-bayesian-beliefs-and-dissent.md`
+- `symbiont/docs/explanation/math/06-collective-consensus-and-trust.md`
+- `symbiont/docs/explanation/math/07-agent-cognition-and-metacognition.md`
+- `symbiont/docs/explanation/math/08-self-model-and-adaptive-sensors.md`
+- `symbiont/docs/explanation/math/09-endogenous-plasticity-and-recurrent-networks.md`
+- `symbiont/docs/explanation/math/10-causal-selection-and-statistical-evaluation.md`

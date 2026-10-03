@@ -500,7 +500,7 @@ scientific acceptance.
 | 4. Active social epistemic knowledge round-trips or lives in its canonical owner | ARCH-1 Option A: the core ledger is removed from the organism runtime; the modeled ledger is the single owner, persisted and inside checkpoint identity | `symbiont/tests/integration/test_restart_equivalence.py`, `symbiont/tests/integration/test_communication_restart.py`, `lab/tests/unit/host/test_continuity_register.py` |
 | 5. Exchange replay protection and sequence survive | `core/social/exchange.py`: `ExchangeReplayGuard.restore`; runtime restore | `symbiont/tests/integration/test_communication_restart.py` |
 | 6. Runtime-only configuration recorded and reapplied | `runtime_provenance.session_controls`, `changed_since_restore` | `symbiont/tests/integration/test_restart_configuration.py` |
-| 7. Checkpoint and bundle semantics documented and tested | `docs/glossary.md`, `docs/symbiont/11-persistence-provenance-and-reembodiment.md` | `lab/tests/unit/lab/physics3d/test_persistence.py` |
+| 7. Checkpoint and bundle semantics documented and tested | `docs/glossary.md`, `symbiont/docs/11-persistence-provenance-and-reembodiment.md` | `lab/tests/unit/lab/physics3d/test_persistence.py` |
 | 8. Cold restart equivalence with developed cognition | — | `symbiont/tests/integration/test_restart_equivalence.py` |
 | 9. Re-embodiment continuity, Body authority withdrawn | transforms re-identify their output | `lab/tests/integration/test_reembodiment_continuity.py` |
 | 10. Temporal contamination stays bounded | `physics3d/reembodiment.py`: `migrate_temporal_domains` | `lab/tests/unit/lab/physics3d/test_reembodiment.py` |

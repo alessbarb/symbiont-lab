@@ -2,7 +2,7 @@ schema_version = 3
 
 [docs]
 ci_lanes = ["docs"]
-paths = ["README.md", "docs/**", "migration/**", "*/README.md", "AGENTS.md", "CLAUDE.md"]
+paths = ["README.md", "docs/**", "symbiont/docs/**", "migration/**", "*/README.md", "AGENTS.md", "CLAUDE.md"]
 
 [governance]
 ci_lanes = ["governance"]

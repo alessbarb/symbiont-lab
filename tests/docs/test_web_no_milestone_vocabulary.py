@@ -25,7 +25,7 @@ def _strip_allowed_mentions(text: str) -> str:
 def test_no_chapter_uses_milestone_vocabulary():
     offenders: list[str] = []
     for chapter in CHAPTERS:
-        text = (REPO_ROOT / "docs" / "explanation" / "concepts" / chapter).read_text(
+        text = (REPO_ROOT / "symbiont" / "docs" / "explanation" / "concepts" / chapter).read_text(
             encoding="utf-8"
         )
         if "milestone" in _strip_allowed_mentions(text).lower():
@@ -34,7 +34,7 @@ def test_no_chapter_uses_milestone_vocabulary():
 
 
 def test_fuentes_claim_ids_avoid_milestone_vocabulary():
-    text = (REPO_ROOT / "docs" / "explanation" / "concepts" / "SOURCES.md").read_text(
+    text = (REPO_ROOT / "symbiont" / "docs" / "explanation" / "concepts" / "SOURCES.md").read_text(
         encoding="utf-8"
     )
     stripped = _strip_allowed_mentions(text)

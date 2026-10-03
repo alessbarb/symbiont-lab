@@ -28,4 +28,4 @@ v0.22.0 (Belief & Dissent Architecture).
 
 ## Evidence
 
-`src/symbiont/core/cognition/beliefs.py` (L44, L82), `docs/architecture.md` (L588), `docs/explanation/math/05-bayesian-beliefs-and-dissent.md`.
+`src/symbiont/core/cognition/beliefs.py` (L44, L82), `docs/architecture.md` (L588), `symbiont/docs/explanation/math/05-bayesian-beliefs-and-dissent.md`.

@@ -21,7 +21,7 @@ from .conftest import REPO_ROOT, VALID_TYPES
 # so this still cannot be implemented without a stricter markup convention
 # for maturity/epistemic tags. Do not silently drop this requirement.
 
-FUENTES_PATH = REPO_ROOT / "docs" / "explanation" / "concepts" / "SOURCES.md"
+FUENTES_PATH = REPO_ROOT / "symbiont" / "docs" / "explanation" / "concepts" / "SOURCES.md"
 
 
 def _parse_claim_rows(text: str) -> tuple[list[dict[str, str]], list[str]]:
@@ -63,7 +63,9 @@ def _parse_claim_rows(text: str) -> tuple[list[dict[str, str]], list[str]]:
 
 def _chapter_path(anchor: str) -> Path:
     chapter_num = anchor.split("#", 1)[0]
-    matches = list((REPO_ROOT / "docs" / "explanation" / "concepts").glob(f"{chapter_num}-*.md"))
+    matches = list(
+        (REPO_ROOT / "symbiont" / "docs" / "explanation" / "concepts").glob(f"{chapter_num}-*.md")
+    )
     assert len(matches) == 1, (
         f"expected exactly one chapter file for {chapter_num}, found {matches}"
     )
@@ -113,7 +115,7 @@ def test_every_row_has_a_valid_type(claim_rows):
 
 def test_no_source_resolves_under_internal(claim_rows):
     """Defensive check: `docs/_internal/` no longer exists in this repository
-    (deleted; see docs/explanation/concepts/SOURCES.md), so this cannot currently fail against
+    (deleted; see symbiont/docs/explanation/concepts/SOURCES.md), so this cannot currently fail against
     a real row. It stays as a guard against that path-shape being
     reintroduced as a citable source later.
     """
@@ -154,7 +156,7 @@ def test_declared_symbol_exists_in_source(claim_rows):
 
 
 # NOTE(scope): a `#anchor` fragment in the Source column is only valid when
-# the cited source is itself another docs/explanation/concepts/ chapter — chapters carry
+# the cited source is itself another symbiont/docs/explanation/concepts/ chapter — chapters carry
 # explicit `<a id="...">` tags by this project's own convention (see
 # SOURCES.md's "Claims" section intro). Canonical normative/design docs under
 # docs/ do NOT carry explicit `<a id="...">` anchors (they rely on ordinary

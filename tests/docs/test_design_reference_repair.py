@@ -6,7 +6,7 @@ import pytest
 
 from .conftest import REPO_ROOT
 
-# Bare filenames, not full paths: docs/explanation/concepts/06-08 cite the old files both
+# Bare filenames, not full paths: symbiont/docs/explanation/concepts/06-08 cite the old files both
 # as `docs/design/X.md` (display text) and `../design/X.md` (link target)
 # on the same line — a full-path substring check would miss the second
 # form. Matching the bare filename catches both.
@@ -38,7 +38,7 @@ OLD_PATHS = [
 # regression this test also guards against) still fails loudly.
 _PROVENANCE_PREFIX = "> Consolidated from:"
 
-# docs/_internal/ has been deleted entirely (see docs/explanation/concepts/SOURCES.md and
+# docs/_internal/ has been deleted entirely (see symbiont/docs/explanation/concepts/SOURCES.md and
 # the commit that removed it), so no tracked path can ever start with this
 # prefix any more. Kept as an empty-effect no-op tuple (rather than removed
 # outright) purely as defense-in-depth: if docs/_internal/ is ever

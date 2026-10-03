@@ -58,4 +58,4 @@ It is proven that an unrecoverable pressure causes irreversible death, and that 
 ## Formal backing
 
 This chapter describes accounting and control engineering mechanisms, not a formal mathematical development of its own in the compendium. The self-model of cost and health of the organism — with which physiology shares the logic of EWMA and quantization — is in
-[`docs/explanation/math/08-self-model-and-adaptive-sensors.md`](../math/08-self-model-and-adaptive-sensors.md).
+[`symbiont/docs/explanation/math/08-self-model-and-adaptive-sensors.md`](../math/08-self-model-and-adaptive-sensors.md).
