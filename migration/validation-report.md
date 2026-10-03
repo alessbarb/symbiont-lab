@@ -20,11 +20,11 @@ back-end tests. The baseline command is the `canonical-full` CI job.
 | Genome schema 1 removed (payloads converted first) | 3857 passed, 0 failed |
 | Telemetry v3/v4 removed | 3834 passed, 0 failed |
 | World terrain/genesis → environment; Lab web view removed | 3834 passed, 0 failed |
-| **Final**: four peer libraries, cross-domain code in `lab.integration`, Import Linter | **FINAL_COUNT** |
+| **Final**: four peer libraries, cross-domain code in `lab.integration`, Import Linter | **3846 passed, 0 failed, 10 skipped, 2 xfailed** |
 
 Skips and xfails are the same ten and two as in the baseline.
 
-The fall from 4456 to 3834 passing tests is deletion of tests for code that was
+The fall from 4456 to 3846 passing tests is deletion of tests for code that was
 removed at the owner's request. Tests of surviving code that were lost are
 listed under "Coverage given up".
 
@@ -38,7 +38,7 @@ while the work was uncommitted and pass since the first commit.
 
 `ruff check` and `ruff format --check` over `symbiont/src environment/src
 modality/src embodiment/src lab/src tests scripts migration symbiont/tests`:
-clean, 1141 files.
+clean, 1146 files.
 
 ## Organism identity (§17)
 
