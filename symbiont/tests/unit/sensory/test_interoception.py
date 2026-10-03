@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-import symbiont.host.providers.process_telemetry as telemetry_module
-from symbiont.host.providers.process_telemetry import HostProcessTelemetry
 from symbiont.host.readings import ReadingQuality, Unit
 from symbiont.sensory.interoception import InteroceptionProvider, ShamInteroceptionProvider
+
+from .fake_telemetry import FakeTelemetry
 
 
 def _provider(provider_type=InteroceptionProvider):
     """Interoception with the host telemetry published alongside it."""
-    return provider_type(host_telemetry=HostProcessTelemetry())
+    return provider_type(host_telemetry=FakeTelemetry())
 
 
 def test_interoception_provider_discovery():
@@ -167,9 +167,8 @@ def test_interoception_physiological_refresh_does_not_reset_computational_channe
     assert readings["internal.integrity"].value == 0.4
 
 
-def test_interoception_sampling_without_resource_module(monkeypatch):
-    monkeypatch.setattr(telemetry_module, "resource", None)
-    provider = _provider()
+def test_an_unavailable_host_measurement_is_published_without_a_value():
+    provider = InteroceptionProvider(host_telemetry=FakeTelemetry(memory_rss=None))
     readings = {item.capability_id: item for item in provider.sample(provider.discover())}
 
     assert readings["internal.memory_rss"].unit == Unit.BYTE

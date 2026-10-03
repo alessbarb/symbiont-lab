@@ -31,10 +31,6 @@ _CLOCK_NAMES = {
 # allowlisted file (e.g. perception, where the leak lived) fails the test.
 DECLARED_EXCEPTIONS = {
     "sensory/interoception.py": (1, "apparatus reading timestamp"),
-    "host/providers/process_telemetry.py": (1, "apparatus reading timestamp"),
-    "host/providers/linux_surfaces.py": (1, "apparatus reading timestamp"),
-    "host/providers/portable_surfaces.py": (1, "apparatus reading timestamp"),
-    "host/providers/stdlib_readings.py": (1, "apparatus reading timestamp"),
     "host/readings.py": (2, "profiling clock -> observed_elapsed_s only"),
     "host/lifecycle.py": (1, "profiling clock -> observed_elapsed_s only"),
     "host/second_look.py": (1, "profiling clock -> observed_elapsed_s only"),

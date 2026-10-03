@@ -16,7 +16,6 @@ from symbiont.host import (
     ReadingQuality,
     SensorReading,
     Unit,
-    monitor_local_host,
 )
 
 
@@ -155,13 +154,6 @@ def test_duplicate_reading_provider_ids_are_rejected():
             discovery=discovery,
             reading_providers=(FlakyReadingProvider("same"), FlakyReadingProvider("same")),
         )
-
-
-def test_builtin_monitor_ticks_without_error():
-    lifecycle = monitor_local_host()
-    snapshot = lifecycle.tick()
-    assert snapshot.tick == 1
-    assert len(lifecycle.history) == 1
 
 
 def test_sampling_selector_can_leave_discovery_intact_while_skipping_reads() -> None:

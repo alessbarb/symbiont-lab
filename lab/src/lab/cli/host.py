@@ -4,19 +4,21 @@ import argparse
 import json
 import sys
 
-from symbiont.core import EvidenceRevisionLedger, attend_to_host, narrate_host
-from symbiont.host import (
-    CheckpointError,
+from lab.integration.organism.local_host import (
     acclimate_local_host,
     discover_local_host,
-    export_checkpoint,
-    import_checkpoint,
     learn_local_host_rhythms,
     monitor_local_host,
     perceive_local_host,
     sample_local_host,
     second_look_at_local_host,
     track_local_host_drift,
+)
+from symbiont.core import EvidenceRevisionLedger, attend_to_host, narrate_host
+from symbiont.host import (
+    CheckpointError,
+    export_checkpoint,
+    import_checkpoint,
 )
 
 

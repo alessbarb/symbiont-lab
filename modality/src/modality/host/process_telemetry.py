@@ -7,8 +7,14 @@ try:
 except ImportError:  # Windows has no stdlib resource module.
     resource = None
 
-from ..contracts import Capability, CapabilityKind
-from ..readings import ReadingPrivacyClass, ReadingQuality, SensorReading, Unit
+from .records import (
+    Capability,
+    CapabilityKind,
+    ReadingPrivacyClass,
+    ReadingQuality,
+    SensorReading,
+    Unit,
+)
 
 
 class HostProcessTelemetry:

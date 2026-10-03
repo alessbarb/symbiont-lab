@@ -5,7 +5,7 @@ import platform
 import shutil
 import time
 
-from ..contracts import Capability, CapabilityKind
+from .records import Capability, CapabilityKind
 
 
 class StandardLibraryProvider:

@@ -4,6 +4,12 @@ import platform
 from pathlib import Path
 from typing import Any
 
+from lab.integration.organism.host_sources import HostSource
+from modality.host.linux_surfaces import LinuxSurfaceProvider
+from modality.host.portable_surfaces import PortableSurfaceProvider
+from modality.host.process_telemetry import HostProcessTelemetry
+from modality.host.stdlib import StandardLibraryProvider
+from modality.host.stdlib_readings import StandardLibraryReadingProvider
 from symbiont.core.orchestration.canonical_birth import restore_resident_with_canonical_cognition
 from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont.core.orchestration.sense_requirements import (
@@ -13,11 +19,6 @@ from symbiont.core.orchestration.sense_requirements import (
     resolve_sense_requirements,
 )
 from symbiont.host.checkpoint import load_checkpoint_file
-from symbiont.host.providers.linux_surfaces import LinuxSurfaceProvider
-from symbiont.host.providers.portable_surfaces import PortableSurfaceProvider
-from symbiont.host.providers.process_telemetry import HostProcessTelemetry
-from symbiont.host.providers.stdlib import StandardLibraryProvider
-from symbiont.host.providers.stdlib_readings import StandardLibraryReadingProvider
 from symbiont.host.sources import HostSenseSources
 
 # Platforms on which host senses can be offered.
@@ -32,20 +33,20 @@ def canonical_host_sense_sources(
     discovery: list[Any] = []
     readings: list[Any] = []
     if requirements.bootstrap_semantic_senses:
-        discovery.append(StandardLibraryProvider())
-        readings.append(StandardLibraryReadingProvider())
+        discovery.append(HostSource(StandardLibraryProvider()))
+        readings.append(HostSource(StandardLibraryReadingProvider()))
 
     # Linux exposes procfs/sysfs; macOS and Windows the portable aggregate surfaces.
     # Interoception is the organism's own; the Lab only supplies host telemetry.
     telemetry = None
     available = system in HOST_SENSE_SYSTEMS
     if requirements.discover_senses and available:
-        host = (
+        host = HostSource(
             LinuxSurfaceProvider() if system == "Linux" else PortableSurfaceProvider(system=system)
         )
         discovery.append(host)
         readings.append(host)
-        telemetry = HostProcessTelemetry()
+        telemetry = HostSource(HostProcessTelemetry())
     return HostSenseSources(
         discovery_providers=tuple(discovery),
         reading_providers=tuple(readings),

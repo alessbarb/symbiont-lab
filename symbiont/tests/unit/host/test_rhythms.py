@@ -10,7 +10,6 @@ from symbiont.host import (
     RhythmModel,
     Unit,
     cycle_phase_for_tick,
-    learn_local_host_rhythms,
 )
 
 
@@ -120,15 +119,3 @@ def test_baseline_exposes_no_classification_surface():
 
     public_attrs = {name for name in dir(baseline) if not name.startswith("_")}
     assert public_attrs <= {"count", "mean", "variance", "stdev"}
-
-
-def test_learn_local_host_rhythms_seeds_a_real_model():
-    model = learn_local_host_rhythms(ticks=5)
-
-    assert model.learned_contexts
-    assert model.co_occurring_percepts(CyclePhase.PHASE_0)
-
-
-def test_learn_local_host_rhythms_rejects_invalid_ticks():
-    with pytest.raises(ValueError):
-        learn_local_host_rhythms(ticks=0)

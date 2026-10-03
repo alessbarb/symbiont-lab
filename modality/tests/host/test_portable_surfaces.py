@@ -7,7 +7,7 @@ import platform
 
 import pytest
 
-from symbiont.host.providers.portable_surfaces import PortableSurfaceProvider
+from modality.host.portable_surfaces import PortableSurfaceProvider
 
 
 def test_surfaces_are_opaque_aggregate_and_readable() -> None:

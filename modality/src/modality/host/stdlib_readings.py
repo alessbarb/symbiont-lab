@@ -4,8 +4,7 @@ import os
 import shutil
 import time
 
-from ..contracts import Capability
-from ..readings import ReadingPrivacyClass, ReadingQuality, SensorReading, Unit
+from .records import Capability, ReadingPrivacyClass, ReadingQuality, SensorReading, Unit
 
 _DISK_ROOT = "C:\\" if os.name == "nt" else "/"
 

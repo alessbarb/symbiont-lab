@@ -1,23 +1,34 @@
+"""Convenience runs of the organism's host machinery over this machine's built-in channels."""
+
 from __future__ import annotations
 
-from .acclimation import HostAcclimation
-from .contracts import DiscoveryPolicy, HostManifest
-from .discovery import HostDiscovery
-from .drift import DriftAwareBaseline, DriftObservation
-from .lifecycle import HostLifecycle
-from .percepts import Percept, synthesize_percepts
-from .providers.stdlib import StandardLibraryProvider
-from .providers.stdlib_readings import StandardLibraryReadingProvider
-from .readings import HostSampler, ReadingFailure, SensorReading
-from .rhythms import RhythmModel, cycle_phase_for_tick
-from .second_look import SecondLookResult, SecondLookSession
+from lab.integration.organism.host_sources import HostSource
+from modality.host.stdlib import StandardLibraryProvider
+from modality.host.stdlib_readings import StandardLibraryReadingProvider
+from symbiont.host.acclimation import HostAcclimation
+from symbiont.host.contracts import DiscoveryPolicy, HostManifest
+from symbiont.host.discovery import HostDiscovery
+from symbiont.host.drift import DriftAwareBaseline, DriftObservation
+from symbiont.host.lifecycle import HostLifecycle
+from symbiont.host.percepts import Percept, synthesize_percepts
+from symbiont.host.readings import HostSampler, ReadingFailure, SensorReading
+from symbiont.host.rhythms import RhythmModel, cycle_phase_for_tick
+from symbiont.host.second_look import SecondLookResult, SecondLookSession
+
+
+def _discovery() -> tuple[HostSource, ...]:
+    return (HostSource(StandardLibraryProvider()),)
+
+
+def _readings() -> tuple[HostSource, ...]:
+    return (HostSource(StandardLibraryReadingProvider()),)
 
 
 def discover_local_host(policy: DiscoveryPolicy | None = None) -> HostManifest:
     """Bootstrap the safe built-in senses available in the current host."""
 
     return HostDiscovery(
-        providers=(StandardLibraryProvider(),),
+        providers=_discovery(),
         policy=policy,
     ).discover()
 
@@ -33,7 +44,7 @@ def sample_local_host(
     """
 
     resolved_manifest = manifest if manifest is not None else discover_local_host()
-    return HostSampler(providers=(StandardLibraryReadingProvider(),)).sample(resolved_manifest)
+    return HostSampler(providers=_readings()).sample(resolved_manifest)
 
 
 def perceive_local_host(manifest: HostManifest | None = None) -> tuple[Percept, ...]:
@@ -70,8 +81,8 @@ def monitor_local_host(policy: DiscoveryPolicy | None = None) -> HostLifecycle:
     """Bootstrap a bounded, backoff-aware lifecycle over the built-in providers."""
 
     return HostLifecycle(
-        discovery=HostDiscovery(providers=(StandardLibraryProvider(),), policy=policy),
-        reading_providers=(StandardLibraryReadingProvider(),),
+        discovery=HostDiscovery(providers=_discovery(), policy=policy),
+        reading_providers=_readings(),
     )
 
 
@@ -147,6 +158,9 @@ def second_look_at_local_host(
     """
     resolved_manifest = manifest if manifest is not None else discover_local_host()
     session = SecondLookSession(
-        manifest=resolved_manifest, capability_id=capability_id, max_ticks=max_ticks
+        manifest=resolved_manifest,
+        capability_id=capability_id,
+        max_ticks=max_ticks,
+        sampler=HostSampler(providers=_readings()),
     )
     return session.run_to_completion()

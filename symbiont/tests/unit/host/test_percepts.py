@@ -8,7 +8,6 @@ from symbiont.host import (
     ReadingQuality,
     SensorReading,
     Unit,
-    perceive_local_host,
     synthesize_percepts,
 )
 
@@ -79,10 +78,3 @@ def test_percept_rejects_malformed_name(bad_name):
             quality=ReadingQuality.NOMINAL,
             privacy_class=ReadingPrivacyClass.AGGREGATE,
         )
-
-
-def test_perceive_local_host_returns_known_built_in_percepts():
-    percepts = perceive_local_host()
-    names = {percept.name for percept in percepts}
-    assert "system_load" in names
-    assert "storage_pressure" in names

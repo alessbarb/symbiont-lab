@@ -10,7 +10,6 @@ from symbiont.host import (
     CapabilityKind,
     CapabilityScope,
     HostDiscovery,
-    discover_local_host,
 )
 
 
@@ -101,19 +100,6 @@ def test_duplicate_capability_is_deterministic_and_visible():
     assert len(manifest.capabilities) == 1
     assert manifest.capabilities[0].source == "first"
     assert "duplicate capability" in manifest.failures[0].reason
-
-
-def test_builtin_discovery_exposes_capabilities_without_identity():
-    manifest = discover_local_host()
-
-    assert manifest.schema_version == 1
-    assert manifest.supports("runtime.python")
-    assert manifest.supports("clock.monotonic")
-    assert manifest.supports("storage.disk_usage")
-    assert not manifest.failures
-    forbidden = {"hostname", "username", "user", "home", "cwd", "ip", "mac"}
-    keys = {key.lower() for item in manifest.capabilities for key, _ in item.detail}
-    assert not forbidden.intersection(keys)
 
 
 def test_capability_rejects_identity_metadata():

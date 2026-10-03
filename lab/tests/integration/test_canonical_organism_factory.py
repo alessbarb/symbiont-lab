@@ -28,7 +28,6 @@ from symbiont.core.orchestration.sense_requirements import (
     resolve_sense_requirements,
 )
 from symbiont.core.organism_profile import HISTORICAL_V0, V1
-from symbiont.host.providers.portable_surfaces import PortableSurfaceProvider
 
 # stdlib/discovery combinations, interoception on/sham/off, both profiles
 CASES = [
@@ -53,11 +52,16 @@ OVERRIDES = [
 ]
 
 
+def _name(provider: object) -> str:
+    """The channel class, looking through the Lab's adapter."""
+    return type(getattr(provider, "source", provider)).__name__
+
+
 def _shape(runtime: OrganismRuntime) -> dict[str, object]:
     discovery = runtime._lifecycle._discovery
     return {
-        "discovery": [type(provider).__name__ for provider in discovery._providers],
-        "readings": [type(provider).__name__ for provider in runtime._reading_providers],
+        "discovery": [_name(provider) for provider in discovery._providers],
+        "readings": [_name(provider) for provider in runtime._reading_providers],
         "interoception": type(runtime._interoception_provider).__name__,
         "interoception_mode": runtime._interoception_mode,
         "host_sense_source": runtime._host_sense_source,
@@ -152,13 +156,13 @@ def test_platform_and_interoception_selection(system: str, mode: str) -> None:
         ),
         system=system,
     )
-    names = [type(provider).__name__ for provider in sources.discovery_providers]
+    names = [_name(provider) for provider in sources.discovery_providers]
     host = {"Linux": "LinuxSurfaceProvider", "Plan9": None}.get(system, "PortableSurfaceProvider")
     # interoception is the organism's own: the Lab supplies no provider for it,
     # only the host telemetry published alongside it
     assert names == ["StandardLibraryProvider"] + ([host] if host is not None else [])
     assert sources.availability == ("unavailable" if host is None else "available")
-    assert type(sources.process_telemetry).__name__ == (
+    assert _name(sources.process_telemetry) == (
         "NoneType" if host is None else "HostProcessTelemetry"
     )
 
@@ -209,9 +213,7 @@ def test_canonical_organism_senses_macos_and_windows_hosts(monkeypatch, system) 
     monkeypatch.setattr(platform, "system", lambda: system)
     runtime = create_canonical_organism()
     assert runtime.effective_configuration()["host_sense_source"] == "available"
-    assert any(
-        isinstance(provider, PortableSurfaceProvider) for provider in runtime._reading_providers
-    )
+    assert "PortableSurfaceProvider" in _shape(runtime)["readings"]
 
 
 def test_unknown_host_system_is_declared_unavailable(monkeypatch) -> None:

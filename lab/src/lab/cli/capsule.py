@@ -5,6 +5,11 @@ import json
 import sys
 from pathlib import Path
 
+from lab.integration.organism.local_host import (
+    acclimate_local_host,
+    learn_local_host_rhythms,
+    track_local_host_drift,
+)
 from symbiont.core import (
     CapsuleKeyPair,
     create_capsule,
@@ -12,10 +17,7 @@ from symbiont.core import (
 )
 from symbiont.core.social.capsule import KnowledgeCapsule
 from symbiont.host import (
-    acclimate_local_host,
     export_checkpoint,
-    learn_local_host_rhythms,
-    track_local_host_drift,
 )
 from symbiont.host.durable import (
     durable_atomic_write,

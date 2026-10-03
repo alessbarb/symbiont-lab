@@ -94,9 +94,10 @@ def _importers(target_prefixes: tuple[str, ...], *, source: str, exclude: tuple[
     )
 
 
-def test_organism_core_builds_no_concrete_host_provider() -> None:
-    """symbiont.core -X-> concrete host providers: sources are composed by the Lab."""
-    assert _importers(("symbiont.host.providers",), source="symbiont.core") == []
+def test_organism_holds_no_concrete_host_provider() -> None:
+    """Concrete host channels live in modality.host; the Lab composes them."""
+    assert not (ROOT / "symbiont/src/symbiont/host/providers").exists()
+    assert _importers(("symbiont.host.providers",), source="symbiont") == []
 
 
 def test_domain_distributions_declare_no_first_party_dependency() -> None:

@@ -73,7 +73,11 @@ def _session(capability_id: str = "compute.logical_cpu", **kwargs) -> SecondLook
 def test_rejects_capability_not_in_manifest():
     manifest = _manifest("compute.logical_cpu")
     with pytest.raises(ValueError):
-        SecondLookSession(manifest=manifest, capability_id="storage.disk_usage")
+        SecondLookSession(
+            manifest=manifest,
+            capability_id="storage.disk_usage",
+            sampler=HostSampler(providers=(_CountingProvider(),)),
+        )
 
 
 def test_rejects_non_positive_max_ticks():

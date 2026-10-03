@@ -2,49 +2,15 @@
 
 from __future__ import annotations
 
-import time
-
 import pytest
 
 from symbiont.core.orchestration.runtime import OrganismRuntime
-from symbiont.host.contracts import Capability, CapabilityKind
-from symbiont.host.providers.process_telemetry import HostProcessTelemetry
-from symbiont.host.readings import ReadingPrivacyClass, ReadingQuality, SensorReading, Unit
 from symbiont.host.sources import HostSenseSources
 from symbiont.sensory.interoception import InteroceptionProvider
 
+from .fake_telemetry import EXTREME, FakeTelemetry
+
 TICKS = 40
-HOST_IDS = {"internal.tick_latency": Unit.SECOND, "internal.memory_rss": Unit.BYTE}
-
-
-class ExtremeTelemetry:
-    """A host that reports an absurd machine: hour-long ticks, a petabyte of memory."""
-
-    provider_id = "extreme"
-
-    def observe_tick(self, latency: float) -> None:
-        pass
-
-    def discover(self) -> tuple[Capability, ...]:
-        return tuple(
-            Capability(capability_id=capability_id, kind=CapabilityKind.SIGNAL, source="extreme")
-            for capability_id in HOST_IDS
-        )
-
-    def sample(self, capabilities: tuple[Capability, ...]) -> tuple[SensorReading, ...]:
-        return tuple(
-            SensorReading(
-                capability_id=capability.capability_id,
-                source="extreme",
-                value=3600.0 if capability.capability_id == "internal.tick_latency" else 1e15,
-                unit=HOST_IDS[capability.capability_id],
-                monotonic_timestamp_ns=time.monotonic_ns(),
-                quality=ReadingQuality.NOMINAL,
-                privacy_class=ReadingPrivacyClass.AGGREGATE,
-            )
-            for capability in capabilities
-            if capability.capability_id in HOST_IDS
-        )
 
 
 def _intrinsic(telemetry: object | None, mode: str) -> dict[str, object]:
@@ -77,9 +43,9 @@ def _intrinsic(telemetry: object | None, mode: str) -> dict[str, object]:
 
 @pytest.mark.parametrize("mode", ["enabled", "sham"])
 def test_replacing_host_telemetry_leaves_intrinsic_state_unchanged(mode: str) -> None:
-    present = _intrinsic(HostProcessTelemetry(), mode)
+    present = _intrinsic(FakeTelemetry(), mode)
     assert len(present["readings"]) == len(InteroceptionProvider.ORGANISM_CAPABILITY_IDS)
-    assert _intrinsic(ExtremeTelemetry(), mode) == present
+    assert _intrinsic(FakeTelemetry(**EXTREME), mode) == present
 
 
 @pytest.mark.xfail(
@@ -93,12 +59,12 @@ def test_replacing_host_telemetry_leaves_intrinsic_state_unchanged(mode: str) ->
 )
 @pytest.mark.parametrize("mode", ["enabled", "sham"])
 def test_removing_host_telemetry_leaves_intrinsic_state_unchanged(mode: str) -> None:
-    assert _intrinsic(None, mode) == _intrinsic(HostProcessTelemetry(), mode)
+    assert _intrinsic(None, mode) == _intrinsic(FakeTelemetry(), mode)
 
 
 @pytest.mark.parametrize("mode", ["enabled", "sham"])
 def test_removing_host_telemetry_changes_only_the_energy_spent_observing(mode: str) -> None:
-    present, absent = _intrinsic(HostProcessTelemetry(), mode), _intrinsic(None, mode)
+    present, absent = _intrinsic(FakeTelemetry(), mode), _intrinsic(None, mode)
     assert absent["integrity"] == present["integrity"]
     assert absent["body"].structural_integrity == present["body"].structural_integrity
     assert absent["body"].energy_reserve > present["body"].energy_reserve

@@ -9,16 +9,6 @@ from .adaptive import (
     SenseState,
     SensoryRelation,
 )
-from .bootstrap import (
-    acclimate_local_host,
-    discover_local_host,
-    learn_local_host_rhythms,
-    monitor_local_host,
-    perceive_local_host,
-    sample_local_host,
-    second_look_at_local_host,
-    track_local_host_drift,
-)
 from .checkpoint import (
     CHECKPOINT_SCHEMA_VERSION,
     CheckpointError,
@@ -95,17 +85,9 @@ __all__ = [
     "CYCLE_PERIOD_TICKS",
     "CyclePhase",
     "Unit",
-    "acclimate_local_host",
     "cycle_phase_for_tick",
-    "discover_local_host",
     "export_checkpoint",
     "import_checkpoint",
-    "learn_local_host_rhythms",
-    "monitor_local_host",
-    "perceive_local_host",
     "reading_matches_manifest",
-    "sample_local_host",
-    "second_look_at_local_host",
     "synthesize_percepts",
-    "track_local_host_drift",
 ]

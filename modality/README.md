@@ -11,3 +11,4 @@ Import package: `modality`. Enforced by
 | Module | Contents |
 |---|---|
 | `modality.vision` | square receptor array: bounded luminance per opaque receptor, plus receptor adjacency. The link that carries it, the mount pose and the receptor ids are supplied by the caller. |
+| `modality.host` | read-only, aggregate channels of the machine a process runs on: standard-library surfaces, Linux procfs/sysfs surfaces, portable macOS/Windows surfaces and process telemetry (tick latency, resident memory). They yield the library's own records; whoever couples them to an organism converts them. |

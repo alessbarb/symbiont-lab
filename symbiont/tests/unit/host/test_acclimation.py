@@ -8,7 +8,6 @@ from symbiont.host import (
     ReadingQuality,
     SensorReading,
     Unit,
-    acclimate_local_host,
 )
 
 
@@ -94,18 +93,6 @@ def test_baseline_exposes_no_classification_surface():
 
     public_attrs = {name for name in dir(baseline) if not name.startswith("_")}
     assert public_attrs <= {"count", "mean", "variance", "stdev"}
-
-
-def test_acclimate_local_host_seeds_a_real_baseline():
-    accl, lifecycle = acclimate_local_host(ticks=5)
-
-    assert len(lifecycle.history) == 5
-    assert accl.acclimated_capabilities  # at least one built-in capability acclimated
-
-
-def test_acclimate_local_host_rejects_invalid_ticks():
-    with pytest.raises(ValueError):
-        acclimate_local_host(ticks=0)
 
 
 # --- B02: a full capability table evicts the stalest entry instead of blocking forever ---

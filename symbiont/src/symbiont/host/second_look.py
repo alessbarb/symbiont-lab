@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from typing import Callable
 
 from .contracts import HostManifest
-from .providers.stdlib_readings import StandardLibraryReadingProvider
 from .readings import CapabilitySamplingOutcome, HostSampler, SensorReading
 
 
@@ -28,7 +27,7 @@ class SecondLookSession:
         manifest: HostManifest,
         capability_id: str,
         max_ticks: int = 5,
-        sampler: HostSampler | None = None,
+        sampler: HostSampler,
         clock: Callable[[], float] = time.perf_counter,
     ) -> None:
         if max_ticks < 1:
@@ -40,11 +39,7 @@ class SecondLookSession:
         self._manifest = manifest
         self._capability_id = capability_id
         self._max_ticks = max_ticks
-        self._sampler = (
-            sampler
-            if sampler is not None
-            else HostSampler(providers=(StandardLibraryReadingProvider(),))
-        )
+        self._sampler = sampler
         self._clock = clock
         self._ticks_run = 0
         self._cancelled = False

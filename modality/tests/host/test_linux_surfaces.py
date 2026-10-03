@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
-from symbiont.host.providers.linux_surfaces import LinuxSurfaceProvider
+from modality.host.linux_surfaces import LinuxSurfaceProvider
 
 
 def _provider_over(table_path: Path):

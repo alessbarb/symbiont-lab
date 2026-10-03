@@ -15,9 +15,7 @@ from symbiont.host import (
     ReadingQuality,
     SensorReading,
     Unit,
-    discover_local_host,
     reading_matches_manifest,
-    sample_local_host,
 )
 from symbiont.host.readings import DEFAULT_SAMPLING_COST_PER_CAPABILITY, SamplingOutcomeKind
 
@@ -120,26 +118,6 @@ def test_duplicate_provider_ids_are_rejected():
 def test_reading_matches_manifest_requires_same_source():
     manifest = _manifest(_capability("compute.logical_cpu", "a"))
     assert not reading_matches_manifest(_reading(source="b"), manifest)
-
-
-def test_builtin_sampling_only_reports_discovered_capabilities():
-    manifest = discover_local_host()
-    readings, failures = sample_local_host(manifest)
-
-    assert not failures
-    for reading in readings:
-        assert manifest.supports(reading.capability_id)
-        assert reading_matches_manifest(reading, manifest)
-
-
-def test_builtin_sampling_reports_no_identifying_data():
-    readings, _ = sample_local_host()
-    for reading in readings:
-        assert reading.privacy_class in (
-            ReadingPrivacyClass.AGGREGATE,
-            ReadingPrivacyClass.NON_IDENTIFYING,
-        )
-        assert isinstance(reading.value, (float, type(None)))
 
 
 def test_capability_selection_is_applied_before_provider_reads() -> None:

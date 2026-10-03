@@ -9,8 +9,14 @@ import time
 from hashlib import sha256
 from typing import Callable
 
-from ..contracts import Capability, CapabilityKind
-from ..readings import ReadingPrivacyClass, ReadingQuality, SensorReading, Unit
+from .records import (
+    Capability,
+    CapabilityKind,
+    ReadingPrivacyClass,
+    ReadingQuality,
+    SensorReading,
+    Unit,
+)
 
 Reader = Callable[[], float | None]
 
