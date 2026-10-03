@@ -6,7 +6,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, Mapping
 
-from lab.physics3d.longitudinal import (
+from embodiment.physics3d.longitudinal import (
     CONTRACT_FINGERPRINT_SCHEMA_VERSION,
     append_epoch_summary,
     archive_contract_memory,

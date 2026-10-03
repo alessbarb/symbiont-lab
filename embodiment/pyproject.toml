@@ -7,7 +7,7 @@ name = "embodiment"
 version = "0.90.0"
 description = "Embodiment domain: couplings between the organism and a concrete form of existence"
 requires-python = ">=3.12"
-dependencies = ["modality"]
+dependencies = ["modality", "symbiont"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -15,3 +15,4 @@ include = ["embodiment*"]
 
 [tool.uv.sources]
 modality = { workspace = true }
+symbiont = { workspace = true }

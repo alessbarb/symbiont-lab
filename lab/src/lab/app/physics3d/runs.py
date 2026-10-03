@@ -11,6 +11,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from embodiment.physics3d.bodies import DEFAULT_BODY_REGISTRY, BodyRegistry
+from embodiment.physics3d.reembodiment import lifecycle_summary
+from environment.physics3d.environments import environment_recipe
 from lab.experience import (
     RunGuard,
     RunKind,
@@ -18,18 +21,15 @@ from lab.experience import (
     run_definition,
 )
 from lab.observation.cadence import ExecutionRates
-from lab.physics3d.bodies import DEFAULT_BODY_REGISTRY, BodyRegistry
 from lab.physics3d.engine import (
     DEFAULT_STATE_DIR,
     DEFAULT_SYMBIONT_FILE,
     LEGACY_BODY_FILE,
 )
-from lab.physics3d.environments import environment_recipe
 from lab.physics3d.persistence import (
     read_symbiont_bundle_manifest,
     read_symbiont_bundle_runtime,
 )
-from lab.physics3d.reembodiment import lifecycle_summary
 from symbiont import __version__ as symbiont_version
 
 DEFAULT_LAB_STATE_ROOT = DEFAULT_STATE_DIR.parent

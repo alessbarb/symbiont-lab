@@ -140,7 +140,7 @@ def test_development_stage_never_computes_performance() -> None:
 
 
 def test_d1_v2_changes_only_the_protected_environment() -> None:
-    from lab.physics3d.environments import environment_recipe, nursery_support_amount
+    from environment.physics3d.environments import environment_recipe, nursery_support_amount
 
     v1 = environment_recipe("vision-nursery-d1-v1")
     v2 = environment_recipe("vision-nursery-d1-v2")

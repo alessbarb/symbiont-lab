@@ -85,7 +85,7 @@ def test_open_gaps_are_exactly_the_audit_findings() -> None:
 
 def test_apparatus_fields_name_real_physics3d_state() -> None:
     pytest.importorskip("pybullet")
-    from lab.physics3d import reembodiment
+    from embodiment.physics3d import reembodiment
     from lab.physics3d.runtime import PyBulletEmbodimentRuntime
 
     source = inspect.getsource(PyBulletEmbodimentRuntime) + inspect.getsource(reembodiment)

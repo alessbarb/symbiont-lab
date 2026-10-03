@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from lab.physics3d.bodies import DEFAULT_BODY_REGISTRY
+from embodiment.physics3d.bodies import DEFAULT_BODY_REGISTRY
 from lab.physics3d.resource import PhysicalResource
 from lab.physics3d.world_observation import PhysicsWorldObserver
 

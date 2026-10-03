@@ -271,7 +271,7 @@ def make_handler(
                 return
 
             if path == "/api/environments" and body_catalog is not None:
-                from lab.physics3d.environments import ENVIRONMENT_NAMES
+                from environment.physics3d.environments import ENVIRONMENT_NAMES
 
                 self._json(200, {"items": list(ENVIRONMENT_NAMES)})
                 return

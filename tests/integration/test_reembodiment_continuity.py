@@ -11,7 +11,7 @@ import json
 
 import pytest
 
-from lab.physics3d.reembodiment import (
+from embodiment.physics3d.reembodiment import (
     PhysicsEmbodimentDescriptor,
     prepare_fresh_embodiment_checkpoint,
 )

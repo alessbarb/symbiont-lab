@@ -17,9 +17,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Mapping
 
-from embodiment.physics3d.humanoid import apply_surface_material, configure_physics_solver
-from lab.observation.subsystem_status import generative_status
-from lab.physics3d.apparatus import (
+from embodiment.physics3d.apparatus import (
     OpaqueBodyInteroception,
     PhysicsDiscoveryProvider,
     PhysicsReadingProvider,
@@ -30,24 +28,26 @@ from lab.physics3d.apparatus import (
     physics3d_cognition,
     physics3d_sensory_system,
 )
-from lab.physics3d.bodies import DEFAULT_BODY_REGISTRY
-from lab.physics3d.environments import (
-    build_environment,
-    nursery_support_amount,
-    resolve_environment,
-    update_environment,
-)
-from lab.physics3d.observer_semantics import (
-    action_dimension_semantics,
-    motor_semantics,
-    sensory_semantics,
-)
-from lab.physics3d.reembodiment import (
+from embodiment.physics3d.bodies import DEFAULT_BODY_REGISTRY
+from embodiment.physics3d.humanoid import apply_surface_material, configure_physics_solver
+from embodiment.physics3d.reembodiment import (
     PhysicsEmbodimentDescriptor,
     migrate_legacy_memory_store,
     migrate_temporal_domains,
     prepare_fresh_embodiment_checkpoint,
     update_lifecycle_for_checkpoint,
+)
+from environment.physics3d.environments import (
+    build_environment,
+    nursery_support_amount,
+    resolve_environment,
+    update_environment,
+)
+from lab.observation.subsystem_status import generative_status
+from lab.physics3d.observer_semantics import (
+    action_dimension_semantics,
+    motor_semantics,
+    sensory_semantics,
 )
 from lab.physics3d.resource import PhysicalResource
 from lab.physics3d.settling import settle_passive_body

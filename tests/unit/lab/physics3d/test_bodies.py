@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from lab.physics3d.bodies import DEFAULT_BODY_REGISTRY
+from embodiment.physics3d.bodies import DEFAULT_BODY_REGISTRY
 
 
 def test_default_body_registry_exposes_canonical_anthropomorphic_contract() -> None:

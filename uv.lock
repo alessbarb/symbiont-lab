@@ -575,10 +575,14 @@ version = "0.90.0"
 source = { editable = "embodiment" }
 dependencies = [
     { name = "modality" },
+    { name = "symbiont" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "modality", editable = "modality" }]
+requires-dist = [
+    { name = "modality", editable = "modality" },
+    { name = "symbiont", editable = "symbiont" },
+]
 
 [[package]]
 name = "environment"

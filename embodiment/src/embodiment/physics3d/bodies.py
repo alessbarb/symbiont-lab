@@ -9,6 +9,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable
 
+from embodiment.physics3d.alternative_bodies import (
+    ASYMMETRIC_SPEC,
+    CRAWLER_SPEC,
+    AsymmetricPhysics,
+    CrawlerPhysics,
+)
 from embodiment.physics3d.humanoid import (
     BODY_KIND,
     BODY_STATE_SCHEMA_VERSION,
@@ -29,12 +35,6 @@ from embodiment.physics3d.vision import (
     VISION_TOTAL_RECEPTOR_COUNT,
     VisionHumanoidPhysics,
     vision_receptor_contract_ids,
-)
-from lab.physics3d.alternative_bodies import (
-    ASYMMETRIC_SPEC,
-    CRAWLER_SPEC,
-    AsymmetricPhysics,
-    CrawlerPhysics,
 )
 
 

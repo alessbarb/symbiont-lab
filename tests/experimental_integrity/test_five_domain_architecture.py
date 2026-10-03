@@ -105,11 +105,12 @@ def test_organism_core_reaches_concrete_host_modality_only_where_it_already_did(
 
 def test_physics3d_reaches_cognition_internals_only_where_it_already_did() -> None:
     """Ratchet for environment/embodiment -X-> cognition internals (OI-4)."""
-    assert _importers(
-        ("symbiont.cognition", "symbiont.core.cognition"), source="lab.physics3d"
+    internals = ("symbiont.cognition", "symbiont.core.cognition")
+    assert _importers(internals, source="embodiment") + _importers(
+        internals, source="lab.physics3d"
     ) == [
-        ("lab.physics3d.apparatus", "symbiont.cognition.birth"),
-        ("lab.physics3d.apparatus", "symbiont.cognition.limits"),
+        ("embodiment.physics3d.apparatus", "symbiont.cognition.birth"),
+        ("embodiment.physics3d.apparatus", "symbiont.cognition.limits"),
         ("lab.physics3d.runtime", "symbiont.cognition.generative"),
         ("lab.physics3d.runtime", "symbiont.cognition.limits"),
         ("lab.physics3d.runtime", "symbiont.cognition.types"),

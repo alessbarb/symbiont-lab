@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import math
 
+from embodiment.physics3d.articulated import ArticulatedBodySpec, ArticulatedPhysics
 from embodiment.physics3d.humanoid import (
     GROUND_MATERIAL,
     JointSpec,
     JointTopology,
     SegmentSpec,
 )
-from lab.physics3d.articulated import ArticulatedBodySpec, ArticulatedPhysics
 
 
 def _deg(value: float) -> float:

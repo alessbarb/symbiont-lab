@@ -6,6 +6,7 @@ import argparse
 import sys
 from pathlib import Path
 
+from environment.physics3d.environments import ENVIRONMENT_NAMES
 from lab.app.physics3d.monitor.viewer import _viewer_main
 from lab.physics3d.engine import (
     DEFAULT_BODY_FILE,
@@ -13,7 +14,6 @@ from lab.physics3d.engine import (
     DEFAULT_TELEMETRY_FILE,
     run,
 )
-from lab.physics3d.environments import ENVIRONMENT_NAMES
 from lab.physics3d.persistence import load_telemetry_records
 
 

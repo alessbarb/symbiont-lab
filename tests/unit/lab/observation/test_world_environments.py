@@ -4,8 +4,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from lab.physics3d.bodies import DEFAULT_BODY_REGISTRY
-from lab.physics3d.environments import (
+from embodiment.physics3d.bodies import DEFAULT_BODY_REGISTRY
+from environment.physics3d.environments import (
     build_environment,
     environment_recipe,
     resolve_environment,

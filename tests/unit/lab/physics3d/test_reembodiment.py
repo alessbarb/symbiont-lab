@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from copy import deepcopy
 
-from lab.physics3d.longitudinal import contract_fingerprint
-from lab.physics3d.reembodiment import (
+from embodiment.physics3d.longitudinal import contract_fingerprint
+from embodiment.physics3d.reembodiment import (
     PhysicsEmbodimentDescriptor,
     lifecycle_summary,
     migrate_legacy_memory_store,

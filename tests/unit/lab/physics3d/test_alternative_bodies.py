@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import pytest
 
-from lab.physics3d.alternative_bodies import (
+from embodiment.physics3d.alternative_bodies import (
     ASYMMETRIC_SPEC,
     CRAWLER_SPEC,
     AsymmetricPhysics,
     CrawlerPhysics,
 )
-from lab.physics3d.articulated import build_articulated_urdf
+from embodiment.physics3d.articulated import build_articulated_urdf
 
 
 @pytest.mark.parametrize("spec", [CRAWLER_SPEC, ASYMMETRIC_SPEC])

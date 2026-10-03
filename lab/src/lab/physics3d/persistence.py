@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from lab.physics3d.reembodiment import lifecycle_summary
+from embodiment.physics3d.reembodiment import lifecycle_summary
 from lab.physics3d.runtime import Tick3D
 from lab.physics3d.telemetry.reader import detect_telemetry_run, open_telemetry
 from symbiont import __version__ as symbiont_version

@@ -114,7 +114,7 @@ def test_last_provider_call_cannot_establish_complete_sampling():
 def test_sampling_union_covers_multiple_calls_and_resets_between_ticks():
     from types import SimpleNamespace
 
-    from lab.physics3d.apparatus import PhysicsReadingProvider
+    from embodiment.physics3d.apparatus import PhysicsReadingProvider
 
     apparatus = SimpleNamespace(
         receptor_ids=("rec.0", "rec.1"), sample_receptors=lambda: {"rec.0": 0.3, "rec.1": 0.0}

@@ -25,13 +25,13 @@ equivalence = ["private-model-training", "promotion-eligible"]
 [[surface]]
 id = "physics3d-causal-engine"
 paths = [
-  "lab/src/lab/physics3d/alternative_bodies.py",
-  "lab/src/lab/physics3d/apparatus.py",
-  "lab/src/lab/physics3d/articulated.py",
-  "lab/src/lab/physics3d/bodies.py",
+  "lab/src/embodiment/physics3d/alternative_bodies.py",
+  "lab/src/embodiment/physics3d/apparatus.py",
+  "lab/src/embodiment/physics3d/articulated.py",
+  "lab/src/embodiment/physics3d/bodies.py",
   "lab/src/lab/physics3d/effects.py",
   "lab/src/lab/physics3d/engine.py",
-  "lab/src/lab/physics3d/environments.py",
+  "lab/src/environment/physics3d/environments.py",
   "lab/src/embodiment/physics3d/humanoid.py",
   "lab/src/lab/physics3d/persistence.py",
   "lab/src/lab/physics3d/resource.py",
@@ -46,7 +46,7 @@ equivalence = ["established-anthropomorphic", "developed-cognition"]
 
 [[surface]]
 id = "reembodiment"
-paths = ["lab/src/lab/physics3d/reembodiment.py", "symbiont/src/symbiont/**"]
+paths = ["lab/src/embodiment/physics3d/reembodiment.py", "symbiont/src/symbiont/**"]
 classification = "SCIENTIFIC"
 symbols = ["reembodiment", "embodiment", "BodySchema", "body_schema"]
 equivalence = ["reembodied-established"]
