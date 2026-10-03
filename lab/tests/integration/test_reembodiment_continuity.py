@@ -26,6 +26,13 @@ from symbiont.core.embodiment.transition import (
 )
 from symbiont.host.checkpoint import CheckpointError
 from symbiont.host.continuity import REGISTER, Reembodiment
+from symbiont.modeling import (
+    ArchitectureId,
+    ModelArtifactManifest,
+    ModelObjective,
+    ModelState,
+    TrainingRequest,
+)
 from symbiont.modeling.private_runtime import PrivateModelOrganismRuntime
 
 ORGANISM_ID = "reembodied-subject"
@@ -66,6 +73,31 @@ class _Case:
         body_a = CausalBody(actuator_count=4, seed=127)
         developed = _subject(body_a)
         run_ticks(developed, body_a, DEVELOPMENT_TICKS)
+        request = TrainingRequest(
+            organism_id=developed.organism_id,
+            corpus_hash="a" * 64,
+            tokenizer_hash="b" * 64,
+            architecture_id=ArchitectureId.GRU_V1,
+            objective=ModelObjective.NEXT_TOKEN,
+            seed=7,
+            context_window=32,
+            requested_parameters=1_000_000,
+            requested_epochs=4,
+            requested_steps=100,
+            created_tick_class=0,
+        )
+        artifact = ModelArtifactManifest.build(
+            request=request, parameter_count=100_000, weights_hash="c" * 64, artifact_bytes=1024
+        )
+        shadow = developed.adopt_private_model(artifact, evaluation_summary=(0, 1))
+        developed.activate_private_model(
+            shadow.model_id, promotion_authorized=True, evaluation_summary=(1, 2)
+        )
+        developed.originate_social_claim(
+            proposition_tokens=("sense.a", "relates", "sense.b"),
+            evidence_id="evidence.own",
+            confidence_class=5,
+        )
         domain = developed._action_domain
         self.body_a_fingerprint = body_a.surface.contract_fingerprint
         self.valid_bindings_in_a = sum(
@@ -74,6 +106,8 @@ class _Case:
         self.competences_in_a = _competence_ids(developed)
         self.graph_nodes_in_a = {node.node_id for node in developed.cognitive_bridge.graph.nodes}
         self.experience_in_a = [r.record_id for r in developed.experience_ledger.records]
+        self.active_model_id = developed.model_registry.active.model_id
+        self.own_social_claims = developed.social_evidence_ledger.claims
         self.previous = _json(developed.checkpoint())
         del developed
 
@@ -114,6 +148,11 @@ def test_body_a_development_is_not_trivial(case: _Case) -> None:
     assert case.competences_in_a
     assert case.graph_nodes_in_a
     assert case.experience_in_a
+    assert case.previous["gene_expression"]
+    assert case.active_model_id
+    assert case.previous["private_model_registry"]["records"]
+    assert case.own_social_claims
+    assert case.previous["social_evidence_ledger"]["held"]
 
 
 def test_symbiont_owned_state_is_preserved_exactly(case: _Case) -> None:
@@ -203,6 +242,9 @@ def test_knowledge_survives_as_knowledge_without_authority(case: _Case) -> None:
         case.graph_nodes_in_a
     )
     assert [r.record_id for r in restored.experience_ledger.records] == case.experience_in_a
+    assert restored.model_registry.active.model_id == case.active_model_id
+    assert restored.model_registry.active.state is ModelState.ACTIVE
+    assert restored.social_evidence_ledger.claims == case.own_social_claims
     assert _competence_ids(restored) >= case.competences_in_a
     assert not any(
         binding.status is BindingStatus.VALID
