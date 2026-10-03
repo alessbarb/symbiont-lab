@@ -24,8 +24,15 @@ result; mechanical contracts belong in `tests/experiments/`.
 
 Only through `agentctl run start`, after Competence Establishment Evidence v1:
 
+The support rule runs first, then the selection stage as eight governed runs of
+about an hour each (36 of the 288 runs each, a fixed interleaved slice), then a
+merge run that checks every part ran under the same support rate and every
+(arm, seed) pair is present exactly once.
+
 ```text
-python -m symbiont_lab.studies.learning.metabolic_retention_calibration selection --output <work>/selection.json
+python -m symbiont_lab.studies.learning.metabolic_retention_calibration support --output <work>/support.json
+python -m symbiont_lab.studies.learning.metabolic_retention_calibration selection-part --support support.json --part <0..7> --output <work>/selection-part-<n>.json
+python -m symbiont_lab.studies.learning.metabolic_retention_calibration select --support support.json --parts selection-part-0.json ... selection-part-7.json --output <work>/selection.json
 python -m symbiont_lab.studies.learning.metabolic_retention_calibration confirmation --selection selection.json --output <work>/results.json
 ```
 

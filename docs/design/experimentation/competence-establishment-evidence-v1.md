@@ -129,8 +129,11 @@ binding, a strict gate keeps it but binds late. Both delay `T_stable`.
 
 ## 10. Cost
 
-Stage 1 is 216 runs of 2000 ticks. At the transfer experiment's measured
-cost, that is roughly three hours, as one governed run. Stage 2 is 24 runs.
+Stage 1 is 216 runs of 2000 ticks. Measured on 2026-10-03, one run takes
+106-111 s, so the stage is about 6.5 hours, beyond the 360-minute limit of a
+governed run. It is therefore executed as six governed runs of 36 runs each and
+a merge step (execution only; the arms, seeds, measure and rule are unchanged;
+see the experiment README). Stage 2 is 24 runs, about 45 minutes.
 
 ## 11. Limits
 

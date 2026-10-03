@@ -39,6 +39,13 @@ STABLE_WINDOW = 200
 MIN_SEEDS_IMPROVED = 9
 MIN_MEDIAN_PAIRED_REDUCTION = 0.20
 
+# Execution only, not protocol: the selection stage runs as SELECTION_PARTS
+# governed runs, each a fixed interleaved slice of every (arm, seed) pair, so no
+# single run approaches the wall-time limit. The merged result is identical to
+# running every pair in one process: runs are independent and deterministic.
+SELECTION_PARTS = 6
+SELECTION_PAIRS = tuple((arm, seed) for arm in ARMS for seed in SELECTION_SEEDS)
+
 
 def stable_tick(valid: Sequence[bool], *, window: int = STABLE_WINDOW) -> int:
     """First tick (1-based) from which a valid binding is held for ``window``
@@ -160,12 +167,49 @@ def confirmation_outcome(pairs: Sequence[tuple[dict[str, Any], dict[str, Any]]])
     }
 
 
-def run_selection_stage(seeds: Sequence[int] = SELECTION_SEEDS) -> dict[str, Any]:
-    runs = [run_one(seed, support, consistency) for support, consistency in ARMS for seed in seeds]
+def selection_part_pairs(part: int, parts: int = SELECTION_PARTS) -> tuple:
+    """The (arm, seed) pairs of one selection part: every ``parts``-th pair."""
+    if not 0 <= part < parts:
+        raise ValueError("selection part out of range")
+    return SELECTION_PAIRS[part::parts]
+
+
+def run_selection_part(part: int, output: Path, parts: int = SELECTION_PARTS) -> dict[str, Any]:
+    """Run one part, rewriting ``output`` after every run so a stop keeps what ran."""
+    pairs = selection_part_pairs(part, parts)
+    result: dict[str, Any] = {
+        "protocol": PROTOCOL,
+        "stage": "selection-part",
+        "part": part,
+        "parts": parts,
+        "pairs": len(pairs),
+        "complete": False,
+        "runs": [],
+    }
+    output.parent.mkdir(parents=True, exist_ok=True)
+    for (support, consistency), seed in pairs:
+        result["runs"].append(run_one(seed, support, consistency))
+        result["complete"] = len(result["runs"]) == len(pairs)
+        output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return result
+
+
+def merge_selection(parts: Sequence[dict[str, Any]]) -> dict[str, Any]:
+    """Join complete parts, check they cover every pair exactly once, then select."""
+    if len(parts) != SELECTION_PARTS or sorted(p["part"] for p in parts) != list(
+        range(SELECTION_PARTS)
+    ):
+        raise ValueError("selection needs every part exactly once")
+    if not all(p.get("complete") for p in parts):
+        raise ValueError("a selection part is incomplete")
+    runs = [run for p in parts for run in p["runs"]]
+    covered = sorted(((r["min_support"], r["min_consistency"]), r["seed"]) for r in runs)
+    if covered != sorted(SELECTION_PAIRS):
+        raise ValueError("selection parts do not cover every (arm, seed) pair exactly once")
     return {
         "protocol": PROTOCOL,
         "stage": "selection",
-        "seeds": list(seeds),
+        "seeds": list(SELECTION_SEEDS),
         **select_arm(runs),
         "runs": runs,
     }
@@ -195,12 +239,24 @@ def run_confirmation_stage(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("stage", choices=("selection", "confirmation"))
-    parser.add_argument("--selection", type=Path, help="selection.json from the selection stage")
+    parser.add_argument("stage", choices=("selection-part", "select", "confirmation"))
+    parser.add_argument("--part", type=int, help="selection part, 0 to SELECTION_PARTS - 1")
+    parser.add_argument("--parts", type=Path, nargs="+", help="every selection part file")
+    parser.add_argument("--selection", type=Path, help="selection.json from the select stage")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
-    if args.stage == "selection":
-        result = run_selection_stage()
+    if args.stage == "selection-part":
+        if args.part is None:
+            parser.error("selection-part needs --part")
+        result = run_selection_part(args.part, args.output)
+        print(json.dumps({key: result[key] for key in result if key != "runs"}, indent=2))
+        return 0
+    if args.stage == "select":
+        if not args.parts:
+            parser.error("select needs --parts")
+        result = merge_selection(
+            [json.loads(path.read_text(encoding="utf-8")) for path in args.parts]
+        )
     else:
         if args.selection is None:
             parser.error("the confirmation stage needs --selection")
