@@ -69,6 +69,22 @@ state = "active"
 priority = "P1"
 notes = "A5 observation-independence and A6 shared equivalence harness are closed-bounded on recorded tests; A7 numerical/mechanical stability audit remains active."
 
+[programmes.canonical-organism-profile]
+state = "active"
+priority = "P0"
+notes = "ADR-0062: profile v1 canonical in every scope, closed studies bound to v0-historical, superseded-tests norm in force. Open: metabolic price calibration (declared strict xfail) and the competence establishment gate (under test)."
+
+[programmes.reembodiment-functional-transfer-v1]
+state = "blocked"
+priority = "P0"
+blocked_by = "competence-establishment-evidence-v1"
+notes = "#274, acceptance test of the owner's re-embodiment requirement. r6 and r7 development stages recorded as not runnable; r7 found a balanced Body family but development organisms do not hold a valid binding at once because competences established on two samples are later demoted. No confirmation seed has run."
+
+[programmes.competence-establishment-evidence-v1]
+state = "active"
+priority = "P0"
+notes = "Preregistration approved 2026-10-03 (27-arm establishment-gate selection on own seeds, then confirmation against the current gate). Apparatus in progress; nothing run."
+
 [programmes.world]
 state = "maintenance-only"
 
