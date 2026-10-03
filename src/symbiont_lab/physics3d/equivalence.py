@@ -167,6 +167,8 @@ def run_digests(
 
     determinism = _configure_equivalence_determinism(config)
     per_tick: list[tuple[int, str]] = []
+    trace_per_tick: list[tuple[int, str]] = []
+    trace_components_per_tick: list[tuple[int, dict[str, str]]] = []
     private_model_per_tick: list[tuple[int, str | None]] = []
     registry_per_tick: list[tuple[int, str | None]] = []
     promotion_events: list[dict[str, object]] = []
@@ -220,6 +222,20 @@ def run_digests(
             previous_ids = ids
             previous_active = active_id
 
+        def observe_trace(tick: int, payload: Mapping[str, object]) -> None:
+            stable_payload = dict(payload)
+            record = stable_payload.get("record")
+            if isinstance(record, Mapping):
+                # Runtime durations are host-load measurements, not causal state.
+                stable_payload["record"] = {
+                    key: value
+                    for key, value in record.items()
+                    if key not in {"organism_ms", "physics_ms", "diagnostics_ms"}
+                }
+            components = {key: _digest(value) for key, value in stable_payload.items()}
+            trace_components_per_tick.append((int(tick), components))
+            trace_per_tick.append((int(tick), _digest(components)))
+
         previous_strict = os.environ.get("SYMBIONT_STRICT_DETERMINISM")
         if config.training:
             os.environ["SYMBIONT_STRICT_DETERMINISM"] = "1"
@@ -242,6 +258,7 @@ def run_digests(
                 observation_hz=config.observation_hz,
                 provenance_journal=work / "provenance.jsonl",
                 checkpoint_observer=observe,
+                tick_trace_observer=observe_trace,
             )
         finally:
             if previous_strict is None:
@@ -265,6 +282,8 @@ def run_digests(
             "exit_code": exit_code,
             "ticks": config.ticks,
             "per_tick": per_tick,
+            "trace_per_tick": trace_per_tick,
+            "trace_components_per_tick": trace_components_per_tick,
             "private_model_per_tick": private_model_per_tick,
             "registry_per_tick": registry_per_tick,
             "private_model_final": _digest(_private_model_state(last_payload)),
@@ -281,17 +300,21 @@ def run_digests(
 
 
 def first_divergence(a: dict, b: dict) -> int | None:
-    for (tick_a, digest_a), (tick_b, digest_b) in zip(a["per_tick"], b["per_tick"]):
-        if tick_a != tick_b or digest_a != digest_b:
-            return tick_a
-    if len(a["per_tick"]) != len(b["per_tick"]):
-        return min(len(a["per_tick"]), len(b["per_tick"]))
+    for key in ("per_tick", "trace_per_tick"):
+        left = a.get(key, [])
+        right = b.get(key, [])
+        for (tick_a, digest_a), (tick_b, digest_b) in zip(left, right):
+            if tick_a != tick_b or digest_a != digest_b:
+                return tick_a
+        if len(left) != len(right):
+            return min(len(left), len(right))
     return None
 
 
 def equivalent(a: dict, b: dict) -> bool:
     return (
         first_divergence(a, b) is None
+        and a.get("trace_per_tick") == b.get("trace_per_tick")
         and a.get("provenance") == b.get("provenance")
         and a.get("body") == b.get("body")
         and a.get("private_model_per_tick") == b.get("private_model_per_tick")
