@@ -129,3 +129,19 @@ def test_mechanics_one_short_run_under_bounded_support() -> None:
     run = study.run_one(7, (0.000125, 0.000125, 0.25), support_rate=0.08, horizon=40)
     assert 1 <= run["survival"] <= 40 and 1 <= run["t_stable"] <= 40
     assert 0.0 <= run["retention_share"] <= 1.0
+
+
+def test_selection_parts_cover_every_pair_once_and_merge_checks_support() -> None:
+    parts = [study.selection_part_pairs(index) for index in range(study.SELECTION_PARTS)]
+    flat = [pair for part in parts for pair in part]
+    assert sorted(flat) == sorted(study.SELECTION_PAIRS) and len(set(flat)) == len(flat)
+    support = {"support_rate": 0.08}
+
+    def fake(index: int, rate: float = 0.08) -> dict:
+        runs = [_run(seed, arm, 2000, 500) for arm, seed in study.selection_part_pairs(index)]
+        return {"part": index, "complete": True, "support_rate": rate, "runs": runs}
+
+    merged = study.merge_selection(support, [fake(i) for i in range(study.SELECTION_PARTS)])
+    assert merged["support"] == support
+    with pytest.raises(ValueError):
+        study.merge_selection(support, [fake(0, rate=0.09)] + [fake(i) for i in range(1, 8)])

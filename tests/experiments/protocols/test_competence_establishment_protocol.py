@@ -118,3 +118,23 @@ def test_mechanics_one_short_run_applies_the_arm_gate() -> None:
     assert run["horizon"] == 30 and 1 <= run["t_stable"] <= 30
     assert 0.0 <= run["holding_fraction"] <= 1.0
     assert 0.0 <= run["false_establishment_rate"] <= 1.0
+
+
+def test_selection_parts_cover_every_pair_once_and_merge_checks_it(tmp_path) -> None:
+    parts = [study.selection_part_pairs(index) for index in range(study.SELECTION_PARTS)]
+    flat = [pair for part in parts for pair in part]
+    assert sorted(flat) == sorted(study.SELECTION_PAIRS) and len(set(flat)) == len(flat)
+    assert {len(part) for part in parts} == {36}
+
+    def fake(index: int, *, complete: bool = True, drop: bool = False) -> dict:
+        runs = [_run(seed, *arm, 100) for arm, seed in study.selection_part_pairs(index)]
+        return {"part": index, "complete": complete, "runs": runs[1:] if drop else runs}
+
+    merged = study.merge_selection([fake(i) for i in range(study.SELECTION_PARTS)])
+    assert merged["selected"] == {"min_support": 2, "min_consistency": 0.60}
+    with pytest.raises(ValueError):
+        study.merge_selection([fake(i) for i in range(study.SELECTION_PARTS - 1)])
+    with pytest.raises(ValueError):
+        study.merge_selection([fake(0, complete=False)] + [fake(i) for i in range(1, 6)])
+    with pytest.raises(ValueError):
+        study.merge_selection([fake(0, drop=True)] + [fake(i) for i in range(1, 6)])

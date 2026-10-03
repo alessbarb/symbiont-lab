@@ -24,10 +24,22 @@ result; mechanical contracts belong in `tests/experiments/`.
 
 Only through `agentctl run start`:
 
+The selection stage runs as six governed runs of about an hour each (36 of
+the 216 runs each, a fixed interleaved slice), then one cheap merge run that
+checks every (arm, seed) pair is present exactly once and applies the selection
+rule. Each part rewrites its output after every run, so a stopped part keeps
+what it finished.
+
 ```text
-python -m symbiont_lab.studies.learning.competence_establishment selection --output <work>/selection.json
+python -m symbiont_lab.studies.learning.competence_establishment selection-part --part <0..5> --output <work>/selection-part-<n>.json
+python -m symbiont_lab.studies.learning.competence_establishment select --parts selection-part-0.json ... selection-part-5.json --output <work>/selection.json
 python -m symbiont_lab.studies.learning.competence_establishment confirmation --selection selection.json --output <work>/results.json
 ```
+
+A first attempt as one run (`cee-v1-selection-20261003`) was stopped by the
+operator after two hours: a measured 106-111 s per run put the whole stage at
+about 6.5 hours, beyond the 360-minute wall limit, and that version wrote its
+output only at the end. It produced no result.
 
 ## Limits
 

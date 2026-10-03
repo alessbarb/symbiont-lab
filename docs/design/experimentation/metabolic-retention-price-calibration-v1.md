@@ -142,8 +142,10 @@ within the basal budget), made a precondition instead of an outcome.
 
 ## 11. Cost and order
 
-Stage 1 is 288 runs of 2000 ticks, roughly three to three and a half hours as
-one governed run, inside the 360-minute limit. The study runs after Competence
+Stage 1 is 288 runs of 2000 ticks. At the measured 106-111 s per run of a
+comparable study that is about 8.7 hours, so it is executed as a support run,
+eight governed runs of 36 runs each and a merge step (execution only; see the
+experiment README). The study runs after Competence
 Establishment Evidence v1 concludes, because that study may change the canonical
 organism.
 
