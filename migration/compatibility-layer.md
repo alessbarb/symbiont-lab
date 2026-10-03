@@ -17,11 +17,11 @@ What was done instead:
 
 ## What keeps old data usable
 
-Persisted formats did not change, so no data shim is needed:
+The migration itself changed no persisted format (verified through commit
+`2632ff40e`; see the validation report). Since then:
 
-- organism checkpoints (schema 11) written by the old code load in the new code
-  with the same state hash, and a re-save is byte-identical to the old code's
-  re-save (`migration/tools/identity_check.py`);
+- organism checkpoints moved to schema 12 by the owner's decision, with no
+  migration from schema 11: checkpoints written before `3b2a341d3` do not load;
 - inline genome payloads were converted from schema 1 to schema 2 and verified
   to load to the same genome (same genome hash and genotype hash) before the
   schema-1 migration was removed;

@@ -53,14 +53,6 @@ def test_removing_host_telemetry_leaves_intrinsic_state_unchanged(mode: str) -> 
     assert _intrinsic(None, mode) == _intrinsic(FakeTelemetry(), mode)
 
 
-@pytest.mark.parametrize("mode", ["enabled", "sham"])
-def test_removing_host_telemetry_changes_only_the_energy_spent_observing(mode: str) -> None:
-    present, absent = _intrinsic(FakeTelemetry(), mode), _intrinsic(None, mode)
-    assert absent["integrity"] == present["integrity"]
-    assert absent["body"].structural_integrity == present["body"].structural_integrity
-    assert absent["body"].energy_reserve == present["body"].energy_reserve
-
-
 def test_without_host_telemetry_the_organism_publishes_only_its_own_channels() -> None:
     runtime = OrganismRuntime(
         bootstrap_semantic_senses=False,

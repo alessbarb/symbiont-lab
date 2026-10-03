@@ -105,8 +105,8 @@ def _attached(runtime: OrganismRuntime, expected: list[str]) -> None:
     ]
 
 
-# Equality with the organism that used to build its own sources is checked
-# against the pre-migration tree by migration/tools/identity_check.py.
+# Equality with the organism that used to build its own sources was shown
+# against the pre-migration tree (migration/validation-report.md).
 @pytest.mark.parametrize("options", CASES)
 def test_fresh_creation_attaches_what_the_organism_requires(options) -> None:
     created = create_canonical_organism(organism_id="organism-under-test", **options)

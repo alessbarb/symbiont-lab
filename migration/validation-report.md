@@ -51,9 +51,16 @@ clean, 1146 files.
 
 ## Organism identity (§17)
 
-`python migration/tools/identity_check.py --old <src of 593c2a02>`, old code
-extracted with `git archive` and run in a separate interpreter. Run on the
-final tree: 13/13 PASS.
+The organism was shown identical to the pre-migration one (`593c2a02`) through
+commit `2632ff40e`, the end of the migration: old code extracted with
+`git archive`, each tree run in a separate interpreter, 13/13 checks passing.
+
+This comparison can no longer be run and its tool was removed. After the
+migration the owner changed persistence on purpose (`3b2a341d3`: checkpoint
+schema 12, continuation-condition integrity) and observation cost
+(`0d54a8e1d`), with no backward compatibility: current code rejects schema-11
+checkpoints and the old code rejects schema 12. The table records what held at
+`2632ff40e`; it is not a claim about the current tree.
 
 | Check | Result |
 |---|---|
