@@ -214,6 +214,11 @@ def test_experience_continues_in_body_b_without_erasing_body_a_knowledge(
     run_ticks(restored, body_b, 50)
 
     assert restored.tick_count == DEVELOPMENT_TICKS + 50
+    current_body_signals = {
+        restored._signal_identity.signal_id(capability_id)
+        for capability_id in body_b.receptor_ids
+    }
+    assert set(restored.body_schema.self_caused_channels) <= current_body_signals
     assert len(restored.experience_ledger.records) > len(case.experience_in_a)
     recorded = {record.record_id for record in restored.experience_ledger.records}
     retained = recorded | {record.record_id for record in restored.experience_archive.records}

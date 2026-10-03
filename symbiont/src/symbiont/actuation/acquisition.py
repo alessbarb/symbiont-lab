@@ -859,11 +859,18 @@ class AgencyAcquisition:
         )
 
     # -- derived views --------------------------------------------------------
-    def self_caused_features(self, *, min_confidence: float) -> set[str]:
+    def self_caused_features(
+        self, *, min_confidence: float, updated_after_tick: int | None = None
+    ) -> set[str]:
         """Effect features the organism probably causes, from any causal source."""
         features: set[str] = set()
         for estimate in self.agency_model.estimates:
             if estimate.confidence < min_confidence:
+                continue
+            if (
+                updated_after_tick is not None
+                and estimate.last_updated_tick <= updated_after_tick
+            ):
                 continue
             effect = self.effect_space.get(estimate.effect_id)
             if effect is not None:

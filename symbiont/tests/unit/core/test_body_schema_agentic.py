@@ -21,6 +21,22 @@ def test_body_schema_can_learn_before_competence():
     assert "signal.a" in acquisition.self_caused_features(min_confidence=0.35)
 
 
+def test_body_boundary_agency_excludes_estimates_from_prior_embodiment():
+    acquisition = fresh_acquisition()
+    end_tick = acquire_agentic_dimension(
+        acquisition,
+        channels={A: 0.5},
+        changes={"signal.a": 0.4},
+    )
+
+    assert "signal.a" in acquisition.self_caused_features(
+        min_confidence=0.35, updated_after_tick=0
+    )
+    assert not acquisition.self_caused_features(
+        min_confidence=0.35, updated_after_tick=end_tick
+    )
+
+
 def test_body_schema_requires_agentic_or_sensorimotor_evidence():
     body_schema = BodySchemaEngine()
     body_schema.observe_agentic_sensorimotor_evidence(

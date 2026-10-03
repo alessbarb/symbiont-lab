@@ -1310,6 +1310,7 @@ class ActionDomain:
         opaque_changes: Mapping[str, float],
         state_after_ref: str,
         tick: int,
+        embodiment_started_tick: int | None,
         services: ActionServices,
     ) -> None:
         """T1-T2 for one motor-caused transition: effect, evidence, causal learning."""
@@ -1391,17 +1392,18 @@ class ActionDomain:
         # organism-owned causal effects and agency only, from any causal
         # source — body ownership does not wait for a motor competence.
         # Controllability alone never makes a channel part of Body.
+        # Boundary evidence must come from this observed transition. Scanning
+        # the organism-wide EffectSpace here reintroduced effects learned in a
+        # prior Body as if they were observations of the current Body.
         observed_features = {
-            feature
-            for effect in self.effect_space.effects
-            for feature in effect.feature_refs
-            if not feature.startswith("channel.")
+            feature for feature in opaque_changes if not feature.startswith("channel.")
         }
         if observed_features:
             services.body_schema.observe_agency_boundary(
                 observed_channels=observed_features,
                 self_caused_channels=self.acquisition.self_caused_features(
-                    min_confidence=_BODY_BOUNDARY_AGENCY
+                    min_confidence=_BODY_BOUNDARY_AGENCY,
+                    updated_after_tick=embodiment_started_tick,
                 )
                 & observed_features,
                 # Somatic membership requires independent evidence;
@@ -1812,6 +1814,11 @@ class ActionDomain:
                     opaque_changes=opaque_changes,
                     state_after_ref=state_after_ref,
                     tick=tick,
+                    embodiment_started_tick=(
+                        context.symbiont_tick - context.embodiment_tick
+                        if context.embodiment_tick is not None
+                        else None
+                    ),
                     services=services,
                 )
 

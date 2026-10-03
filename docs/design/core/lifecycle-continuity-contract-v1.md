@@ -68,7 +68,12 @@ checkpoint field is unclassified.
 dependency, and body-boundary evidence). The checkpoint does not currently tag
 each item with a body/episode provenance class. Therefore a preserved BodySchema
 after re-embodiment is a longitudinal prior that may be stale or inapplicable;
-it is not a verified description of the new Body. Current physical facts come
+it is not a verified description of the new Body. The action-domain boundary
+writer now derives each boundary observation from the just-closed transition,
+not from the organism-wide EffectSpace, and only considers agency estimates
+updated after the current embodiment began. A regression test checks that
+post-transition self-caused channels after re-embodiment belong to Body B's
+opaque receptor identities. Current physical facts come
 from the new Body's sensors and physiology. Execution authority is separately
 withdrawn by the action-domain transition. A consumer must not use preserved
 BodySchema entries as actuator bindings or as proof of present anatomy.
@@ -77,8 +82,10 @@ Evidence scope: `lab/tests/integration/test_reembodiment_continuity.py` verifies
 BodySchema preservation through the register lifecycle and verifies execution
 bindings are not valid after restore. It does not establish that every
 BodySchema consumer handles all retained evidence as a fallible prior, nor that
-retained BodySchema improves adaptation. Per-item body provenance remains an
-open design limitation, not a demonstrated semantic guarantee.
+retained BodySchema improves adaptation. This change narrows one inference path;
+it does not add per-item body provenance or audit every consumer. Per-item body
+provenance remains an open design limitation, not a demonstrated semantic
+guarantee.
 
 ## 4. Lifecycle operations
 
