@@ -35,12 +35,18 @@ The result is bounded to the synthetic causal Body, four actuators, the listed
 seeds and the horizons fixed by rule. The protocol is
 `docs/design/experimentation/reembodiment-functional-transfer-v1.md`.
 
-## Development stage under r7 (2026-10-03): not runnable
+## Development stage under r8
+
+Not run yet. It fixes the Body family, `D` and `H` by rule with `D_max = 2000`
+and writes them to `horizons.json` here. The confirmation stage can then run
+with `--workers 4`.
+
+## Superseded: development stage under r7 (2026-10-03), not runnable
 
 Governed run `rft-v1-r7-development-20261003` at commit `e9489915`, scope
-`development`, protocol-generated input, nine development seeds. Its output is
-`horizons.json`; its launcher receipt, without host-specific paths, is
-`development-receipt.json`.
+`development`, protocol-generated input, nine development seeds. Its output and
+launcher receipt are kept in `development-r7/`. Protocol r8 raised `D_max` to
+2000.
 
 | Quantity | Value | Rule |
 | --- | --- | --- |

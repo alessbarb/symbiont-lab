@@ -23,7 +23,7 @@ recorded without changing a threshold.
 """
 notes = """
 Frozen protocol: docs/design/experimentation/reembodiment-functional-transfer-v1.md
-(r7). The subject is the canonical organism profile v1 (ADR-0062). The Body
+(r8, D_max = 2000). The subject is the canonical organism profile v1 (ADR-0062). The Body
 family is fixed by rule on nine development seeds and written to horizons.json
 with D and H; superseded development stages are kept under development-r5/ and
 development-r6/. Development ticks D and measurement ticks H are fixed by rule on the
@@ -44,7 +44,7 @@ swap_unrelated_source_on_alternate_seeds = true
 naive_arm_is_restored = true
 private_model_bridge = false
 actuators = 4
-development_ticks_rule = "smallest multiple of 100 <= 1000 at which every development organism holds a VALID binding in every source Body"
+development_ticks_rule = "smallest multiple of 100 <= 2000 at which every development organism holds a VALID binding in every source Body"
 measurement_ticks_rule = "equal to development ticks"
 max_body_difficulty_spread = 0.15
 primary_metric = "ticks_to_first_valid_binding_acquired_in_target_body"

@@ -152,6 +152,14 @@ def test_the_r6_family_was_outside_the_spread() -> None:
     assert study.choose_family(medians)["spread"] == pytest.approx(0.25)
 
 
+def test_d_max_is_the_r8_value_and_the_record_states_it() -> None:
+    assert study.D_MAX == 2000
+    spec = load_experiment_file(
+        "experiments/embodiment/reembodiment-functional-transfer-v1/experiment.toml"
+    )
+    assert "<= 2000" in spec.extra_params["transfer"]["development_ticks_rule"]
+
+
 def test_seed_lists_are_the_frozen_ones_and_disjoint() -> None:
     assert DEVELOPMENT_SEEDS == (101, 103, 107, 109, 113, 131, 137, 139, 149)
     assert len(CONFIRMATION_SEEDS) == 12

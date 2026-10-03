@@ -20,6 +20,7 @@ import hashlib
 import itertools
 import json
 import statistics
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Sequence
@@ -53,7 +54,8 @@ CONFIRMATION_SEEDS = (173, 211, 257, 307, 353, 401, 457, 503, 557, 601, 653, 701
 
 # Frozen decision parameters (protocol §5-§7).
 D_STEP = 100
-D_MAX = 1000
+# r8: 2000 (was 1000); the D rule itself is unchanged.
+D_MAX = 2000
 MAX_BODY_DIFFICULTY_SPREAD = 0.15
 MIN_SEEDS_IMPROVED = 10
 MIN_MEDIAN_PAIRED_REDUCTION = 0.20
@@ -557,31 +559,66 @@ def run_development_stage() -> dict[str, Any]:
     }
 
 
+def _confirmation_task(task: tuple) -> ArmRun:
+    relation, index, seed, arm, development_ticks, measurement_ticks, family = task
+    return run_arm(
+        seed,
+        relation,
+        arm,
+        seed_index=index,
+        development_ticks=development_ticks,
+        horizon=measurement_ticks,
+        family=family,
+    )
+
+
 def run_confirmation_stage(
     *,
     development_ticks: int,
     measurement_ticks: int,
     family: dict[str, tuple[int, ...]] = DEFAULT_FAMILY,
     seeds: Sequence[int] = CONFIRMATION_SEEDS,
+    workers: int = 1,
+    progress: Path | None = None,
 ) -> dict[str, Any]:
-    runs: list[ArmRun] = []
+    """All arms of every seed at every level.
+
+    ``workers`` > 1 runs arms in separate processes; every arm run is independent
+    and deterministic, so the result does not depend on it. ``progress``, if
+    given, is rewritten after every finished arm run so a stop keeps what ran.
+    """
+    tasks = [
+        (relation, index, seed, arm, development_ticks, measurement_ticks, family)
+        for relation in RELATIONS
+        for index, seed in enumerate(seeds)
+        for arm in ARMS
+    ]
+    finished: list[ArmRun] = []
+
+    def record(run: ArmRun) -> None:
+        finished.append(run)
+        if progress is not None:
+            progress.parent.mkdir(parents=True, exist_ok=True)
+            payload = {
+                "stage": "confirmation-progress",
+                "complete": len(finished) == len(tasks),
+                "runs": [item.as_dict() for item in finished],
+            }
+            progress.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
+
+    if workers <= 1:
+        for task in tasks:
+            record(_confirmation_task(task))
+    else:
+        with ProcessPoolExecutor(max_workers=workers) as pool:
+            for run in pool.map(_confirmation_task, tasks):
+                record(run)
     levels: dict[str, dict[str, Any]] = {}
     for relation in RELATIONS:
         by_seed: dict[int, dict[str, ArmRun]] = {}
-        for index, seed in enumerate(seeds):
-            by_seed[seed] = {
-                arm: run_arm(
-                    seed,
-                    relation,
-                    arm,
-                    seed_index=index,
-                    development_ticks=development_ticks,
-                    horizon=measurement_ticks,
-                    family=family,
-                )
-                for arm in ARMS
-            }
-            runs.extend(by_seed[seed].values())
+        for run in finished:
+            if run.relation == relation:
+                by_seed.setdefault(run.seed, {})[run.arm] = run
         levels[relation] = level_outcome(by_seed)
     return {
         "protocol": PROTOCOL,
@@ -593,7 +630,7 @@ def run_confirmation_stage(
         "longitudinal_contract": LONGITUDINAL_CONTRACT.value,
         "levels": levels,
         "confirmatory": confirmatory_claim(levels),
-        "runs": [run.as_dict() for run in runs],
+        "runs": [run.as_dict() for run in finished],
     }
 
 
@@ -603,6 +640,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--horizons", type=Path, help="horizons.json written by the development stage"
     )
+    parser.add_argument("--workers", type=int, default=1, help="processes for confirmation")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
     if args.stage == "development":
@@ -620,6 +658,8 @@ def main(argv: list[str] | None = None) -> int:
                 name: tuple(int(item) for item in mapping)
                 for name, mapping in horizons["body_family"].items()
             },
+            workers=args.workers,
+            progress=args.output.with_name(args.output.stem + "-progress.json"),
         )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
