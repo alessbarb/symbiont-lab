@@ -1,6 +1,6 @@
 import pytest
 
-from lab.integration.world.deferred import MAX_QUEUE_SIZE, DeferredEffect, DeferredEffectQueue
+from environment.deferred import MAX_QUEUE_SIZE, DeferredEffect, DeferredEffectQueue
 
 
 def test_deferred_effect_rejects_out_of_bound_amount():

@@ -9,8 +9,8 @@ from environment.physics3d.environments import (
     environment_recipe,
     resolve_environment,
 )
+from environment.physics3d.resource import PhysicalResource
 from lab.integration.physics3d.bodies import DEFAULT_BODY_REGISTRY
-from lab.physics3d.resource import PhysicalResource
 from lab.physics3d.world_observation import PhysicsWorldObserver
 
 

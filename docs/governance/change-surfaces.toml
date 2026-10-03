@@ -62,7 +62,7 @@ paths = [
   "lab/src/lab/physics3d/effects.py",
   "lab/src/lab/physics3d/engine.py",
   "lab/src/lab/physics3d/persistence.py",
-  "lab/src/lab/physics3d/resource.py",
+  "environment/src/environment/physics3d/resource.py",
   "lab/src/lab/physics3d/runtime.py",
   "lab/src/lab/physics3d/settling.py",
   "lab/src/lab/world/**",

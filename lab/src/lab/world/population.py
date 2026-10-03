@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from environment.contracts import ReceivedEmission, WorldObservation
+from environment.deferred import DeferredEffectQueue
 from environment.events import EventJournal, WorldEvent
 from environment.genesis import GroundTruth, WorldEnvironment
 from environment.observation import LOCAL_OCCUPANCY_SIGNAL, local_observation
@@ -22,7 +23,6 @@ from lab.integration.world.adapter import (
     clean_world_observation,
     local_substrate_signals,
 )
-from lab.integration.world.deferred import DeferredEffectQueue
 from lab.world.transaction import IntegratedWorldTickTransaction
 from symbiont.core.embodiment.physiology import VitalState
 

@@ -604,7 +604,7 @@ def _viewer_main(
         from PIL import Image, ImageDraw, ImageTk
 
         from embodiment.physics3d.humanoid import HumanoidPhysics
-        from lab.physics3d.resource import PhysicalResource
+        from environment.physics3d.resource import PhysicalResource
     except ImportError as exc:
         print(f"Physics3D unified viewer unavailable: {exc.__class__.__name__}: {exc}")
         return

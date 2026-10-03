@@ -28,7 +28,15 @@ ROOT = Path(__file__).resolve().parents[2]
 SOURCE_ROOTS = [
     ROOT / domain / "src" for domain in ("symbiont", "environment", "modality", "embodiment", "lab")
 ]
-SCAN = [*SOURCE_ROOTS, ROOT / "tests", ROOT / "observatory", ROOT / "scripts"]
+SCAN = [
+    *SOURCE_ROOTS,
+    *(
+        ROOT / domain / "tests"
+        for domain in ("symbiont", "environment", "modality", "embodiment", "lab")
+    ),
+    ROOT / "tests",
+    ROOT / "scripts",
+]
 # source-root prefixes of the move in progress, e.g. {"old": "lab/src", "new": "embodiment/src"}
 PATH_PREFIX = {"old": "", "new": ""}
 TEXT_SCAN = [ROOT / "docs" / "governance", ROOT / "pyproject.toml", ROOT / ".github"]

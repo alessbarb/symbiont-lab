@@ -16,12 +16,12 @@ from dataclasses import dataclass
 from typing import Any
 
 from environment.contracts import WorldAction, WorldObservation
+from environment.deferred import DeferredEffect, DeferredEffectQueue
 from environment.genesis import GroundTruth, WorldEnvironment
 from environment.observation import local_observation, opaque_signal_id
 from environment.rng import derive_world_rng, derive_world_seed
 from environment.state import WorldState
 from environment.topology import BodyPlacement, HexCoord, HexTopology
-from lab.integration.world.deferred import DeferredEffect, DeferredEffectQueue
 from symbiont.actuation.constitution import ActuatorConstitution
 from symbiont.actuation.surface import derive_actuator_constitution
 from symbiont.actuation.types import Actuation

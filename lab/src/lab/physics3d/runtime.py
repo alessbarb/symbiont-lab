@@ -24,6 +24,7 @@ from environment.physics3d.environments import (
     resolve_environment,
     update_environment,
 )
+from environment.physics3d.resource import PhysicalResource
 from lab.integration.physics3d.apparatus import (
     OpaqueBodyInteroception,
     PhysicsDiscoveryProvider,
@@ -49,7 +50,6 @@ from lab.physics3d.observer_semantics import (
     motor_semantics,
     sensory_semantics,
 )
-from lab.physics3d.resource import PhysicalResource
 from lab.physics3d.settling import settle_passive_body
 from symbiont.actuation.model import CausalSourceKind
 from symbiont.actuation.sensorimotor import CompetenceDevelopmentEngine

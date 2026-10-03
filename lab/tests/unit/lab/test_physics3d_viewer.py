@@ -26,7 +26,7 @@ def test_application_owned_monitor_has_no_broken_relative_physics_imports():
     assert "from .humanoid" not in source
     assert "from .resource" not in source
     assert "from embodiment.physics3d.humanoid import HumanoidPhysics" in source
-    assert "from lab.physics3d.resource import PhysicalResource" in source
+    assert "from environment.physics3d.resource import PhysicalResource" in source
 
 
 def test_physics3d_runtime_accepts_embedded_viewer_bridge():

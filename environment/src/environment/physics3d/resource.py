@@ -6,9 +6,20 @@ import math
 from dataclasses import dataclass, field
 from typing import Any, Mapping
 
-from embodiment.physics3d.humanoid import SurfaceMaterial, apply_surface_material
 
-RESOURCE_MATERIAL = SurfaceMaterial(
+@dataclass(frozen=True, slots=True)
+class ContactMaterial:
+    """How a world object behaves on contact, in the environment's own terms."""
+
+    lateral_friction: float
+    spinning_friction: float
+    rolling_friction: float
+    restitution: float
+    linear_damping: float
+    angular_damping: float
+
+
+RESOURCE_MATERIAL = ContactMaterial(
     lateral_friction=0.72,
     spinning_friction=0.02,
     rolling_friction=0.003,
@@ -59,12 +70,16 @@ class PhysicalResource:
             basePosition=self.position,
             physicsClientId=self.client_id,
         )
-        apply_surface_material(
-            self.p,
+        self.p.changeDynamics(
             self.body_id,
             -1,
-            RESOURCE_MATERIAL,
-            client_id=self.client_id,
+            lateralFriction=RESOURCE_MATERIAL.lateral_friction,
+            spinningFriction=RESOURCE_MATERIAL.spinning_friction,
+            rollingFriction=RESOURCE_MATERIAL.rolling_friction,
+            restitution=RESOURCE_MATERIAL.restitution,
+            linearDamping=RESOURCE_MATERIAL.linear_damping,
+            angularDamping=RESOURCE_MATERIAL.angular_damping,
+            physicsClientId=self.client_id,
         )
 
     def distance_to(self, point: tuple[float, float, float]) -> float:
@@ -146,4 +161,4 @@ class PhysicalResource:
         )
 
 
-__all__ = ["PhysicalResource", "RESOURCE_MATERIAL"]
+__all__ = ["ContactMaterial", "PhysicalResource", "RESOURCE_MATERIAL"]

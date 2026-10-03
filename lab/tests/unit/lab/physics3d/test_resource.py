@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from embodiment.physics3d.humanoid import HumanoidPhysics
-from lab.physics3d.resource import PhysicalResource
+from environment.physics3d.resource import PhysicalResource
 
 
 class FakeBullet:
