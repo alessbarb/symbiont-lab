@@ -17,13 +17,11 @@ from .drift import DriftAwareBaseline
 from .durable import durable_atomic_write
 from .rhythms import CyclePhase, RhythmModel
 
-CHECKPOINT_SCHEMA_VERSION = 11
-# v10 -> v11 (Longitudinal Integrity v1 §4-§5) changes no organism state. From
-# v11 on, checkpoint_lineage.checkpoint_id covers the complete organism payload
-# of the runtime that saved it and is verified on restore, and fields the
-# continuity register marks as required may not be absent. Older schemas keep
-# their documented migration defaults and are not identity-verified: their
-# identifier covered only the base runtime fields and was never checked.
+CHECKPOINT_SCHEMA_VERSION = 12
+# v10 -> v11 (Longitudinal Integrity v1 §4-§5) introduced organism-state
+# identity. v12 adds an independent hash of continuation conditions because
+# runtime controls affect future learning but are apparatus configuration, not
+# organism state. No migration is retained: v11 checkpoints lack this contract.
 IDENTITY_VERIFIED_SINCE_SCHEMA = 11
 IDENTITY_SCOPE = "organism-state-v1"
 UNVERIFIED_LEGACY_ORIGIN = "unverified_legacy_origin"
@@ -149,6 +147,12 @@ def checkpoint_state_hash(payload: dict[str, Any]) -> str:
     return sha256(encoded.encode("utf-8")).hexdigest()
 
 
+def continuation_condition_hash(controls: dict[str, Any]) -> str:
+    """Hash apparatus controls that govern how a saved organism continues."""
+    encoded = json.dumps(controls, sort_keys=True, separators=(",", ":"), allow_nan=False)
+    return sha256(encoded.encode("utf-8")).hexdigest()
+
+
 def lineage_history(payload: dict[str, Any]) -> dict[str, Any]:
     """The part of a checkpoint's lineage that every later save must carry.
 
@@ -210,6 +214,11 @@ def stamp_checkpoint_identity(payload: dict[str, Any], *, transform: str) -> dic
         **history,
         "transforms": [*history.get("transforms", []), transform],
     }
+    if _saved_by_current_schema(stamped):
+        provenance = stamped.get("runtime_provenance")
+        controls = provenance.get("session_controls") if isinstance(provenance, dict) else None
+        if isinstance(controls, dict):
+            lineage["continuation_condition_hash"] = continuation_condition_hash(controls)
     # The schema the saving runtime declared travels with the state; a
     # transform never upgrades a legacy checkpoint to a current one.
     if "schema_version" in previous:
@@ -239,6 +248,27 @@ def verify_checkpoint_identity(payload: dict[str, Any]) -> None:
                 "checkpoint state does not match its recorded checkpoint_id; "
                 "the checkpoint was modified after it was saved"
             )
+        if _saved_by_current_schema(payload):
+            provenance = payload.get("runtime_provenance")
+            if not isinstance(provenance, dict):
+                raise CheckpointError(
+                    "current-schema checkpoint is missing required field 'runtime_provenance'"
+                )
+            controls = provenance.get("session_controls")
+            if not isinstance(controls, dict):
+                raise CheckpointError(
+                    "current-schema checkpoint is missing required field 'session_controls'"
+                )
+            try:
+                expected = continuation_condition_hash(controls)
+            except (TypeError, ValueError) as exc:
+                raise CheckpointError(
+                    f"checkpoint continuation conditions are not canonical JSON: {exc}"
+                ) from exc
+            if lineage.get("continuation_condition_hash") != expected:
+                raise CheckpointError(
+                    "checkpoint continuation conditions do not match their recorded hash"
+                )
         return
     if _saved_by_current_schema(payload):
         raise CheckpointError(

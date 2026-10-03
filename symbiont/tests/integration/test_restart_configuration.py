@@ -87,18 +87,24 @@ def test_a_different_continuation_is_recorded_as_a_changed_condition() -> None:
     ]
 
 
-def test_checkpoint_without_recorded_controls_restores_with_defaults() -> None:
+def test_checkpoint_without_recorded_controls_fails_closed() -> None:
     runtime = OrganismRuntime(**RUNTIME_KWARGS)
     runtime.tick()
     saved = _saved(runtime)
     del saved["runtime_provenance"]["session_controls"]
     del saved["runtime_provenance"]["changed_since_restore"]
 
-    restored = OrganismRuntime.from_checkpoint(saved, **RUNTIME_KWARGS)
+    with pytest.raises(CheckpointError, match="missing required field 'session_controls'"):
+        OrganismRuntime.from_checkpoint(saved, **RUNTIME_KWARGS)
 
-    assert restored._cognitive_plasticity_enabled is True
-    assert restored._predictor_promotion_enabled is True
-    assert _saved(restored)["runtime_provenance"]["changed_since_restore"] == []
+
+def test_changed_continuation_controls_fail_identity_verification() -> None:
+    runtime = OrganismRuntime(**RUNTIME_KWARGS)
+    saved = _saved(runtime)
+    saved["runtime_provenance"]["session_controls"]["cognitive_plasticity_enabled"] = False
+
+    with pytest.raises(CheckpointError, match="continuation conditions"):
+        OrganismRuntime.from_checkpoint(saved, **RUNTIME_KWARGS)
 
 
 @pytest.mark.parametrize(

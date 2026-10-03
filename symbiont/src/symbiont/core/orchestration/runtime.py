@@ -53,6 +53,7 @@ from ...host.checkpoint import (
     IDENTITY_SCOPE,
     CheckpointError,
     checkpoint_state_hash,
+    continuation_condition_hash,
     export_checkpoint,
     import_checkpoint,
     lineage_history,
@@ -2605,6 +2606,9 @@ class OrganismRuntime:
             "parent_checkpoint_hash": self._last_checkpoint_hash,
             "identity_scope": IDENTITY_SCOPE,
             "schema_version": CHECKPOINT_SCHEMA_VERSION,
+            "continuation_condition_hash": continuation_condition_hash(
+                payload["runtime_provenance"]["session_controls"]
+            ),
             **deepcopy(self._lineage_history),
         }
         if advance_lineage:
@@ -3389,7 +3393,18 @@ class OrganismRuntime:
         return runtime
 
     @classmethod
-    def load_or_create(cls, path: str | Path, **kwargs: Any) -> "OrganismRuntime":
+    def load_required(cls, path: str | Path, **kwargs: Any) -> "OrganismRuntime":
+        """Restore a required continuation, failing if its checkpoint is absent."""
+        payload = load_checkpoint_file(path)
+        if payload is None:
+            raise FileNotFoundError(f"required organism checkpoint does not exist: {path}")
+        return cls.from_checkpoint(payload, **kwargs)
+
+    @classmethod
+    def load_or_create_for_first_boot(
+        cls, path: str | Path, **kwargs: Any
+    ) -> "OrganismRuntime":
+        """Create only for an explicitly permitted first boot; otherwise restore."""
         payload = load_checkpoint_file(path)
         if payload is None:
             return cls(**kwargs)
