@@ -53,7 +53,11 @@ class ResidentOrganism:
         keypair: CapsuleKeyPair | None = None,
         on_tick: Callable[[RuntimeTickResult], None] | None = None,
         on_checkpoint: Callable[[], None] | None = None,
+        create_child: Callable[..., OrganismRuntime] = OrganismRuntime,
     ) -> None:
+        # ``create_child`` builds a budded child; whoever composes the resident
+        # passes the same composition it used for the parent.
+        self._create_child = create_child
         self.runtime = runtime
         self.state_file = Path(state_file).expanduser()
         self.config = config if config is not None else ResidentConfig()
@@ -146,7 +150,7 @@ class ResidentOrganism:
                 child_id = f"{self.runtime.organism_id}-child-{child_suffix}"
                 from ...cognition.birth import load_base_graph
 
-                child_runtime = OrganismRuntime(
+                child_runtime = self._create_child(
                     genome=self.runtime._genome,
                     kernel_limits=self.runtime._kernel_limits,
                     cognitive_graph=(

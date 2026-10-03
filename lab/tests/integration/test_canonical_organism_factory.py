@@ -220,3 +220,31 @@ def test_unknown_host_system_is_declared_unavailable(monkeypatch) -> None:
     monkeypatch.setattr(platform, "system", lambda: "Plan9")
     runtime = create_canonical_organism()
     assert runtime.effective_configuration()["host_sense_source"] == "unavailable"
+
+
+def test_a_resident_composed_by_the_lab_buds_a_child_with_the_same_composition(tmp_path) -> None:
+    import json
+
+    from symbiont.core.host.local_habitat import LocalHabitat
+    from symbiont.core.orchestration.resident import ResidentOrganism
+    from symbiont.core.social.capsule import CapsuleKeyPair
+
+    def embryo(create_child) -> dict:
+        habitat = LocalHabitat(tmp_path / create_child.__name__)
+        parent = create_canonical_organism(min_samples=1)
+        parent.tick()
+        ResidentOrganism(
+            parent,
+            state_file=tmp_path / "resident.json",
+            habitat=habitat,
+            keypair=CapsuleKeyPair.generate(),
+            create_child=create_child,
+        )._social_and_reproductive_step(20)
+        (path,) = habitat.incubator_dir.glob("*.json")
+        return json.loads(path.read_text())
+
+    composed = embryo(create_canonical_organism)
+    assert composed["effective_config"]["host_sense_source"] == "available"
+    assert _shape(restore_canonical_organism(composed))["discovery"]
+    # the organism on its own buds a minimal child, with no host source
+    assert embryo(OrganismRuntime)["effective_config"]["host_sense_source"] == "unavailable"

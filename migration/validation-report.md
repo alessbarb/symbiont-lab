@@ -65,6 +65,19 @@ final tree: 13/13 PASS.
 | checkpoint schema | 11, unchanged; serialized field set unchanged |
 | composed by the Lab vs self-built by the old organism | 63 cases (9 option sets born, 54 restored with overrides): same state hash and checkpoint |
 
+The 63-case row compares the organism as born and as restored. It is not a
+trajectory comparison: ticked dynamics over real host readings are not
+deterministic, in either tree. The first rows do run five ticks before saving.
+
+After the organism stopped building its own sources, every construction site
+was re-checked for a silently host-blind organism: the rewrite tool reports no
+remaining direct construction in `lab/src`, `lab/tests` or `tests`; the one
+site inside the organism (a resident budding a child) now takes its
+constructor from whoever composed the resident; the CLI run path was exercised
+fresh, created with a state file and restored, with the host source attached
+each time. No host channel declares a sampling cost the Lab adapter would
+hide.
+
 The four inline genome payloads converted from schema 1 to schema 2 were
 checked before the old loader was removed: equal `Genome` object, equal genome
 hash, equal genotype hash.

@@ -365,6 +365,7 @@ def _run_live(args: argparse.Namespace) -> int:
 
     resident = ResidentOrganism(
         runtime,
+        create_child=create_canonical_organism,
         state_file=state_file,
         config=ResidentConfig(
             interval_seconds=args.interval,

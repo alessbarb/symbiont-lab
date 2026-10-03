@@ -459,6 +459,7 @@ def main(argv: list[str] | None = None) -> int:
 
     resident = ResidentOrganism(
         runtime,
+        create_child=create_canonical_organism,
         state_file=args.state_file,
         config=ResidentConfig(
             interval_seconds=args.interval,
