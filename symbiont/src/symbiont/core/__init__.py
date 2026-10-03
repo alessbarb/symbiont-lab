@@ -87,7 +87,6 @@ from .social.capsule import (
 )
 from .social.communication import ConsentBoundChannel, SignedMessage
 from .social.ecology import HabitatSnapshot, SharedHabitat
-from .social.evidence_trust import EvidenceTrust
 from .social.exchange import MAX_EXCHANGE_BYTES, ExchangeEnvelope, ExchangeReplayGuard
 from .social.interactions import Allocation, EcologicalResourcePool
 from .social.relations import (
@@ -100,7 +99,6 @@ from .social.relations import (
     SocialPresence,
     SocialRelation,
 )
-from .social.source_evidence import SourceEvidenceOutcome, SourceEvidenceSample, SourceEvidenceState
 
 __all__ = [
     "AdvisoryConsentRequiredError",
@@ -156,7 +154,6 @@ __all__ = [
     "ExchangeEnvelope",
     "ExchangeReplayGuard",
     "MAX_EXCHANGE_BYTES",
-    "EvidenceTrust",
     "ConsentBoundChannel",
     "SignedMessage",
     "AdversarialAssessment",

@@ -47,11 +47,12 @@ decisions are different, so they MUST NOT be merged into a universal social
 trust ledger.
 
 `EvidenceTrust` and `SourceEvidenceState` are dormant prototypes, not live
-authorities. New runtime behavior MUST NOT depend on them. Their public exports
-are candidates for removal in the follow-up cleanup (C-2); preserve the
-definitions until that cleanup verifies compatibility needs. If source
-reputation is later required, it needs an explicit owner, evidence lifecycle,
-decision consumer, and persistence contract before implementation.
+authorities. New runtime behavior MUST NOT depend on them. They are removed
+from the aggregate `symbiont.core` exports; their module definitions remain
+available only as non-canonical implementation artifacts pending eventual
+deletion. If source reputation is later required, it needs an explicit owner,
+evidence lifecycle, decision consumer, and persistence contract before
+implementation.
 
 ## D-4 — Capsule transport and claims
 
