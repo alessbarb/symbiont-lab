@@ -35,10 +35,27 @@ The result is bounded to the synthetic causal Body, four actuators, the listed
 seeds and the horizons fixed by rule. The protocol is
 `docs/design/experimentation/reembodiment-functional-transfer-v1.md`.
 
-## Development stage under r7
+## Development stage under r7 (2026-10-03): not runnable
 
-Not run yet. It fixes the Body family, `D` and `H` by rule on the nine
-development seeds and writes them to `horizons.json` here.
+Governed run `rft-v1-r7-development-20261003` at commit `e9489915`, scope
+`development`, protocol-generated input, nine development seeds. Its output is
+`horizons.json`; its launcher receipt, without host-specific paths, is
+`development-receipt.json`.
+
+| Quantity | Value | Rule |
+| --- | --- | --- |
+| Family chosen by rule | target `0123`, partial `0132`, unrelated `1032` and `1230` | §4.2.1 (r7) |
+| Median naive ticks to a first valid binding, each member | 93 | |
+| Body-difficulty spread | 0.0 | must be at most 0.15 |
+| Development ticks `D` | **not reached** | smallest multiple of 100 up to `D_max = 1000` at which every development organism holds a valid binding in every source Body |
+| Runnable | **no** | |
+
+Every candidate mapping had a median of 93 or 114 ticks, so the family rule
+found a family with no difficulty difference. The `D` rule failed: at no
+multiple of 100 up to 1000 did all 36 development organisms (nine seeds, four
+Bodies) hold a valid binding at the same time. By the frozen rule (§4.5, §11
+step 1) the study is not runnable and that is the recorded result. No
+confirmation seed is run.
 
 ## Superseded: development stage under r6 (2026-10-03), not runnable
 
