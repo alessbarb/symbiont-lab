@@ -21,11 +21,11 @@ from typing import Any, Mapping, Sequence
 copyreg.pickle(types.MappingProxyType, lambda mp: (types.MappingProxyType, (dict(mp),)))
 
 
+from embodiment.world.adapter import _OrganismRig
+from embodiment.world.deferred import DeferredEffectQueue
 from environment.events import EventJournal, WorldEvent
 from environment.genesis import WorldEnvironment
 from environment.state import TickAborted, WorldState
-from lab.world.adapter import _OrganismRig
-from lab.world.deferred import DeferredEffectQueue
 
 
 class IntegratedWorldTickTransaction:

@@ -50,7 +50,6 @@ def test_runtime_poller_prevents_overlap_and_handles_visibility():
 def test_all_top_level_views_have_uniform_lifecycle_contract():
     for relative in (
         "views/home.js",
-        "views/lab.js",
         "views/archive.js",
         "views/mind.js",
         "views/body.js",
@@ -78,7 +77,6 @@ def test_package_data_contains_nested_workbench_modules():
         '"web/views/body/*.js"',
         '"web/views/world/*.js"',
         '"web/views/embodiment/*.js"',
-        '"web/views/lab/*.js"',
         '"web/views/archive/*.js"',
         '"web/views/shared/*.js"',
         '"web/views/mind/*.js"',

@@ -1,13 +1,13 @@
 from environment.events import WorldEvent
-from environment.topology import HexTopology
-from lab.world.cli_view import render_world, world_snapshot
-from lab.world.genesis_v1 import (
+from environment.genesis_v1 import (
     GENESIS_V1_METADATA,
     HAZARD_IDS,
     RESOURCE_IDS,
     build_ground_truth,
 )
-from lab.world.genesis_v2 import build_ground_truth_v2
+from environment.genesis_v2 import build_ground_truth_v2
+from environment.topology import HexTopology
+from lab.world.cli_view import render_world, world_snapshot
 from lab.world.population import PopulationGenesisRuntime, founder_placement
 
 

@@ -11,8 +11,8 @@ from dataclasses import asdict, dataclass
 from statistics import mean, median
 from typing import Sequence
 
+from environment.genesis_v1 import HAZARD_IDS, build_ground_truth
 from environment.topology import HexTopology
-from lab.world.genesis_v1 import HAZARD_IDS, build_ground_truth
 from lab.world.population import PopulationGenesisRuntime, founder_placement
 
 

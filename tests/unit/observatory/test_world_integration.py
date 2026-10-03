@@ -214,8 +214,8 @@ def test_api_state_does_not_invent_prediction_confidence(running_server):
 
 
 def test_runtime_uses_restored_population_topology_for_constitution():
+    from environment.genesis_v1 import build_ground_truth
     from environment.topology import HexTopology
-    from lab.world.genesis_v1 import build_ground_truth
     from lab.world.population import PopulationGenesisRuntime, founder_placement
 
     topology = HexTopology(width=6, height=5)
@@ -284,8 +284,8 @@ def test_canonical_world_starts_in_decontaminated_embodied_mode():
 
 
 def test_canonical_runtime_rejects_legacy_population():
+    from environment.genesis_v1 import build_ground_truth
     from environment.topology import HexCoord, HexTopology
-    from lab.world.genesis_v1 import build_ground_truth
     from lab.world.population import PopulationGenesisRuntime
 
     population = PopulationGenesisRuntime(

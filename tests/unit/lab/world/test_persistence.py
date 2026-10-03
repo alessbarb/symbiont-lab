@@ -18,18 +18,18 @@ from pathlib import Path
 
 import pytest
 
-from environment.events import EventJournal
-from environment.topology import HexCoord, HexTopology
-from lab.world.adapter import (
+from embodiment.world.adapter import (
     ActuationBinding,
     ActuationBindingConstitution,
     _load_base_genome,
 )
-from lab.world.genesis_v1 import (
+from environment.events import EventJournal
+from environment.genesis_v1 import (
     build_genesis_smoke_v1,
     build_genesis_v1,
     build_ground_truth,
 )
+from environment.topology import HexCoord, HexTopology
 from lab.world.persistence import (
     WorldStorage,
     capture_checkpoint,

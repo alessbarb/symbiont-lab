@@ -5,9 +5,9 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from environment.genesis_v1 import build_constitution, build_ground_truth
 from lab.observatory.config import DEFAULT_OBSERVATORY_DIR
 from lab.observatory.server import ObservatoryServer
-from lab.world.genesis_v1 import build_constitution, build_ground_truth
 from lab.world.persistence import WorldStorage
 from lab.world.runtime import WorldRuntimeState
 

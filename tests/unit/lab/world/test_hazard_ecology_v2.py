@@ -3,8 +3,8 @@ from __future__ import annotations
 import pytest
 
 from environment.genesis import WorldEnvironment
+from environment.genesis_v1 import HAZARD_IDS, build_constitution, build_ground_truth
 from environment.topology import HexCoord, HexTopology
-from lab.world.genesis_v1 import HAZARD_IDS, build_constitution, build_ground_truth
 from lab.world.persistence import WorldStorage
 from lab.world.population import PopulationGenesisRuntime
 

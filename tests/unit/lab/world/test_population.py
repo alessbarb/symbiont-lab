@@ -1,7 +1,7 @@
 import pytest
 
+from environment.genesis_v1 import build_ground_truth
 from environment.topology import HexTopology
-from lab.world.genesis_v1 import build_ground_truth
 from lab.world.population import PopulationGenesisRuntime, founder_placement
 
 

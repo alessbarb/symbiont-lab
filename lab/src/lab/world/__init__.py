@@ -4,13 +4,13 @@ The only package allowed to know what a field/resource/hazard means, and
 the only package that imports both environment and symbiont.
 """
 
-from lab.world.adapter import (
+from embodiment.world.adapter import (
     SingleOrganismGenesisRuntime,
     WorldDiscoveryProvider,
     WorldReadingProvider,
     WorldTickRecord,
 )
-from lab.world.genesis_v1 import (
+from environment.genesis_v1 import (
     GENESIS_V1_METADATA,
     GenesisV1,
     build_constitution,

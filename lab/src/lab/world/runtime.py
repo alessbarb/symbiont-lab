@@ -12,9 +12,9 @@ from collections import deque
 from threading import Lock, Thread
 from typing import Any
 
+from environment.genesis_v1 import GENESIS_V1_METADATA, build_constitution, build_ground_truth
 from environment.topology import HexTopology
 from lab.world.cli_view import render_world, world_snapshot
-from lab.world.genesis_v1 import GENESIS_V1_METADATA, build_constitution, build_ground_truth
 from lab.world.persistence import WorldStorage
 from lab.world.population import PopulationGenesisRuntime, founder_placement
 

@@ -4,14 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from environment.contracts import ReceivedEmission, WorldObservation
-from environment.events import EventJournal, WorldEvent
-from environment.genesis import GroundTruth, WorldEnvironment
-from environment.observation import LOCAL_OCCUPANCY_SIGNAL, local_observation
-from environment.rng import derive_world_rng
-from environment.state import WorldState
-from environment.topology import BodyPlacement, HexCoord, HexTopology
-from lab.world.adapter import (
+from embodiment.world.adapter import (
     _OCCUPANCY_SIGNAL,
     ActuationBindingConstitution,
     WorldTickRecord,
@@ -21,8 +14,15 @@ from lab.world.adapter import (
     clean_world_observation,
     local_substrate_signals,
 )
-from lab.world.deferred import DeferredEffectQueue
-from lab.world.terrain import DynamicGeography
+from embodiment.world.deferred import DeferredEffectQueue
+from environment.contracts import ReceivedEmission, WorldObservation
+from environment.events import EventJournal, WorldEvent
+from environment.genesis import GroundTruth, WorldEnvironment
+from environment.observation import LOCAL_OCCUPANCY_SIGNAL, local_observation
+from environment.rng import derive_world_rng
+from environment.state import WorldState
+from environment.terrain import DynamicGeography
+from environment.topology import BodyPlacement, HexCoord, HexTopology
 from lab.world.transaction import IntegratedWorldTickTransaction
 from symbiont.core.embodiment.physiology import VitalState
 

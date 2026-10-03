@@ -111,6 +111,9 @@ def test_physics3d_reaches_cognition_internals_only_where_it_already_did() -> No
     ) == [
         ("embodiment.physics3d.apparatus", "symbiont.cognition.birth"),
         ("embodiment.physics3d.apparatus", "symbiont.cognition.limits"),
+        # pre-existing edges of the world adapter, visible here since it moved from lab.world
+        ("embodiment.world.adapter", "symbiont.cognition.birth"),
+        ("embodiment.world.adapter", "symbiont.cognition.limits"),
         ("lab.physics3d.runtime", "symbiont.cognition.generative"),
         ("lab.physics3d.runtime", "symbiont.cognition.limits"),
         ("lab.physics3d.runtime", "symbiont.cognition.types"),

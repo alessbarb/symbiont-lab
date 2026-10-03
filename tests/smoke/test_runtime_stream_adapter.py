@@ -1466,12 +1466,10 @@ def test_workbench_view_entrypoints_stay_modular() -> None:
     views = WEB_ROOT / "views"
     mind = (views / "mind.js").read_text(encoding="utf-8")
     body = (views / "body.js").read_text(encoding="utf-8")
-    lab = (views / "lab.js").read_text(encoding="utf-8")
     archive = (views / "archive.js").read_text(encoding="utf-8")
 
     assert len(mind.splitlines()) < 500
     assert len(body.splitlines()) < 80
-    assert len(lab.splitlines()) < 80
     assert len(archive.splitlines()) < 80
 
     assert "new EventSource(" not in mind
@@ -1482,7 +1480,6 @@ def test_workbench_view_entrypoints_stay_modular() -> None:
 
     assert "HumanoidViewer" in body
     assert "./body/viewer.js" in body
-    assert "./lab/render.js" in lab
     assert "./archive/render.js" in archive
 
 

@@ -9,8 +9,8 @@ from __future__ import annotations
 import inspect
 from dataclasses import asdict, dataclass
 
-from lab.world.adapter import _construct_organism
-from lab.world.genesis_v1 import build_ground_truth
+from embodiment.world.adapter import _construct_organism
+from environment.genesis_v1 import build_ground_truth
 from symbiont.core.orchestration.clean_embodiment_seed import CleanEmbodimentSeed
 from symbiont.genetics.genome import flatten_genes
 from symbiont.genetics.germline import GermlineState

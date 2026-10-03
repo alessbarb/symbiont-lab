@@ -1,4 +1,4 @@
-from lab.world.genesis_v1 import (
+from environment.genesis_v1 import (
     FIELD_IDS,
     GENESIS_V1_METADATA,
     HAZARD_IDS,

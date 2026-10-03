@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from lab.world.adapter import (
+from embodiment.world.adapter import (
     ActuationAdapter,
     ActuationBinding,
     ActuationBindingConstitution,
@@ -91,8 +91,8 @@ def test_binding_rejects_invalid_world_arguments(binding):
 
 
 def test_local_substrate_signals_are_opaque_and_causally_change_after_impulse():
+    from environment.terrain import DynamicGeography
     from environment.topology import HexCoord, HexTopology
-    from lab.world.terrain import DynamicGeography
 
     topo = HexTopology(width=4, height=4)
     geo = DynamicGeography(topo, 1201)

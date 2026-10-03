@@ -42,7 +42,6 @@ exclude = ["lab.observatory.tests*"]
   "web/views/body/*.js",
   "web/views/world/*.js",
   "web/views/embodiment/*.js",
-  "web/views/lab/*.js",
   "web/views/archive/*.js",
   "web/views/shared/*.js",
   "web/views/mind/*.js",

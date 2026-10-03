@@ -5,7 +5,6 @@ import time
 import urllib.request
 
 from lab.server.server import make_server
-from lab.workbench import WEB_ROOT
 
 
 def test_unified_server_serves_native_spa_assets() -> None:
@@ -38,12 +37,6 @@ def test_unified_server_serves_native_spa_assets() -> None:
         server.shutdown()
         server.server_close()
         time.sleep(0.1)
-
-
-def test_lab_view_does_not_assign_type_to_textarea() -> None:
-    js_path = WEB_ROOT / "views" / "lab" / "forms.js"
-    js = js_path.read_text(encoding="utf-8")
-    assert "input.type = type === 'textarea' ? 'text' : type;" not in js
 
 
 def test_fleet_stream_is_available_without_observatory() -> None:

@@ -7,9 +7,9 @@ additive, a separate preset, not a mutation of the frozen v1 one.
 from __future__ import annotations
 
 from environment.genesis import GroundTruth
+from environment.genesis_v1 import RESOURCE_IDS, _fields, _hazards, _resources
 from environment.laws import ResourceLaw
 from environment.topology import HexCoord
-from lab.world.genesis_v1 import RESOURCE_IDS, _fields, _hazards, _resources
 
 REGION_NORTH = "region-north-hash"
 REGION_SOUTH = "region-south-hash"
