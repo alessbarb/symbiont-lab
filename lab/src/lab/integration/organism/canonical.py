@@ -4,6 +4,7 @@ import platform
 from pathlib import Path
 from typing import Any
 
+from symbiont.core.orchestration.canonical_birth import restore_resident_with_canonical_cognition
 from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont.core.orchestration.sense_requirements import (
     SENSE_OPTIONS,
@@ -83,6 +84,12 @@ def create_canonical_organism(
     return runtime_type(host_sense_sources=canonical_host_sense_sources(requirements), **options)
 
 
+def canonical_restore_sources(payload: dict[str, Any], **overrides: Any) -> HostSenseSources:
+    """The canonical sources for restoring ``payload`` under ``overrides``."""
+    requirements = resolve_restore_sense_requirements(payload, **_stated(overrides))
+    return canonical_host_sense_sources(requirements)
+
+
 def restore_canonical_organism(
     payload: dict[str, Any],
     runtime_type: type[OrganismRuntime] = OrganismRuntime,
@@ -93,9 +100,22 @@ def restore_canonical_organism(
     The checkpoint's recorded controls and the stated overrides are interpreted
     by the organism, not here.
     """
-    requirements = resolve_restore_sense_requirements(payload, **_stated(overrides))
     return runtime_type.from_checkpoint(
-        payload, host_sense_sources=canonical_host_sense_sources(requirements), **overrides
+        payload, host_sense_sources=canonical_restore_sources(payload, **overrides), **overrides
+    )
+
+
+def restore_canonical_resident(
+    payload: dict[str, Any],
+    runtime_type: type[OrganismRuntime] = OrganismRuntime,
+    **overrides: Any,
+) -> OrganismRuntime:
+    """A resident restored with canonical cognition and the canonical sources."""
+    return restore_resident_with_canonical_cognition(
+        payload,
+        runtime_class=runtime_type,
+        host_sense_sources=canonical_restore_sources(payload, **overrides),
+        **overrides,
     )
 
 

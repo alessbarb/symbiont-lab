@@ -11,6 +11,7 @@ import json
 
 import pytest
 
+from lab.integration.organism import restore_canonical_organism
 from lab.studies.learning.agency_acquisition_body import (
     CausalBody,
     build_subject,
@@ -88,8 +89,9 @@ class _Case:
         )
 
     def restore(self, payload: dict | None = None) -> PrivateModelOrganismRuntime:
-        return PrivateModelOrganismRuntime.from_checkpoint(
+        return restore_canonical_organism(
             _json(self.transformed if payload is None else payload),
+            PrivateModelOrganismRuntime,
             host_lifecycle=subject_lifecycle(self.body_b),
             host_reading_providers=(self.body_b,),
             kernel_limits=KernelLimits(),
@@ -189,8 +191,9 @@ def test_experience_continues_in_body_b_without_erasing_body_a_knowledge(
 ) -> None:
     # A Body of its own: the module fixture's Body B must stay untouched.
     body_b = CausalBody(actuator_count=6, seed=311)
-    restored = PrivateModelOrganismRuntime.from_checkpoint(
+    restored = restore_canonical_organism(
         _json(case.transformed),
+        PrivateModelOrganismRuntime,
         host_lifecycle=subject_lifecycle(body_b),
         host_reading_providers=(body_b,),
         kernel_limits=KernelLimits(),
@@ -236,8 +239,9 @@ def test_the_whole_lifecycle_holds_per_register_entry(case: _Case) -> None:
     re-embodiment that carried Body state across, fails here by name.
     """
     body_a = CausalBody(actuator_count=4, seed=127)
-    restarted = PrivateModelOrganismRuntime.from_checkpoint(
+    restarted = restore_canonical_organism(
         _json(case.previous),
+        PrivateModelOrganismRuntime,
         host_lifecycle=subject_lifecycle(body_a),
         host_reading_providers=(body_a,),
         kernel_limits=KernelLimits(),

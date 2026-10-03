@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 
+from lab.integration.organism import create_canonical_organism
 from lab.modeling import TrainingConfig, encode_corpus, train_private_model
 from lab.modeling.gateway import load_artifact_model
 from lab.modeling.outcome_metrics import evaluate_outcome_model
@@ -111,7 +112,8 @@ def run_replay_pressure_curve_study(
     results: list[ReplayPressureSeedResult] = []
     for seed in normalized:
         organism_id = f"replay-pressure-{seed}"
-        runtime = ModeledOrganismRuntime(
+        runtime = create_canonical_organism(
+            ModeledOrganismRuntime,
             profile=HISTORICAL_V0,
             organism_id=organism_id,
             bootstrap_semantic_senses=False,

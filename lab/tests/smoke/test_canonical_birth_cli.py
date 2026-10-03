@@ -4,7 +4,7 @@ import json
 import subprocess
 import sys
 
-from symbiont.core.orchestration.runtime import OrganismRuntime
+from lab.integration.organism import create_canonical_organism
 
 
 def test_default_organism_run_has_canonical_cognition():
@@ -33,7 +33,7 @@ def test_default_organism_run_has_canonical_cognition():
 
 def test_default_organism_run_adopts_a_legacy_state_file(tmp_path):
     state_file = tmp_path / "legacy.json"
-    legacy = OrganismRuntime(bootstrap_semantic_senses=False)
+    legacy = create_canonical_organism(bootstrap_semantic_senses=False)
     legacy.save(state_file)
 
     result = subprocess.run(

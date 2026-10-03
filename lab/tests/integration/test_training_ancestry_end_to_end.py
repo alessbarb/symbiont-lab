@@ -13,6 +13,7 @@ import pytest
 
 pytest.importorskip("torch")
 
+from lab.integration.organism import create_canonical_organism, restore_canonical_organism
 from lab.modeling.artifacts import FileArtifactStore
 from lab.physics3d.private_model_training import _train_job
 from symbiont.modeling import ModeledOrganismRuntime, ModelState
@@ -22,7 +23,7 @@ from ..unit.modeling.test_modeled_organism_runtime import _transition
 
 @pytest.mark.slow
 def test_shadow_ancestor_trains_a_child_with_an_inherited_vocabulary(tmp_path):
-    runtime = ModeledOrganismRuntime(organism_id="ancestry-e2e")
+    runtime = create_canonical_organism(ModeledOrganismRuntime, organism_id="ancestry-e2e")
     runtime.ancestry_training = True
     runtime.trace_training_requests = True
     store_dir = tmp_path / "models"
@@ -87,7 +88,7 @@ def test_lineage_mechanics_only(tmp_path):
     from lab.modeling.trainer import _extend_vocabulary_state
     from symbiont.modeling.tokenizer import _record_tokens
 
-    runtime = ModeledOrganismRuntime(organism_id="ancestry-mechanics")
+    runtime = create_canonical_organism(ModeledOrganismRuntime, organism_id="ancestry-mechanics")
     runtime.ancestry_training = True
     store = FileArtifactStore(tmp_path)
     for tick in range(64):
@@ -116,7 +117,7 @@ def test_lineage_mechanics_only(tmp_path):
         )
 
     # A retired parent cannot be selected (checked on a restored copy).
-    retired = ModeledOrganismRuntime.from_checkpoint(runtime.checkpoint())
+    retired = restore_canonical_organism(runtime.checkpoint(), ModeledOrganismRuntime)
     retired.retire_private_model(parent.model_id)
     retired_plan = retired.autonomous_private_learning_plan()
     assert retired_plan is not None and retired_plan.request.parent_model_id is None
@@ -179,7 +180,7 @@ def test_lineage_mechanics_only(tmp_path):
     assert record.state is ModelState.SHADOW and runtime.model_registry.active is None
 
     # Checkpoint -> restore: same ancestry, tokenizers and (content-addressed) weights.
-    restored = ModeledOrganismRuntime.from_checkpoint(runtime.checkpoint())
+    restored = restore_canonical_organism(runtime.checkpoint(), ModeledOrganismRuntime)
     restored_record = restored.model_registry.get(record.model_id)
     assert restored_record == record
     assert restored.checkpoint()["training_ancestry"] == runtime.checkpoint()["training_ancestry"]

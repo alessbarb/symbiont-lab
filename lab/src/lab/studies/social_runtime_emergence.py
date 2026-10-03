@@ -11,6 +11,7 @@ import math
 from collections import Counter
 from dataclasses import asdict, dataclass
 
+from lab.integration.organism import create_canonical_organism
 from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont.core.organism_profile import HISTORICAL_V0
 from symbiont.core.social import SocialHabitat
@@ -42,7 +43,9 @@ def run_social_runtime_emergence_study(
     for organism_id in ids:
         habitat.admit(organism_id)
     runtimes: tuple[OrganismRuntime, ...] = tuple(
-        OrganismRuntime(profile=HISTORICAL_V0, organism_id=organism_id, social_habitat=habitat)
+        create_canonical_organism(
+            profile=HISTORICAL_V0, organism_id=organism_id, social_habitat=habitat
+        )
         for organism_id in ids
     )
     pairs: Counter[tuple[str, str]] = Counter()

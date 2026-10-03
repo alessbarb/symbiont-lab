@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from typing import Iterable
 
+from lab.integration.organism import create_canonical_organism, restore_canonical_organism
 from symbiont.core.embodiment.homeostasis import HomeostaticController
 from symbiont.core.embodiment.metabolism import MetabolicLedger
 from symbiont.core.embodiment.physiology import LivingBodyState, PhysiologyController, VitalState
@@ -132,7 +133,7 @@ def run_runtime_replay_study(*, warmup_ticks: int = 2, replay_ticks: int = 2) ->
     """Verify runtime physiology/metabolism continuity across a checkpoint."""
     if warmup_ticks < 1 or replay_ticks < 1:
         raise ValueError("tick counts must be positive")
-    runtime = OrganismRuntime(
+    runtime = create_canonical_organism(
         profile=HISTORICAL_V0,
         bootstrap_semantic_senses=False,
         discover_senses=False,
@@ -141,7 +142,7 @@ def run_runtime_replay_study(*, warmup_ticks: int = 2, replay_ticks: int = 2) ->
         explicit_metabolism=True,
     )
     runtime.run(warmup_ticks)
-    restored = OrganismRuntime.from_checkpoint(runtime.checkpoint(), min_samples=1)
+    restored = restore_canonical_organism(runtime.checkpoint(), min_samples=1)
     left = [result.physiology for result in runtime.run(replay_ticks)]
     right = [result.physiology for result in restored.run(replay_ticks)]
     return left == right
@@ -155,7 +156,7 @@ def run_runtime_recovery_study() -> RuntimeRecoveryStudy:
         max_energy=1.0,
         structural_integrity=0.5,
     )
-    runtime = OrganismRuntime(
+    runtime = create_canonical_organism(
         profile=HISTORICAL_V0,
         explicit_metabolism=True,
         living_body_state=body_state,
@@ -182,7 +183,7 @@ def run_runtime_recovery_study() -> RuntimeRecoveryStudy:
     after_maintenance = runtime.metabolism.snapshot().reserve["maintenance"]
     runtime.request_rest()
     checkpoint = runtime.checkpoint()
-    restored = OrganismRuntime.from_checkpoint(
+    restored = restore_canonical_organism(
         checkpoint,
         bootstrap_semantic_senses=False,
         discover_senses=False,
@@ -325,7 +326,7 @@ def run_sustained_repair_study(
             max_energy=1.0,
             structural_integrity=0.4,
         )
-        return OrganismRuntime(
+        return create_canonical_organism(
             profile=HISTORICAL_V0,
             explicit_metabolism=True,
             living_body_state=state,
@@ -362,7 +363,7 @@ def run_sustained_repair_study(
     no_intake_runtime.tick()
     no_intake = no_intake_runtime.homeostasis.integrity - no_intake_before
 
-    replay = OrganismRuntime.from_checkpoint(
+    replay = restore_canonical_organism(
         checkpoint,
         bootstrap_semantic_senses=False,
         discover_senses=False,

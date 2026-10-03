@@ -14,6 +14,7 @@ from pathlib import Path
 
 from tests.layout import source_files
 
+from lab.integration.organism import create_canonical_organism, restore_canonical_organism
 from symbiont.core.domains.intention import IntentionPolicy
 from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont.core.organism_profile import (
@@ -95,14 +96,14 @@ def _scan() -> dict[str, set[str]]:
 
 
 def test_bare_organisms_are_born_with_the_canonical_profile() -> None:
-    runtime = OrganismRuntime()
+    runtime = create_canonical_organism()
     assert runtime._profile_version == CANONICAL.version
     assert runtime._discover_senses is CANONICAL.discover_senses
     assert runtime._bootstrap_semantic_senses is CANONICAL.bootstrap_semantic_senses
     assert runtime.sensory_system.plasticity_enabled is CANONICAL.sensory_plasticity
     assert runtime._auto_promote_predictors is CANONICAL.auto_promote_predictors
     assert runtime._interoception_mode == CANONICAL.interoception_mode
-    modeled = ModeledOrganismRuntime(organism_id="profile-probe")
+    modeled = create_canonical_organism(ModeledOrganismRuntime, organism_id="profile-probe")
     assert modeled._symbol_policy.seed == symbol_seed_for(CANONICAL, "profile-probe")
     # Governed constructor options have no value of their own.
     parameters = inspect.signature(OrganismRuntime.__init__).parameters
@@ -111,14 +112,14 @@ def test_bare_organisms_are_born_with_the_canonical_profile() -> None:
 
 
 def test_restored_organisms_keep_the_profile_they_were_born_with() -> None:
-    historical = OrganismRuntime(profile=HISTORICAL_V0)
-    restored = OrganismRuntime.from_checkpoint(historical.checkpoint())
+    historical = create_canonical_organism(profile=HISTORICAL_V0)
+    restored = restore_canonical_organism(historical.checkpoint())
     assert restored._profile_version == HISTORICAL_V0.version
     assert restored._bootstrap_semantic_senses is True
     # A checkpoint written before profiles existed carries no profile_version.
     legacy = historical.checkpoint()
     del legacy["effective_config"]["profile_version"]
-    restored_legacy = OrganismRuntime.from_checkpoint(_stamp(legacy))
+    restored_legacy = restore_canonical_organism(_stamp(legacy))
     assert restored_legacy._profile_version == HISTORICAL_V0.version
 
 

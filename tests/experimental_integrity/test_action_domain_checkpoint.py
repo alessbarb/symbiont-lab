@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from lab.integration.organism import create_canonical_organism
 from symbiont.actuation.surface import derive_actuator_constitution
-from symbiont.core.orchestration.runtime import OrganismRuntime
 
 
 def test_checkpoint_writes_single_canonical_action_domain() -> None:
@@ -11,7 +11,7 @@ def test_checkpoint_writes_single_canonical_action_domain() -> None:
         1,
         physical_contract="canonical-checkpoint",
     )
-    runtime = OrganismRuntime(
+    runtime = create_canonical_organism(
         organism_id="symbiont.checkpoint",
         actuation_enabled=True,
         actuator_constitution=surface,

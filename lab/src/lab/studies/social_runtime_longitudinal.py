@@ -6,7 +6,7 @@ import math
 from collections import Counter
 from dataclasses import asdict, dataclass
 
-from symbiont.core.orchestration.runtime import OrganismRuntime
+from lab.integration.organism import create_canonical_organism, restore_canonical_organism
 from symbiont.core.organism_profile import HISTORICAL_V0
 from symbiont.core.social import SocialHabitat
 from symbiont.core.social.interactions import EcologicalResourcePool
@@ -44,7 +44,9 @@ def run_social_runtime_longitudinal_study(
     for organism_id in ids:
         habitat.admit(organism_id)
     runtimes = [
-        OrganismRuntime(profile=HISTORICAL_V0, organism_id=organism_id, social_habitat=habitat)
+        create_canonical_organism(
+            profile=HISTORICAL_V0, organism_id=organism_id, social_habitat=habitat
+        )
         for organism_id in ids
     ]
     pairs: Counter[tuple[str, str]] = Counter()
@@ -62,7 +64,7 @@ def run_social_runtime_longitudinal_study(
             replay_habitat_payload = habitat.checkpoint()
             replay_habitat_for_live = SocialHabitat.from_checkpoint(replay_habitat_payload)
             restored = [
-                OrganismRuntime.from_checkpoint(payload, social_habitat=replay_habitat_for_live)
+                restore_canonical_organism(payload, social_habitat=replay_habitat_for_live)
                 for payload in checkpoints
             ]
             replay_equal = all(
@@ -88,7 +90,7 @@ def run_social_runtime_longitudinal_study(
         raise AssertionError("longitudinal study did not create a replay boundary")
     replay_habitat = SocialHabitat.from_checkpoint(replay_habitat_payload)
     replay_runtimes = [
-        OrganismRuntime.from_checkpoint(payload, social_habitat=replay_habitat)
+        restore_canonical_organism(payload, social_habitat=replay_habitat)
         for payload in replay_payloads
     ]
     replay_pairs: list[tuple[str, str]] = []

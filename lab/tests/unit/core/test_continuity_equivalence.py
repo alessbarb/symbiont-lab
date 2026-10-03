@@ -11,11 +11,12 @@ from __future__ import annotations
 
 import inspect
 
+from lab.integration.organism import create_canonical_organism, restore_canonical_organism
 from symbiont.core.orchestration.runtime import OrganismRuntime, _canonical_hash
 
 
 def _fresh(organism_id: str = "continuity-subject") -> OrganismRuntime:
-    return OrganismRuntime(
+    return create_canonical_organism(
         organism_id=organism_id,
         min_samples=1,
         investigate_ticks=0,
@@ -25,7 +26,7 @@ def _fresh(organism_id: str = "continuity-subject") -> OrganismRuntime:
 
 
 def _restore(payload: dict) -> OrganismRuntime:
-    return OrganismRuntime.from_checkpoint(
+    return restore_canonical_organism(
         payload,
         min_samples=1,
         investigate_ticks=0,
@@ -185,7 +186,7 @@ def test_reproduction_preserves_lineage_across_checkpoint_without_experience():
     from lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
 
     authority = HabitatBirthAuthority(habitat_id="continuity", capacity=2)
-    parent = OrganismRuntime(
+    parent = create_canonical_organism(
         organism_id="lineage-parent",
         genome=_reproduction_genome(),
         bootstrap_semantic_senses=False,

@@ -14,11 +14,11 @@ from types import SimpleNamespace
 
 import pytest
 
+from lab.integration.organism import create_canonical_organism
 from lab.observation.projection import mind_snapshot_from_rich_state
 from lab.observation.subsystem_status import LIFECYCLES, generative_status
 from symbiont.cognition.generative.budget import GenerativeBudget
 from symbiont.cognition.generative.resident import ResidentGenerativeCognition
-from symbiont.core.orchestration.runtime import OrganismRuntime
 
 ROOT = Path(__file__).resolve().parents[4]
 MODULE = ROOT / "lab/src/lab/workbench/web/views/shared/observability-state.js"
@@ -134,7 +134,9 @@ def test_lifecycle_is_read_from_organism_facts() -> None:
 
 
 def test_a_real_runtime_reports_a_known_lifecycle_before_and_after_ticking() -> None:
-    runtime = OrganismRuntime(bootstrap_semantic_senses=True, discover_senses=False, min_samples=1)
+    runtime = create_canonical_organism(
+        bootstrap_semantic_senses=True, discover_senses=False, min_samples=1
+    )
 
     before = generative_status(runtime)
     for _ in range(3):

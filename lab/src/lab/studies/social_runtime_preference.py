@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
-from symbiont.core.orchestration.runtime import OrganismRuntime
+from lab.integration.organism import create_canonical_organism
 from symbiont.core.organism_profile import HISTORICAL_V0
 from symbiont.core.social import SocialHabitat
 from symbiont.core.social.interactions import EcologicalResourcePool
@@ -34,7 +34,9 @@ def run_social_runtime_preference_study(*, ticks: int = 8) -> SocialRuntimePrefe
     habitat = SocialHabitat(EcologicalResourcePool({"food": float(ticks * 2)}))
     for member in ("observer", "positive", "negative", "unknown"):
         habitat.admit(member)
-    runtime = OrganismRuntime(profile=HISTORICAL_V0, organism_id="observer", social_habitat=habitat)
+    runtime = create_canonical_organism(
+        profile=HISTORICAL_V0, organism_id="observer", social_habitat=habitat
+    )
     runtime.social_ledger.observe("observer", "positive", benefit=4.0, tick=0)
     runtime.social_ledger.observe("observer", "negative", cost=4.0, tick=0)
     selected: list[str] = []

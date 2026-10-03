@@ -22,6 +22,7 @@ from environment.observation import local_observation, opaque_signal_id
 from environment.rng import derive_world_rng, derive_world_seed
 from environment.state import WorldState
 from environment.topology import BodyPlacement, HexCoord, HexTopology
+from lab.integration.organism import create_canonical_organism
 from symbiont.actuation.constitution import ActuatorConstitution
 from symbiont.actuation.surface import derive_actuator_constitution
 from symbiont.actuation.types import Actuation
@@ -587,7 +588,8 @@ def _construct_organism(
     }
     metabolism = MetabolicLedger(replenishment=replenishment)
     physiology = PhysiologyController(body_state=metabolism.body_state)
-    runtime = ModeledOrganismRuntime(
+    runtime = create_canonical_organism(
+        ModeledOrganismRuntime,
         organism_id=organism_id,
         host_lifecycle=host_lifecycle,
         resource_habitats=resource_habitats,

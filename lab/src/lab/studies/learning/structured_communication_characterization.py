@@ -15,6 +15,7 @@ from collections import Counter
 from dataclasses import asdict, dataclass
 from typing import Sequence
 
+from lab.integration.organism import create_canonical_organism
 from symbiont.core.organism_profile import HISTORICAL_V0
 from symbiont.modeling import (
     MAX_SEQUENCE_LENGTH,
@@ -152,7 +153,8 @@ def _trial(seed: int, condition: str, *, ticks: int = 64) -> dict[str, object]:
     state_count = STATE_COUNTS[condition]
     max_length = MAX_LENGTHS.get(condition, MAX_SEQUENCE_LENGTH)
     space = _space(seed, vocab)
-    emitter = ModeledOrganismRuntime(
+    emitter = create_canonical_organism(
+        ModeledOrganismRuntime,
         profile=HISTORICAL_V0,
         organism_id=f"sc-emitter-{seed}-{condition}",
         bootstrap_semantic_senses=False,
@@ -160,7 +162,8 @@ def _trial(seed: int, condition: str, *, ticks: int = 64) -> dict[str, object]:
         symbol_space=space,
         sequence_max_length=max_length,
     )
-    receiver = ModeledOrganismRuntime(
+    receiver = create_canonical_organism(
+        ModeledOrganismRuntime,
         profile=HISTORICAL_V0,
         organism_id=f"sc-receiver-{seed}-{condition}",
         bootstrap_semantic_senses=False,
@@ -327,7 +330,8 @@ def _trial_unchecked_trace(
             for tick in range(ticks)
         )
     space = _space(seed, VOCABULARY_SIZES[condition])
-    runtime = ModeledOrganismRuntime(
+    runtime = create_canonical_organism(
+        ModeledOrganismRuntime,
         profile=HISTORICAL_V0,
         organism_id=f"sc-emitter-{seed}-{condition}",
         bootstrap_semantic_senses=False,
@@ -335,7 +339,8 @@ def _trial_unchecked_trace(
         symbol_space=space,
         sequence_max_length=max_length,
     )
-    receiver = ModeledOrganismRuntime(
+    receiver = create_canonical_organism(
+        ModeledOrganismRuntime,
         profile=HISTORICAL_V0,
         organism_id=f"sc-receiver-{seed}-{condition}",
         bootstrap_semantic_senses=False,

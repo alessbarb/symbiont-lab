@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
-from symbiont.core.orchestration.runtime import OrganismRuntime
+from lab.integration.organism import create_canonical_organism
 from symbiont.core.organism_profile import HISTORICAL_V0
 from symbiont.core.social import SocialHabitat
 from symbiont.core.social.interactions import EcologicalResourcePool
@@ -30,10 +30,10 @@ def run_social_runtime_context_study() -> SocialRuntimeContextStudy:
     habitat = SocialHabitat(EcologicalResourcePool({"food": 4.5}), max_members=4)
     for member in ("observer", "peer-a", "peer-b", "isolated"):
         habitat.admit(member)
-    observer = OrganismRuntime(
+    observer = create_canonical_organism(
         profile=HISTORICAL_V0, organism_id="observer", social_habitat=habitat
     )
-    isolated = OrganismRuntime(
+    isolated = create_canonical_organism(
         profile=HISTORICAL_V0, organism_id="isolated", social_habitat=habitat
     )
 

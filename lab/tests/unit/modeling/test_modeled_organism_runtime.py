@@ -6,6 +6,7 @@ from importlib import resources
 
 import pytest
 
+from lab.integration.organism import create_canonical_organism, restore_canonical_organism
 from lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
 from symbiont.cognition.genome import GenomeCodec
 from symbiont.modeling import (
@@ -49,7 +50,7 @@ def _artifact(runtime: ModeledOrganismRuntime) -> ModelArtifactManifest:
 
 
 def test_modeled_runtime_restores_registry_without_weights_or_bridge():
-    runtime = ModeledOrganismRuntime(organism_id="modeled-a")
+    runtime = create_canonical_organism(ModeledOrganismRuntime, organism_id="modeled-a")
     artifact = _artifact(runtime)
     shadow = runtime.adopt_private_model(artifact, evaluation_summary=(0, 1))
     assert shadow.state is ModelState.SHADOW
@@ -63,7 +64,7 @@ def test_modeled_runtime_restores_registry_without_weights_or_bridge():
     checkpoint = runtime.checkpoint()
     assert "private_model_registry" in checkpoint
     assert "weights" not in str(checkpoint).lower()
-    restored = ModeledOrganismRuntime.from_checkpoint(checkpoint)
+    restored = restore_canonical_organism(checkpoint, ModeledOrganismRuntime)
     assert restored.organism_id == runtime.organism_id
     assert restored.model_registry.active is not None
     assert restored.model_registry.active.model_id == active.model_id
@@ -71,7 +72,7 @@ def test_modeled_runtime_restores_registry_without_weights_or_bridge():
 
 
 def test_training_request_is_organism_owned_and_charged():
-    runtime = ModeledOrganismRuntime(organism_id="modeled-request")
+    runtime = create_canonical_organism(ModeledOrganismRuntime, organism_id="modeled-request")
     before = runtime.metabolism.snapshot().reserve["cognition"]
     request = runtime.request_private_model_training(
         corpus_hash=HASH_A,
@@ -94,7 +95,8 @@ def test_clonal_child_inherits_modeling_capacity_but_not_private_model_or_experi
     )
     genome = replace(GenomeCodec().load(payload), kernel_compatibility=">=0.79")
     authority = HabitatBirthAuthority(habitat_id="model-inheritance", capacity=2)
-    parent = ModeledOrganismRuntime(
+    parent = create_canonical_organism(
+        ModeledOrganismRuntime,
         organism_id="model-parent",
         genome=genome,
         bootstrap_semantic_senses=False,
@@ -140,7 +142,7 @@ def _transition(runtime: ModeledOrganismRuntime, tick: int) -> ExperienceRecord:
 
 
 def test_autonomous_private_learning_waits_for_causal_experience():
-    runtime = ModeledOrganismRuntime(organism_id="learning-demand")
+    runtime = create_canonical_organism(ModeledOrganismRuntime, organism_id="learning-demand")
     for tick in range(63):
         runtime.record_experience(_transition(runtime, tick))
 
@@ -162,7 +164,7 @@ def test_autonomous_private_learning_waits_for_causal_experience():
 
 
 def test_autonomous_private_learning_does_not_repeat_same_experience():
-    runtime = ModeledOrganismRuntime(organism_id="learning-no-repeat")
+    runtime = create_canonical_organism(ModeledOrganismRuntime, organism_id="learning-no-repeat")
     for tick in range(64):
         runtime.record_experience(_transition(runtime, tick))
 
@@ -175,13 +177,13 @@ def test_autonomous_private_learning_does_not_repeat_same_experience():
 
 
 def test_autonomous_private_learning_state_survives_checkpoint():
-    runtime = ModeledOrganismRuntime(organism_id="learning-checkpoint")
+    runtime = create_canonical_organism(ModeledOrganismRuntime, organism_id="learning-checkpoint")
     for tick in range(64):
         runtime.record_experience(_transition(runtime, tick))
     plan = runtime.autonomous_private_learning_plan()
     assert plan is not None
 
-    restored = ModeledOrganismRuntime.from_checkpoint(runtime.checkpoint())
+    restored = restore_canonical_organism(runtime.checkpoint(), ModeledOrganismRuntime)
 
     assert restored._private_learning_last_transition_tick == 63
     assert restored._private_learning_last_corpus_hash == plan.corpus.manifest.corpus_hash
@@ -189,7 +191,7 @@ def test_autonomous_private_learning_state_survives_checkpoint():
 
 
 def test_autonomous_private_learning_reacts_to_own_model_contradictions():
-    runtime = ModeledOrganismRuntime(organism_id="learning-revision")
+    runtime = create_canonical_organism(ModeledOrganismRuntime, organism_id="learning-revision")
     shadow = runtime.adopt_private_model(_artifact(runtime), evaluation_summary=(1, 2))
     runtime.activate_private_model(
         shadow.model_id,
@@ -233,13 +235,17 @@ def test_autonomous_private_learning_reacts_to_own_model_contradictions():
 
 
 def test_autonomous_replay_budget_grows_with_learning_pressure():
-    bootstrap = ModeledOrganismRuntime(organism_id="replay-pressure-bootstrap")
+    bootstrap = create_canonical_organism(
+        ModeledOrganismRuntime, organism_id="replay-pressure-bootstrap"
+    )
     for tick in range(64):
         bootstrap.record_experience(_transition(bootstrap, tick))
     bootstrap_plan = bootstrap.autonomous_private_learning_plan()
     assert bootstrap_plan is not None
 
-    revision = ModeledOrganismRuntime(organism_id="replay-pressure-revision")
+    revision = create_canonical_organism(
+        ModeledOrganismRuntime, organism_id="replay-pressure-revision"
+    )
     shadow = revision.adopt_private_model(_artifact(revision), evaluation_summary=(1, 2))
     revision.activate_private_model(
         shadow.model_id,
@@ -275,7 +281,9 @@ def test_autonomous_replay_budget_grows_with_learning_pressure():
 
 
 def test_autonomous_replay_budget_is_bounded():
-    runtime = ModeledOrganismRuntime(organism_id="replay-pressure-bounded")
+    runtime = create_canonical_organism(
+        ModeledOrganismRuntime, organism_id="replay-pressure-bounded"
+    )
     for tick in range(256):
         runtime.record_experience(_transition(runtime, tick))
 
@@ -287,7 +295,9 @@ def test_autonomous_replay_budget_is_bounded():
 
 
 def test_autonomous_private_learning_plan_authors_stopping_policy():
-    runtime = ModeledOrganismRuntime(organism_id="autonomous-stopping-plan")
+    runtime = create_canonical_organism(
+        ModeledOrganismRuntime, organism_id="autonomous-stopping-plan"
+    )
     for tick in range(128):
         runtime.record_experience(_transition(runtime, tick))
 
@@ -300,7 +310,7 @@ def test_autonomous_private_learning_plan_authors_stopping_policy():
 
 
 def test_training_request_identity_includes_stopping_policy():
-    runtime = ModeledOrganismRuntime(organism_id="stopping-request-id")
+    runtime = create_canonical_organism(ModeledOrganismRuntime, organism_id="stopping-request-id")
     base = runtime.request_private_model_training(
         corpus_hash=HASH_A,
         tokenizer_hash=HASH_B,
@@ -329,7 +339,7 @@ def test_training_request_identity_includes_stopping_policy():
 
 
 def test_private_training_compute_settlement_is_actual_and_idempotent():
-    runtime = ModeledOrganismRuntime(organism_id="settlement")
+    runtime = create_canonical_organism(ModeledOrganismRuntime, organism_id="settlement")
     request = runtime.request_private_model_training(
         corpus_hash=HASH_A,
         tokenizer_hash=HASH_B,
@@ -365,7 +375,7 @@ def test_private_training_compute_settlement_is_actual_and_idempotent():
 
 
 def test_private_training_settlement_ids_survive_checkpoint():
-    runtime = ModeledOrganismRuntime(organism_id="settlement-checkpoint")
+    runtime = create_canonical_organism(ModeledOrganismRuntime, organism_id="settlement-checkpoint")
     request = runtime.request_private_model_training(
         corpus_hash=HASH_A,
         tokenizer_hash=HASH_B,
@@ -381,7 +391,7 @@ def test_private_training_settlement_ids_survive_checkpoint():
         steps_completed=12,
     )
 
-    restored = ModeledOrganismRuntime.from_checkpoint(runtime.checkpoint())
+    restored = restore_canonical_organism(runtime.checkpoint(), ModeledOrganismRuntime)
 
     assert (
         restored.settle_private_model_training_compute(
@@ -393,7 +403,7 @@ def test_private_training_settlement_ids_survive_checkpoint():
 
 
 def test_observed_transitions_feed_episodic_memory_and_survive_checkpoint():
-    runtime = ModeledOrganismRuntime(organism_id="episodic-runtime")
+    runtime = create_canonical_organism(ModeledOrganismRuntime, organism_id="episodic-runtime")
     runtime.record_experience(_transition(runtime, 0))
     runtime.record_experience(_transition(runtime, 10))
     runtime.episodic_memory.flush()
@@ -402,12 +412,14 @@ def test_observed_transitions_feed_episodic_memory_and_survive_checkpoint():
     snapshot = runtime.episodic_memory_snapshot()
     assert snapshot["episode_count"] >= 1
 
-    restored = ModeledOrganismRuntime.from_checkpoint(runtime.checkpoint())
+    restored = restore_canonical_organism(runtime.checkpoint(), ModeledOrganismRuntime)
     assert restored.episodic_memory.episodes == runtime.episodic_memory.episodes
 
 
 def test_model_records_never_enter_episodic_memory():
-    runtime = ModeledOrganismRuntime(organism_id="episodic-anti-self-confirm")
+    runtime = create_canonical_organism(
+        ModeledOrganismRuntime, organism_id="episodic-anti-self-confirm"
+    )
     runtime.record_experience(
         ExperienceRecord(
             record_id="model.episodic-test",
@@ -429,7 +441,8 @@ def test_model_records_never_enter_episodic_memory():
 
 def test_private_corpus_retains_exact_historical_evidence_after_hot_ledger_eviction():
     organism_id = "causal-archive"
-    runtime = ModeledOrganismRuntime(
+    runtime = create_canonical_organism(
+        ModeledOrganismRuntime,
         organism_id=organism_id,
         experience_ledger=ExperienceLedger(organism_id, max_records=16),
     )
@@ -449,7 +462,7 @@ def test_private_corpus_retains_exact_historical_evidence_after_hot_ledger_evict
     assert max(ticks) == 63
     assert any(tick < 48 for tick in ticks)
 
-    restored = ModeledOrganismRuntime.from_checkpoint(runtime.checkpoint())
+    restored = restore_canonical_organism(runtime.checkpoint(), ModeledOrganismRuntime)
     assert restored.experience_archive.records == runtime.experience_archive.records
     assert restored.experience_archive.seen_count == runtime.experience_archive.seen_count
 
@@ -465,7 +478,7 @@ def test_episodic_projection_reports_total_independent_epoch_support():
             self.calls.append((tuple(source_ids), support_epochs))
             return support_epochs
 
-    runtime = ModeledOrganismRuntime(organism_id="episodic-projection")
+    runtime = create_canonical_organism(ModeledOrganismRuntime, organism_id="episodic-projection")
     probe = BridgeProbe()
     runtime._cognitive_bridge = probe
 

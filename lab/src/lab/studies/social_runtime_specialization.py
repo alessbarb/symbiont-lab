@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
-from symbiont.core.orchestration.runtime import OrganismRuntime
+from lab.integration.organism import create_canonical_organism, restore_canonical_organism
 from symbiont.core.organism_profile import HISTORICAL_V0
 from symbiont.core.social import SocialHabitat
 from symbiont.core.social.interactions import EcologicalResourcePool
@@ -41,13 +41,13 @@ def run_social_runtime_specialization_study(*, ticks: int = 12) -> SocialRuntime
     habitat.admit("member-a")
     habitat.admit("member-b")
     runtimes = [
-        OrganismRuntime(
+        create_canonical_organism(
             profile=HISTORICAL_V0,
             organism_id="member-a",
             social_habitat=habitat,
             social_exchange_quantum=0.5,
         ),
-        OrganismRuntime(
+        create_canonical_organism(
             profile=HISTORICAL_V0,
             organism_id="member-b",
             social_habitat=habitat,
@@ -67,7 +67,7 @@ def run_social_runtime_specialization_study(*, ticks: int = 12) -> SocialRuntime
             replay_payloads = (checkpoints[0], checkpoints[1])
             replay_habitat_payload = habitat.checkpoint()
             restored = [
-                OrganismRuntime.from_checkpoint(payload, social_habitat=habitat)
+                restore_canonical_organism(payload, social_habitat=habitat)
                 for payload in checkpoints
             ]
             replay_equal = all(
@@ -89,7 +89,7 @@ def run_social_runtime_specialization_study(*, ticks: int = 12) -> SocialRuntime
     # in finite-pool allocation and local evidence updates.
     replay_habitat = SocialHabitat.from_checkpoint(replay_habitat_payload)
     replay_runtimes = [
-        OrganismRuntime.from_checkpoint(payload, social_habitat=replay_habitat)
+        restore_canonical_organism(payload, social_habitat=replay_habitat)
         for payload in replay_payloads
     ]
     replay_sequences: dict[str, list[str]] = {

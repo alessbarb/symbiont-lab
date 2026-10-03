@@ -2,6 +2,7 @@ import json
 import zipfile
 from dataclasses import dataclass
 
+from lab.integration.organism import create_canonical_organism, restore_canonical_organism
 from lab.physics3d.persistence import (
     TelemetryWriter,
     load_symbiont_bundle,
@@ -341,7 +342,7 @@ def test_runtime_checkpoint_references_artifacts_that_only_the_bundle_carries(tm
         TrainingRequest,
     )
 
-    runtime = ModeledOrganismRuntime(organism_id="portable-subject")
+    runtime = create_canonical_organism(ModeledOrganismRuntime, organism_id="portable-subject")
     request = TrainingRequest(
         organism_id=runtime.organism_id,
         corpus_hash="a" * 64,
@@ -385,10 +386,10 @@ def test_runtime_checkpoint_references_artifacts_that_only_the_bundle_carries(tm
 
     # State identity is checked by restore, independently of the bundle hashes.
     verify_checkpoint_identity(restored)
-    ModeledOrganismRuntime.from_checkpoint(restored)
+    restore_canonical_organism(restored, ModeledOrganismRuntime)
     restored["generation"] += 1
     with pytest.raises(CheckpointError, match="does not match its recorded checkpoint_id"):
-        ModeledOrganismRuntime.from_checkpoint(restored)
+        restore_canonical_organism(restored, ModeledOrganismRuntime)
 
     # A bundle that lacks a referenced artifact is not a portable organism.
     (models / f"{model_id}.pt").unlink()

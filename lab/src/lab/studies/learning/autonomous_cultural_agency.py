@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from typing import Sequence
 
+from lab.integration.organism import create_canonical_organism
 from lab.studies.learning.cumulative_culture import run_cumulative_culture_study
 from symbiont.core.organism_profile import HISTORICAL_V0
 from symbiont.modeling import (
@@ -80,7 +81,8 @@ def _trial(seed: int, *, ticks: int, contact_rounds: int) -> AutonomousAgencySee
         retention_capacity=2, transmission_threshold=72, composition_threshold=64
     )
     organisms = tuple(
-        ModeledOrganismRuntime(
+        create_canonical_organism(
+            ModeledOrganismRuntime,
             profile=HISTORICAL_V0,
             organism_id=organism_id,
             bootstrap_semantic_senses=False,

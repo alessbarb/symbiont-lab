@@ -1,15 +1,15 @@
 import json
 from pathlib import Path
 
+from lab.integration.organism import create_canonical_organism
 from lab.observatory.adapter import project_tick
 from lab.observatory.schema_validate import validate
-from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont.core.social import RelationLedger
 from symbiont.core.social.relations import ResourceEvidence
 
 
 def test_real_runtime_tick_projects_to_valid_v3_snapshot():
-    runtime = OrganismRuntime()
+    runtime = create_canonical_organism()
     result = runtime.tick()
     snapshot = project_tick(
         result,
@@ -38,7 +38,7 @@ def test_real_runtime_tick_projects_to_valid_v3_snapshot():
 
 
 def test_social_projection_preserves_directional_evidence_fields():
-    runtime = OrganismRuntime()
+    runtime = create_canonical_organism()
     result = runtime.tick()
     ledger = RelationLedger()
     relation = ledger.observe(
@@ -63,7 +63,7 @@ def test_social_projection_preserves_directional_evidence_fields():
 
 
 def test_social_resource_projection_preserves_local_availability_evidence():
-    runtime = OrganismRuntime()
+    runtime = create_canonical_organism()
     result = runtime.tick()
     snapshot = project_tick(
         result,
@@ -86,7 +86,7 @@ def test_social_resource_projection_preserves_local_availability_evidence():
 
 
 def test_runtime_projection_exposes_bounded_degradation_counters():
-    runtime = OrganismRuntime()
+    runtime = create_canonical_organism()
     result = runtime.tick()
     snapshot = project_tick(
         result,
@@ -101,7 +101,7 @@ def test_runtime_projection_exposes_bounded_degradation_counters():
 
 
 def test_social_projection_preserves_context_and_reliability():
-    runtime = OrganismRuntime()
+    runtime = create_canonical_organism()
     result = runtime.tick()
     ledger = RelationLedger()
     relation = ledger.observe("a", "b", benefit=1.0, conflict=True, tick=0, channel="opaque-food")
@@ -116,7 +116,7 @@ def test_social_projection_preserves_context_and_reliability():
 
 
 def test_observer_provenance_projects_without_entering_organism():
-    runtime = OrganismRuntime()
+    runtime = create_canonical_organism()
     result = runtime.tick()
     signal_id = "signal." + "b" * 64
     snapshot = project_tick(
@@ -145,7 +145,7 @@ def test_observer_provenance_projects_without_entering_organism():
 
 
 def test_embodiment_projection_is_bounded_passive_and_schema_valid():
-    runtime = OrganismRuntime()
+    runtime = create_canonical_organism()
     result = runtime.tick()
     embodiment = {
         "embodiment_id": "embodiment.test",
@@ -220,7 +220,7 @@ def test_embodiment_projection_is_bounded_passive_and_schema_valid():
 
 
 def test_invalid_embodiment_projection_fails_closed_without_changing_snapshot_version():
-    runtime = OrganismRuntime()
+    runtime = create_canonical_organism()
     result = runtime.tick()
     snapshot = project_tick(
         result,

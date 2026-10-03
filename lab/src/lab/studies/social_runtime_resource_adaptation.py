@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
-from symbiont.core.orchestration.runtime import OrganismRuntime
+from lab.integration.organism import create_canonical_organism, restore_canonical_organism
 from symbiont.core.organism_profile import HISTORICAL_V0
 from symbiont.core.social import SocialHabitat
 from symbiont.core.social.interactions import EcologicalResourcePool
@@ -30,7 +30,7 @@ def run_social_runtime_resource_adaptation_study() -> SocialRuntimeResourceAdapt
     habitat = SocialHabitat(EcologicalResourcePool({"food": 0.0, "water": 2.0}))
     habitat.admit("observer")
     habitat.admit("peer")
-    runtime = OrganismRuntime(
+    runtime = create_canonical_organism(
         profile=HISTORICAL_V0,
         organism_id="observer",
         social_habitat=habitat,
@@ -40,7 +40,7 @@ def run_social_runtime_resource_adaptation_study() -> SocialRuntimeResourceAdapt
     if first is None:
         raise AssertionError("resource adaptation study produced no initial request")
     checkpoint = runtime.checkpoint()
-    restored = OrganismRuntime.from_checkpoint(checkpoint, social_habitat=habitat)
+    restored = restore_canonical_organism(checkpoint, social_habitat=habitat)
     replay_equal = (
         restored.social_resource_ledger.evidence == runtime.social_resource_ledger.evidence
     )

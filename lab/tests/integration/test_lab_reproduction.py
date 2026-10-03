@@ -2,6 +2,8 @@
 
 import pytest
 
+from lab.integration.organism import create_canonical_organism
+
 
 def _reproduction_genome():
     import json
@@ -18,10 +20,9 @@ def _reproduction_genome():
 
 def test_materialized_birth_conserves_parent_child_energy() -> None:
     from lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
-    from symbiont.core.orchestration.runtime import OrganismRuntime
 
     authority = HabitatBirthAuthority(habitat_id="h", capacity=2)
-    parent = OrganismRuntime(
+    parent = create_canonical_organism(
         organism_id="parent",
         genome=_reproduction_genome(),
         bootstrap_semantic_senses=False,
@@ -47,10 +48,9 @@ def test_materialized_birth_conserves_parent_child_energy() -> None:
 
 def test_denied_birth_does_not_consume_parent_energy() -> None:
     from lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
-    from symbiont.core.orchestration.runtime import OrganismRuntime
 
     authority = HabitatBirthAuthority(habitat_id="full", capacity=1)
-    parent = OrganismRuntime(
+    parent = create_canonical_organism(
         organism_id="parent",
         genome=_reproduction_genome(),
         bootstrap_semantic_senses=False,
@@ -67,10 +67,9 @@ def test_denied_birth_does_not_consume_parent_energy() -> None:
 
 def test_materialized_child_is_germinal_and_not_cognitively_inherited() -> None:
     from lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
-    from symbiont.core.orchestration.runtime import OrganismRuntime
 
     authority = HabitatBirthAuthority(habitat_id="h", capacity=2)
-    parent = OrganismRuntime(
+    parent = create_canonical_organism(
         organism_id="parent",
         genome=_reproduction_genome(),
         bootstrap_semantic_senses=False,
@@ -92,14 +91,13 @@ def test_materialized_child_is_germinal_and_not_cognitively_inherited() -> None:
 
 def test_materialized_child_can_join_parent_social_habitat() -> None:
     from lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
-    from symbiont.core.orchestration.runtime import OrganismRuntime
     from symbiont.core.social import SocialHabitat
     from symbiont.core.social.interactions import EcologicalResourcePool
 
     authority = HabitatBirthAuthority(habitat_id="h", capacity=2)
     social = SocialHabitat(EcologicalResourcePool({"food": 3.0}), max_members=3)
     social.admit("peer")
-    parent = OrganismRuntime(
+    parent = create_canonical_organism(
         organism_id="parent",
         genome=_reproduction_genome(),
         social_habitat=social,
@@ -120,7 +118,6 @@ def test_materialized_child_can_join_parent_social_habitat() -> None:
 
 def test_birth_uses_parent_energy_not_shared_habitat_resource_stock() -> None:
     from lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
-    from symbiont.core.orchestration.runtime import OrganismRuntime
     from symbiont.core.social.ecology import SharedHabitat
 
     authority = HabitatBirthAuthority(habitat_id="h", capacity=2)
@@ -129,7 +126,7 @@ def test_birth_uses_parent_energy_not_shared_habitat_resource_stock() -> None:
         capacity=2,
         resources=0.0,
     )
-    parent = OrganismRuntime(
+    parent = create_canonical_organism(
         organism_id="parent",
         genome=_reproduction_genome(),
         resource_habitats={"opaque": surface},
@@ -154,7 +151,7 @@ def test_birth_uses_parent_energy_not_shared_habitat_resource_stock() -> None:
 def test_lab_observes_death_and_releases_population_slot_once() -> None:
     from lab.reproduction import HabitatBirthAuthority
     from symbiont.core.embodiment.metabolism import MetabolicLedger
-    from symbiont.core.orchestration.runtime import OrganismDeadError, OrganismRuntime
+    from symbiont.core.orchestration.runtime import OrganismDeadError
 
     authority = HabitatBirthAuthority(habitat_id="h", capacity=1)
     metabolism = MetabolicLedger(
@@ -162,7 +159,7 @@ def test_lab_observes_death_and_releases_population_slot_once() -> None:
             kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")
         }
     )
-    runtime = OrganismRuntime(
+    runtime = create_canonical_organism(
         organism_id="parent",
         metabolism=metabolism,
         bootstrap_semantic_senses=False,

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
+from lab.integration.organism import create_canonical_organism, restore_canonical_organism
 from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.types import EdgeKind, NodeKind
@@ -126,7 +127,7 @@ def _runtime(
     bridge = CognitiveBridge(
         graph=graph, genome=genome, kernel_limits=KernelLimits(), develop_senses=True
     )
-    return OrganismRuntime(
+    return create_canonical_organism(
         profile=HISTORICAL_V0,
         organism_id=organism_id,
         genome=genome,
@@ -168,7 +169,7 @@ def run_runtime_prediction_promotion_study(*, trials: int = 32) -> RuntimePredic
     noise_candidate = next(
         (p for p in noise.shadow_predictions if (p.source_id, p.target_id) == ("n", "m")), None
     )
-    restored = OrganismRuntime.from_checkpoint(
+    restored = restore_canonical_organism(
         signal.checkpoint(), bootstrap_semantic_senses=False, discover_senses=False
     )
     restored_candidate = next(

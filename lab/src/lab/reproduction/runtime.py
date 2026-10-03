@@ -86,8 +86,12 @@ def materialize_clonal_bud(
         authority.death(record.organism_id)
         raise ValueError("body_schema requires a modeled parent")
     runtime_type = type(parent) if modeled else OrganismRuntime
+    # imported here: lab.integration's package init imports lab.reproduction
+    from lab.integration.organism import create_canonical_organism
+
     try:
-        child = runtime_type(
+        child = create_canonical_organism(
+            runtime_type,
             **model_kwargs,
             attention_budget=parent._attention_budget,
             investigate_ticks=parent._investigate_ticks,

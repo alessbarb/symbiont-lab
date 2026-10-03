@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
+from lab.integration.organism import create_canonical_organism
 from lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
 from symbiont import __version__ as symbiont_version
 from symbiont.cognition.birth import load_base_genome
 from symbiont.cognition.limits import KernelLimits
 from symbiont.core.embodiment.metabolism import MetabolicLedger
-from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont.core.organism_profile import HISTORICAL_V0
 
 
@@ -33,7 +33,7 @@ def run_runtime_population_study() -> RuntimePopulationStudy:
     genome = load_base_genome(kernel_limits=KernelLimits(), running_version=version)
     authority = HabitatBirthAuthority(habitat_id="population-study", capacity=2)
     zero = {kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")}
-    parent = OrganismRuntime(
+    parent = create_canonical_organism(
         profile=HISTORICAL_V0,
         organism_id="parent",
         genome=genome,

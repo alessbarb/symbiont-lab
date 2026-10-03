@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
-from symbiont.core.orchestration.runtime import OrganismRuntime
+from lab.integration.organism import create_canonical_organism, restore_canonical_organism
 from symbiont.core.organism_profile import HISTORICAL_V0
 from symbiont.core.social.ecology import SharedHabitat
 
@@ -27,7 +27,7 @@ def run_shared_habitat_intake_study() -> SharedHabitatIntakeStudy:
     assert habitat.admit("resident-a")
     assert habitat.admit("resident-b")
     runtimes = tuple(
-        OrganismRuntime(profile=HISTORICAL_V0, organism_id=organism_id, habitat=habitat)
+        create_canonical_organism(profile=HISTORICAL_V0, organism_id=organism_id, habitat=habitat)
         for organism_id in ("resident-a", "resident-b")
     )
     for runtime in runtimes:
@@ -39,7 +39,7 @@ def run_shared_habitat_intake_study() -> SharedHabitatIntakeStudy:
     second = runtimes[1].request_resource_intake(0.75)
 
     replay_habitat = SharedHabitat.from_checkpoint(habitat_checkpoint)
-    replay_runtime = OrganismRuntime.from_checkpoint(checkpoint, habitat=replay_habitat)
+    replay_runtime = restore_canonical_organism(checkpoint, habitat=replay_habitat)
     replay_second = replay_runtime.request_resource_intake(0.75)
     return SharedHabitatIntakeStudy(
         first_granted=first,

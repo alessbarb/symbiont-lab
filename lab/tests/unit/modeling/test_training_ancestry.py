@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import pytest
 
+from lab.integration.organism import create_canonical_organism, restore_canonical_organism
 from symbiont.modeling import (
     ArchitectureId,
     ModelArtifactManifest,
@@ -63,7 +64,7 @@ def _adopt(runtime, *, seed, loss, baseline=2.0, parent=None, vocabulary=VOCAB, 
 
 
 def _runtime():
-    runtime = ModeledOrganismRuntime(organism_id="ancestry")
+    runtime = create_canonical_organism(ModeledOrganismRuntime, organism_id="ancestry")
     runtime.ancestry_training = True
     runtime.trace_training_requests = True
     return runtime
@@ -125,7 +126,7 @@ def test_plan_inherits_the_parent_vocabulary_append_only_and_is_traced():
 def test_restore_keeps_the_exact_ancestry_capable_tokenizers():
     runtime = _runtime()
     _, parent = _adopt(runtime, seed=1, loss=1.0)
-    restored = ModeledOrganismRuntime.from_checkpoint(runtime.checkpoint())
+    restored = restore_canonical_organism(runtime.checkpoint(), ModeledOrganismRuntime)
     assert restored.ancestry_training and restored.training_ancestry_eligible(parent.model_id)
     assert restored.checkpoint()["training_ancestry"] == runtime.checkpoint()["training_ancestry"]
 
@@ -143,6 +144,6 @@ def test_ancestry_never_grants_action_authority():
 
 
 def test_defaults_leave_checkpoints_without_ancestry_state():
-    runtime = ModeledOrganismRuntime(organism_id="plain")
+    runtime = create_canonical_organism(ModeledOrganismRuntime, organism_id="plain")
     runtime.adopt_private_model(_manifest(runtime, seed=1), evaluation_summary=(0,))
     assert "training_ancestry" not in runtime.checkpoint()

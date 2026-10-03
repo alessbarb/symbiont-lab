@@ -3,6 +3,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from lab.experiments.registry import get_protocol
+from lab.integration.organism import create_canonical_organism
 from lab.studies.learning import adaptive_replay_matched_control as study
 from symbiont.modeling import ModeledOrganismRuntime
 
@@ -15,7 +16,8 @@ def test_adaptive_replay_protocol_registered():
 
 
 def test_matched_control_request_changes_only_replay_budget():
-    runtime = ModeledOrganismRuntime(
+    runtime = create_canonical_organism(
+        ModeledOrganismRuntime,
         organism_id="matched-request",
         bootstrap_semantic_senses=False,
         discover_senses=False,

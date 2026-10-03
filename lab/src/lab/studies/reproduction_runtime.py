@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
+from lab.integration.organism import create_canonical_organism, restore_canonical_organism
 from lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
 from symbiont import __version__ as symbiont_version
 from symbiont.cognition.birth import load_base_genome
 from symbiont.cognition.limits import KernelLimits
-from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont.core.organism_profile import HISTORICAL_V0
 
 
@@ -31,7 +31,7 @@ def run_runtime_reproduction_study(*, ticks: int = 2) -> RuntimeReproductionStud
     version = (major, minor, patch)
     genome = load_base_genome(kernel_limits=KernelLimits(), running_version=version)
     authority = HabitatBirthAuthority(habitat_id="runtime-study", capacity=2)
-    parent = OrganismRuntime(
+    parent = create_canonical_organism(
         profile=HISTORICAL_V0,
         organism_id="study-parent",
         genome=genome,
@@ -44,7 +44,7 @@ def run_runtime_reproduction_study(*, ticks: int = 2) -> RuntimeReproductionStud
     if child is None:
         raise RuntimeError("study could not materialize child")
     child.run(ticks)
-    restored = OrganismRuntime.from_checkpoint(
+    restored = restore_canonical_organism(
         child.checkpoint(),
         bootstrap_semantic_senses=False,
         discover_senses=False,

@@ -12,6 +12,7 @@ import pytest
 
 pytest.importorskip("torch")
 
+from lab.integration.organism import create_canonical_organism
 from lab.physics3d.private_model_training import _train_job
 from symbiont.modeling import ModeledOrganismRuntime
 
@@ -20,7 +21,7 @@ from ..unit.modeling.test_modeled_organism_runtime import _transition
 
 @pytest.mark.slow
 def test_paired_reference_is_observational(tmp_path):
-    runtime = ModeledOrganismRuntime(organism_id="paired-promotion")
+    runtime = create_canonical_organism(ModeledOrganismRuntime, organism_id="paired-promotion")
     for tick in range(64):
         runtime.record_experience(_transition(runtime, tick))
     root_plan = runtime.autonomous_private_learning_plan()
@@ -50,7 +51,7 @@ def test_paired_reference_is_observational(tmp_path):
 def test_common_vocabulary_loss_is_fair(tmp_path):
     from lab.physics3d.private_model_training import _paired_reference_evaluation
 
-    runtime = ModeledOrganismRuntime(organism_id="paired-common")
+    runtime = create_canonical_organism(ModeledOrganismRuntime, organism_id="paired-common")
     for tick in range(64):
         runtime.record_experience(_transition(runtime, tick))
     root_plan = runtime.autonomous_private_learning_plan()

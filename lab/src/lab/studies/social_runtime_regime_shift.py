@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
-from symbiont.core.orchestration.runtime import OrganismRuntime
+from lab.integration.organism import create_canonical_organism, restore_canonical_organism
 from symbiont.core.organism_profile import HISTORICAL_V0
 from symbiont.core.social import SocialHabitat
 from symbiont.core.social.interactions import EcologicalResourcePool
@@ -36,7 +36,7 @@ def run_social_runtime_regime_shift_study(*, phase_ticks: int = 8) -> SocialRunt
     habitat = SocialHabitat(EcologicalResourcePool({"food": 0.0, "water": float(phase_ticks / 2)}))
     habitat.admit("adaptive")
     habitat.admit("peer")
-    runtime = OrganismRuntime(
+    runtime = create_canonical_organism(
         profile=HISTORICAL_V0,
         organism_id="adaptive",
         social_habitat=habitat,
@@ -51,7 +51,7 @@ def run_social_runtime_regime_shift_study(*, phase_ticks: int = 8) -> SocialRunt
 
     runtime_checkpoint = runtime.checkpoint()
     habitat_checkpoint = habitat.checkpoint()
-    restored = OrganismRuntime.from_checkpoint(runtime_checkpoint, social_habitat=habitat)
+    restored = restore_canonical_organism(runtime_checkpoint, social_habitat=habitat)
     checkpoint_replay_equal = (
         restored.social_resource_ledger.evidence == runtime.social_resource_ledger.evidence
     )
@@ -65,9 +65,7 @@ def run_social_runtime_regime_shift_study(*, phase_ticks: int = 8) -> SocialRunt
         restored.tick()
 
     replay_habitat = SocialHabitat.from_checkpoint(habitat_checkpoint)
-    replay_runtime = OrganismRuntime.from_checkpoint(
-        runtime_checkpoint, social_habitat=replay_habitat
-    )
+    replay_runtime = restore_canonical_organism(runtime_checkpoint, social_habitat=replay_habitat)
     replay_habitat.engine.pool.replenish("food", float(phase_ticks / 2))
     replay_post_shift: list[str] = []
     for _ in range(phase_ticks):

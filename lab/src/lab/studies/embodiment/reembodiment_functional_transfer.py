@@ -25,6 +25,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Sequence
 
+from lab.integration.organism import restore_canonical_organism
 from lab.studies.learning.agency_acquisition_body import (
     CausalBody,
     build_subject,
@@ -138,8 +139,9 @@ def _newborn(seed: int, body: CausalBody) -> PrivateModelOrganismRuntime:
 
 
 def _restore(payload: dict[str, Any], body: CausalBody) -> PrivateModelOrganismRuntime:
-    return PrivateModelOrganismRuntime.from_checkpoint(
+    return restore_canonical_organism(
         payload,
+        PrivateModelOrganismRuntime,
         host_lifecycle=subject_lifecycle(body),
         host_reading_providers=(body,),
         kernel_limits=KernelLimits(),

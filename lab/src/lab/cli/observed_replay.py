@@ -11,9 +11,9 @@ import json
 import sys
 from pathlib import Path
 
+from lab.integration.organism import create_canonical_organism, load_or_create_canonical_organism
 from lab.observatory.adapter import MAX_TICKS, envelope, project_tick, write_replay
 from symbiont.core.orchestration.governor import GovernedOrganism
-from symbiont.core.orchestration.runtime import OrganismRuntime
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -40,7 +40,9 @@ def main(argv: list[str] | None = None) -> int:
         parser.error(f"--ticks must be between 1 and {MAX_TICKS}")
 
     runtime = (
-        OrganismRuntime.load_or_create(args.checkpoint) if args.checkpoint else OrganismRuntime()
+        load_or_create_canonical_organism(args.checkpoint)
+        if args.checkpoint
+        else create_canonical_organism()
     )
     organism = GovernedOrganism(runtime, max_ticks=args.ticks)
     revision_counts: dict[str, int] = {}

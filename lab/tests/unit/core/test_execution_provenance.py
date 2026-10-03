@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import copy
 
+from lab.integration.organism import restore_canonical_organism
 from lab.studies.learning.agency_acquisition_body import (
     CausalBody,
     build_subject,
     subject_lifecycle,
 )
 from symbiont.cognition.limits import KernelLimits
-from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont.provenance import CausalRef
 
 
@@ -44,7 +44,7 @@ def test_commitments_are_traced_from_start_to_single_end():
 
 def _restored(runtime, body):
     twin_body = copy.deepcopy(body)
-    twin = OrganismRuntime.from_checkpoint(
+    twin = restore_canonical_organism(
         runtime.checkpoint(),
         host_lifecycle=subject_lifecycle(twin_body),
         host_reading_providers=(twin_body,),

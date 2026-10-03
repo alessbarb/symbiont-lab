@@ -6,6 +6,7 @@ import copy
 
 import pytest
 
+from lab.integration.organism import restore_canonical_organism
 from lab.studies.learning.agency_acquisition_body import (
     CausalBody,
     build_subject,
@@ -13,7 +14,6 @@ from lab.studies.learning.agency_acquisition_body import (
 )
 from symbiont.actuation.binding import BindingStatus, StalenessReason
 from symbiont.cognition.limits import KernelLimits
-from symbiont.core.orchestration.runtime import OrganismRuntime
 
 
 def _states(runtime):
@@ -73,7 +73,7 @@ def test_surface_change_is_traced_and_projection_survives_restore():
     assert last.parameters["revision"] == stale.revision
 
     twin_body = copy.deepcopy(body)
-    twin = OrganismRuntime.from_checkpoint(
+    twin = restore_canonical_organism(
         runtime.checkpoint(),
         host_lifecycle=subject_lifecycle(twin_body),
         host_reading_providers=(twin_body,),
@@ -95,7 +95,7 @@ def test_footprint_membership_options_survive_restore():
         runtime.tick()
         body.advance(runtime.last_actuations)
     twin_body = copy.deepcopy(body)
-    twin = OrganismRuntime.from_checkpoint(
+    twin = restore_canonical_organism(
         runtime.checkpoint(),
         host_lifecycle=subject_lifecycle(twin_body),
         host_reading_providers=(twin_body,),

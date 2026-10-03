@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
+from lab.integration.organism import create_canonical_organism, restore_canonical_organism
 from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont.core.organism_profile import HISTORICAL_V0
 from symbiont.core.social import SocialHabitat
@@ -50,7 +51,7 @@ def run_social_runtime_denial_revision_study(
     )
     for member in ("adaptive", "peer"):
         habitat.admit(member)
-    runtime = OrganismRuntime(
+    runtime = create_canonical_organism(
         profile=HISTORICAL_V0,
         organism_id="adaptive",
         social_habitat=habitat,
@@ -67,7 +68,7 @@ def run_social_runtime_denial_revision_study(
 
     runtime_checkpoint = runtime.checkpoint()
     habitat_checkpoint = habitat.checkpoint()
-    restored = OrganismRuntime.from_checkpoint(runtime_checkpoint, social_habitat=habitat)
+    restored = restore_canonical_organism(runtime_checkpoint, social_habitat=habitat)
     checkpoint_replay_equal = (
         restored.social_resource_ledger.evidence == runtime.social_resource_ledger.evidence
     )
@@ -84,9 +85,7 @@ def run_social_runtime_denial_revision_study(
             break
 
     replay_habitat = SocialHabitat.from_checkpoint(habitat_checkpoint)
-    replay_runtime = OrganismRuntime.from_checkpoint(
-        runtime_checkpoint, social_habitat=replay_habitat
-    )
+    replay_runtime = restore_canonical_organism(runtime_checkpoint, social_habitat=replay_habitat)
     replay_habitat.engine.pool.replenish("alpha", float(phase_ticks))
     replay_post_shift = _run_post_shift(replay_runtime, phase_ticks)
     return SocialRuntimeDenialRevisionStudy(

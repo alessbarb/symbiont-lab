@@ -17,6 +17,7 @@ from dataclasses import asdict, dataclass, field
 from statistics import fmean
 from typing import Any, Callable, Iterable, Sequence
 
+from lab.integration.organism import restore_canonical_organism
 from lab.studies.learning.agency_acquisition_body import (
     BodyCondition,
     CausalBody,
@@ -85,7 +86,7 @@ def _twin(
 ) -> tuple[OrganismRuntime, CausalBody]:
     """Exact matched continuation: same organism checkpoint, same body state."""
     twin_body = copy.deepcopy(body)
-    twin = OrganismRuntime.from_checkpoint(
+    twin = restore_canonical_organism(
         runtime.checkpoint(),
         host_lifecycle=subject_lifecycle(twin_body),
         host_reading_providers=(twin_body,),

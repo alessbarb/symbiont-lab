@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 from dataclasses import replace
 
+from lab.integration.organism import restore_canonical_organism
 from lab.studies.learning.agency_acquisition_body import (
     CausalBody,
     build_subject,
@@ -285,7 +286,7 @@ def test_executive_failure_does_not_modify_causal_models():
 
 def _restored(runtime: OrganismRuntime, body: CausalBody) -> tuple[OrganismRuntime, CausalBody]:
     twin_body = copy.deepcopy(body)
-    twin = OrganismRuntime.from_checkpoint(
+    twin = restore_canonical_organism(
         runtime.checkpoint(),
         host_lifecycle=subject_lifecycle(twin_body),
         host_reading_providers=(twin_body,),

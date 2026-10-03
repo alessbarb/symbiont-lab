@@ -11,6 +11,7 @@ import hashlib
 from dataclasses import asdict, dataclass
 from typing import Sequence
 
+from lab.integration.organism import create_canonical_organism
 from symbiont.core.organism_profile import HISTORICAL_V0
 from symbiont.modeling import (
     ModeledOrganismRuntime,
@@ -99,25 +100,29 @@ def _trial(
     seed: int, *, condition: str, training_ticks: int = 32, evaluation_ticks: int = 16
 ) -> dict[str, object]:
     space = default_symbol_space()
-    emitter_a = ModeledOrganismRuntime(
+    emitter_a = create_canonical_organism(
+        ModeledOrganismRuntime,
         profile=HISTORICAL_V0,
         organism_id=f"esg-a-{seed}",
         bootstrap_semantic_senses=False,
         symbol_policy_seed=seed,
     )
-    emitter_b = ModeledOrganismRuntime(
+    emitter_b = create_canonical_organism(
+        ModeledOrganismRuntime,
         profile=HISTORICAL_V0,
         organism_id=f"esg-b-{seed}",
         bootstrap_semantic_senses=False,
         symbol_policy_seed=seed,
     )
-    learner = ModeledOrganismRuntime(
+    learner = create_canonical_organism(
+        ModeledOrganismRuntime,
         profile=HISTORICAL_V0,
         organism_id=f"esg-learner-{seed}",
         bootstrap_semantic_senses=False,
         symbol_policy_seed=seed,
     )
-    newborn = ModeledOrganismRuntime(
+    newborn = create_canonical_organism(
+        ModeledOrganismRuntime,
         profile=HISTORICAL_V0,
         organism_id=f"esg-newborn-{seed}",
         bootstrap_semantic_senses=False,

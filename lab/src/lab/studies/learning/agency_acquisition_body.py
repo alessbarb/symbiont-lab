@@ -33,6 +33,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, Iterable
 
+from lab.integration.organism import create_canonical_organism
 from symbiont.actuation.sensorimotor import CompetenceDevelopmentEngine
 from symbiont.actuation.surface import ActuatorSurface, derive_actuator_constitution
 from symbiont.actuation.types import Actuation
@@ -264,7 +265,8 @@ def build_subject(
     # Closed experiments ran this subject on the historical profile (ADR-0062);
     # a study on the canonical organism passes ``profile`` explicitly.
     runtime_options.setdefault("profile", HISTORICAL_V0)
-    return runtime_class(
+    return create_canonical_organism(
+        runtime_class,
         organism_id=organism_id,
         host_lifecycle=subject_lifecycle(body),
         host_reading_providers=(body,),

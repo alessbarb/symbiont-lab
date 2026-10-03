@@ -3,6 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from lab.integration.organism import create_canonical_organism, restore_canonical_organism
 from lab.observatory.manifest import (
     create_capture_manifest,
     verify_capture_manifest,
@@ -10,7 +11,6 @@ from lab.observatory.manifest import (
 )
 from lab.observatory.registry import read_registry, write_heartbeat
 from lab.observatory.schema_validate import validate
-from symbiont.core.orchestration.runtime import OrganismRuntime
 
 
 class ManifestTests(unittest.TestCase):
@@ -175,7 +175,7 @@ class ManifestTests(unittest.TestCase):
             validate(payload, schema)
 
     def test_runtime_organism_id_and_effective_configuration_provenance(self):
-        runtime = OrganismRuntime(organism_id="org_origin_42")
+        runtime = create_canonical_organism(organism_id="org_origin_42")
         self.assertEqual(runtime.organism_id, "org_origin_42")
 
         config = runtime.effective_configuration()
@@ -188,6 +188,6 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual(exported["organism_id"], "org_origin_42")
         self.assertEqual(exported["effective_config"]["organism_id"], "org_origin_42")
 
-        restored = OrganismRuntime.from_checkpoint(exported)
+        restored = restore_canonical_organism(exported)
         self.assertEqual(restored.organism_id, "org_origin_42")
         self.assertEqual(restored.effective_configuration()["organism_id"], "org_origin_42")

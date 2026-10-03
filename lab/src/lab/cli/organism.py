@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from lab.integration.organism import create_canonical_organism, restore_canonical_resident
 from symbiont.cognition.birth import load_base_genome, load_base_graph
 from symbiont.cognition.graph import CognitiveGraph, GraphError, load_graph_definition
 from symbiont.cognition.limits import KernelLimits
@@ -21,7 +22,6 @@ from symbiont.core import (
     TickBudgetExhaustedError,
     append_advisories_to_log,
 )
-from symbiont.core.orchestration.canonical_birth import restore_resident_with_canonical_cognition
 from symbiont.genetics.genome import Genome, GenomeCodec, GenomeError, legacy_validation_version
 from symbiont.host.checkpoint import load_checkpoint_file
 
@@ -200,9 +200,9 @@ def _runtime_for_run(args: argparse.Namespace) -> OrganismRuntime:
     )
     existing_payload = load_checkpoint_file(args.state_file) if args.state_file else None
     if existing_payload is not None:
-        return restore_resident_with_canonical_cognition(existing_payload, **kwargs)
+        return restore_canonical_resident(existing_payload, **kwargs)
     _load_cognition_from_args(args, kwargs)
-    return OrganismRuntime(**kwargs)
+    return create_canonical_organism(**kwargs)
 
 
 def _run_finite(args: argparse.Namespace) -> int:
@@ -316,10 +316,10 @@ def _run_live(args: argparse.Namespace) -> int:
     )
     existing_payload = load_checkpoint_file(state_file)
     if existing_payload is not None:
-        runtime = restore_resident_with_canonical_cognition(existing_payload, **kwargs)
+        runtime = restore_canonical_resident(existing_payload, **kwargs)
     else:
         _load_cognition_from_args(args, kwargs)
-        runtime = OrganismRuntime(**kwargs)
+        runtime = create_canonical_organism(**kwargs)
 
     def emit(result) -> None:
         if not args.stdout:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from lab.experiments.registry import get_protocol
+from lab.integration.organism import create_canonical_organism
 from lab.studies.learning import replay_pressure_curve as study
 from symbiont.modeling import ModeledOrganismRuntime
 
@@ -19,7 +20,8 @@ def test_replay_pressure_budget_mapping_is_bounded_and_monotone():
 
 
 def test_pressure_requests_keep_everything_except_replay_budget():
-    runtime = ModeledOrganismRuntime(
+    runtime = create_canonical_organism(
+        ModeledOrganismRuntime,
         organism_id="pressure-curve-test",
         bootstrap_semantic_senses=False,
         discover_senses=False,

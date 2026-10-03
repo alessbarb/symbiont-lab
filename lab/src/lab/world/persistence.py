@@ -22,6 +22,7 @@ from environment.events import EventJournal
 from environment.genesis import GroundTruth
 from environment.terrain import DynamicGeography
 from environment.topology import BodyPlacement, HexCoord, HexTopology, OccupancyGrid
+from lab.integration.organism import restore_canonical_organism
 from lab.integration.world.adapter import (
     ActuationAdapter,
     ActuationBinding,
@@ -345,8 +346,9 @@ def restore_population_from_checkpoint(
             rig.resource_habitats[hid] = SharedHabitat.from_checkpoint(hdata)
 
         # Restore runtime with wired lifecycle and habitats
-        rig.runtime = ModeledOrganismRuntime.from_checkpoint(
+        rig.runtime = restore_canonical_organism(
             odata["checkpoint"],
+            ModeledOrganismRuntime,
             host_lifecycle=rig.runtime._lifecycle,
             resource_habitats=rig.resource_habitats,
             min_samples=1,

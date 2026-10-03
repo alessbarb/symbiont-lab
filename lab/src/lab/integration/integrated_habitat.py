@@ -13,6 +13,7 @@ import math
 from dataclasses import asdict, dataclass
 from typing import Any
 
+from lab.integration.organism import create_canonical_organism, restore_canonical_organism
 from lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
 from symbiont import __version__ as symbiont_version
 from symbiont.cognition.birth import load_base_genome
@@ -150,7 +151,8 @@ class IntegratedHabitatRuntime:
             kind: 0.25 for kind in ("observation", "cognition", "persistence", "maintenance")
         }
         body_state = LivingBodyState(energy_reserve=1.0, max_energy=1.0)
-        runtime = ModeledOrganismRuntime(
+        runtime = create_canonical_organism(
+            ModeledOrganismRuntime,
             organism_id=organism_id,
             # The integrated habitat is a deterministic laboratory surface.
             # Do not inherit the default real-host providers here: their wall
@@ -380,8 +382,9 @@ class IntegratedHabitatRuntime:
             raise ValueError("invalid integrated habitat population")
         runtime.population = {}
         for raw in raw_population:
-            organism = ModeledOrganismRuntime.from_checkpoint(
+            organism = restore_canonical_organism(
                 raw,
+                ModeledOrganismRuntime,
                 social_habitat=runtime.social_habitat,
                 # Same deterministic surface as at birth: never the real host.
                 host_lifecycle=HostLifecycle(

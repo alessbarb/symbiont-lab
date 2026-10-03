@@ -25,6 +25,7 @@ from environment.physics3d.environments import (
     update_environment,
 )
 from environment.physics3d.resource import PhysicalResource
+from lab.integration.organism import create_canonical_organism, restore_canonical_organism
 from lab.integration.physics3d.apparatus import (
     OpaqueBodyInteroception,
     PhysicsDiscoveryProvider,
@@ -523,7 +524,8 @@ class PyBulletEmbodimentRuntime:
                 )
             exclusive_groups = canonical_exclusive_groups
 
-            return PrivateModelOrganismRuntime(
+            return create_canonical_organism(
+                PrivateModelOrganismRuntime,
                 organism_id=subject_id,
                 host_lifecycle=host_lifecycle,
                 host_reading_providers=(reading_provider,),
@@ -617,8 +619,9 @@ class PyBulletEmbodimentRuntime:
             self._temporal_migration = (
                 deepcopy(raw_migration) if isinstance(raw_migration, dict) else None
             )
-            self.organism = PrivateModelOrganismRuntime.from_checkpoint(
+            self.organism = restore_canonical_organism(
                 restored_payload,
+                PrivateModelOrganismRuntime,
                 actuator_constitution_override=canonical_actuator_surface,
                 host_lifecycle=host_lifecycle,
                 host_reading_providers=(reading_provider,),

@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
+from lab.integration.organism import create_canonical_organism, restore_canonical_organism
 from lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
 from symbiont import __version__ as symbiont_version
 from symbiont.cognition.birth import load_base_genome
 from symbiont.cognition.limits import KernelLimits
 from symbiont.core.embodiment.metabolism import MetabolicLedger
 from symbiont.core.embodiment.physiology import PhysiologyController
-from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont.core.organism_profile import HISTORICAL_V0
 from symbiont.core.social import SocialHabitat
 from symbiont.core.social.interactions import EcologicalResourcePool
@@ -41,7 +41,7 @@ def run_social_runtime_generations_study(*, generations: int = 3) -> SocialRunti
     social = SocialHabitat(EcologicalResourcePool({"food": 8.0}), max_members=3)
     social.admit("peer")
     zero = {kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")}
-    active = OrganismRuntime(
+    active = create_canonical_organism(
         profile=HISTORICAL_V0,
         organism_id="generation-0",
         genome=genome,
@@ -62,7 +62,7 @@ def run_social_runtime_generations_study(*, generations: int = 3) -> SocialRunti
     for index in range(generations):
         active.living_body_state.growth_progress = 1.0
         checkpoint = active.checkpoint()
-        restored = OrganismRuntime.from_checkpoint(
+        restored = restore_canonical_organism(
             checkpoint,
             social_habitat=social,
             bootstrap_semantic_senses=False,

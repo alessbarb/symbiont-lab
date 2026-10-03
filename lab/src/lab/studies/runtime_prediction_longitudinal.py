@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
+from lab.integration.organism import restore_canonical_organism
 from lab.studies.runtime_prediction_promotion import _runtime
 from symbiont.core.orchestration.runtime import OrganismRuntime
 
@@ -50,7 +51,7 @@ def run_runtime_prediction_longitudinal_study(
     runtime = _runtime("longitudinal-signal", "s", "t")
     _advance(runtime, 1, midpoint)
     checkpoint = runtime.checkpoint()
-    restored = OrganismRuntime.from_checkpoint(
+    restored = restore_canonical_organism(
         checkpoint, bootstrap_semantic_senses=False, discover_senses=False
     )
     _advance(runtime, midpoint + 1, trials)

@@ -158,11 +158,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
+    from lab.integration.organism import create_canonical_organism, restore_canonical_resident
     from symbiont.core import OrganismRuntime, ResidentConfig, ResidentOrganism
     from symbiont.core.host.local_habitat import LocalHabitat
-    from symbiont.core.orchestration.canonical_birth import (
-        restore_resident_with_canonical_cognition,
-    )
     from symbiont.core.social.capsule import CapsuleKeyPair
     from symbiont.host.checkpoint import load_checkpoint_file
 
@@ -178,11 +176,9 @@ def main(argv: list[str] | None = None) -> int:
             _load_first_launch_cognition(args, runtime_kwargs)
         except (OSError, ValueError, json.JSONDecodeError) as exc:
             parser.error(str(exc))
-        runtime = runtime_class(**runtime_kwargs)
+        runtime = create_canonical_organism(runtime_class, **runtime_kwargs)
     else:
-        runtime = restore_resident_with_canonical_cognition(
-            existing_payload, runtime_class=runtime_class, **runtime_kwargs
-        )
+        runtime = restore_canonical_resident(existing_payload, runtime_class, **runtime_kwargs)
 
     resolved_state_file = str(Path(args.state_file).expanduser().resolve())
     instance_id = derive_instance_id(resolved_state_file)

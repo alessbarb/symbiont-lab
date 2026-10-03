@@ -6,6 +6,7 @@ import pytest
 
 torch = pytest.importorskip("torch")
 
+from lab.integration.organism import create_canonical_organism, restore_canonical_organism
 from lab.modeling import (  # noqa: E402
     FileArtifactStore,
     TrainingConfig,
@@ -198,7 +199,7 @@ def test_corrupt_parent_is_rejected_before_training(tmp_path):
 def test_cold_start_remains_available_and_predictions_are_not_ground_truth():
     from symbiont.modeling.runtime import ModeledOrganismRuntime
 
-    runtime = ModeledOrganismRuntime(organism_id="organism-cold")
+    runtime = create_canonical_organism(ModeledOrganismRuntime, organism_id="organism-cold")
     assert runtime.model_registry.records == ()
     prediction = ExperienceRecord(
         record_id="prediction-1",
@@ -236,7 +237,7 @@ def test_registry_keeps_parent_until_authorized_successor_promotion_and_restores
 
     from symbiont.modeling.runtime import ModeledOrganismRuntime
 
-    runtime = ModeledOrganismRuntime(organism_id="organism-adapt")
+    runtime = create_canonical_organism(ModeledOrganismRuntime, organism_id="organism-adapt")
     parent_record = runtime.adopt_private_model(parent_result.artifact.manifest)
     runtime.activate_private_model(parent_record.model_id, promotion_authorized=True)
     shadow = runtime.adopt_private_model(successor.manifest)
@@ -244,7 +245,7 @@ def test_registry_keeps_parent_until_authorized_successor_promotion_and_restores
     assert runtime.model_registry.active.model_id == parent_record.model_id
     with pytest.raises(ValueError, match="promotion"):
         runtime.activate_private_model(shadow.model_id, promotion_authorized=False)
-    restored = ModeledOrganismRuntime.from_checkpoint(runtime.checkpoint())
+    restored = restore_canonical_organism(runtime.checkpoint(), ModeledOrganismRuntime)
     restored_successor = restored.model_registry.get(successor.manifest.model_id)
     assert restored_successor is not None
     assert restored_successor.parent_model_id == parent_record.model_id
