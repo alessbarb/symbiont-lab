@@ -33,7 +33,6 @@ from embodiment.physics3d.humanoid import (
 from embodiment.physics3d.vision import (
     VISION_BODY_KIND,
     VISION_TOTAL_RECEPTOR_COUNT,
-    VisionHumanoidPhysics,
     vision_receptor_contract_ids,
 )
 
@@ -175,43 +174,39 @@ ASYMMETRIC_V1 = BodyDescriptor(
     observer_base_link_name=ASYMMETRIC_SPEC.base_link_name,
 )
 
-# ADR-0011: vision is a new body kind; the v6 contract stays byte-identical.
-ANTHROPOMORPHIC_V6_VISION = BodyDescriptor(
-    body_kind=VISION_BODY_KIND,
-    display_name="Anthropomorphic · visual apparatus",
-    version=BODY_STATE_SCHEMA_VERSION,
-    motor_dof=MOTOR_DOF,
-    receptor_count=VISION_TOTAL_RECEPTOR_COUNT,
-    effector_count=MOTOR_DOF * 2,
-    receptor_ids=vision_receptor_contract_ids(),
-    interoceptive_receptor_ids=interoceptive_receptor_contract_ids(),
-    effector_ids=effector_contract_ids(),
-    apparatus_factory=VisionHumanoidPhysics,
-    ground_material=GROUND_MATERIAL,
-    observer_joint_specs=JOINT_SPECS,
-    observer_contact_region_names=("pelvis", *CONTACT_LINK_NAMES),
-    observer_segments=SEGMENTS,
-    observer_joint_topology=JOINT_TOPOLOGY,
-    observer_base_link_name="pelvis",
-    sensory_capacity=512,
-)
 
-DEFAULT_BODY_REGISTRY = BodyRegistry(
-    (
-        ANTHROPOMORPHIC_V6,
-        ANTHROPOMORPHIC_V6_VISION,
-        CRAWLER_V1,
-        ASYMMETRIC_V1,
+def vision_body_descriptor(apparatus_factory: Callable[[Any, int], Any]) -> BodyDescriptor:
+    """ADR-0011: vision is a new body kind; the v6 contract stays byte-identical.
+
+    ``apparatus_factory`` builds a ``VisionHumanoidPhysics`` with a receptor
+    array already chosen; this library does not choose one.
+    """
+    return BodyDescriptor(
+        body_kind=VISION_BODY_KIND,
+        display_name="Anthropomorphic · visual apparatus",
+        version=BODY_STATE_SCHEMA_VERSION,
+        motor_dof=MOTOR_DOF,
+        receptor_count=VISION_TOTAL_RECEPTOR_COUNT,
+        effector_count=MOTOR_DOF * 2,
+        receptor_ids=vision_receptor_contract_ids(),
+        interoceptive_receptor_ids=interoceptive_receptor_contract_ids(),
+        effector_ids=effector_contract_ids(),
+        apparatus_factory=apparatus_factory,
+        ground_material=GROUND_MATERIAL,
+        observer_joint_specs=JOINT_SPECS,
+        observer_contact_region_names=("pelvis", *CONTACT_LINK_NAMES),
+        observer_segments=SEGMENTS,
+        observer_joint_topology=JOINT_TOPOLOGY,
+        observer_base_link_name="pelvis",
+        sensory_capacity=512,
     )
-)
 
 
 __all__ = [
     "ANTHROPOMORPHIC_V6",
-    "ANTHROPOMORPHIC_V6_VISION",
     "CRAWLER_V1",
     "ASYMMETRIC_V1",
     "BodyDescriptor",
     "BodyRegistry",
-    "DEFAULT_BODY_REGISTRY",
+    "vision_body_descriptor",
 ]

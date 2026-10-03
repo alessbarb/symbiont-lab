@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from embodiment.physics3d.bodies import ANTHROPOMORPHIC_V6
+from lab.integration.physics3d.bodies import ANTHROPOMORPHIC_V6
 from lab.physics3d.observer_semantics import (
     action_dimension_semantics,
     motor_semantics,

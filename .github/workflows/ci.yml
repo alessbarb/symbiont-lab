@@ -104,6 +104,7 @@ jobs:
           uv run --no-sync python scripts/agentctl.py ci-check --base "$BASE" --head "$HEAD"
       - run: uv run --no-sync ruff check symbiont/src/ environment/src/ modality/src/ embodiment/src/ lab/src/ tests/ scripts/governance/ci_plan.py
       - run: uv run --no-sync ruff format --check symbiont/src/ environment/src/ modality/src/ embodiment/src/ lab/src/ tests/ scripts/governance/ci_plan.py
+      - run: uv run --no-sync lint-imports
       - run: uv run --no-sync bandit -r symbiont/src/ environment/src/ modality/src/ embodiment/src/ lab/src/ -ll
 
   governance-docs:

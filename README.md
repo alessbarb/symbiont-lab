@@ -80,17 +80,20 @@ The repository is five domains, each its own distribution in one uv workspace:
 | `environment/` | `environment` | external laws, dynamics and ground truth |
 | `lab/` | `lab` | composition, experiments, studies, observation, analysis |
 
-Normative dependency rule, enforced by
+Normative dependency rule, enforced by Import Linter and
 `tests/experimental_integrity/test_five_domain_architecture.py`:
 
 ```text
-symbiont    -X-> lab, environment, modality, embodiment
-environment -X-> symbiont, lab, modality, embodiment
-modality    -X-> symbiont, embodiment, environment, lab
-embodiment  -X-> lab
+symbiont, embodiment, modality, environment
+    peer, self-contained libraries: none imports another, none imports lab
 
-lab -> may depend on everything
+lab
+    the only composition root; owns every adapter that knows two domains
+    (lab/src/lab/integration/)
 ```
+
+The same invariants are declared for Import Linter in `pyproject.toml`
+(`uv run lint-imports`).
 
 Ground truth belongs to Lab/evaluator and must never become organism cognition.
 

@@ -17,6 +17,7 @@ dev = [
   "hypothesis>=6.0",
   "mutmut>=3.3",
   "pre-commit>=4.0",
+  "import-linter>=2.0",
 ]
 modeling = ["lab[modeling]"]
 physics3d = ["lab[physics3d]"]
@@ -84,3 +85,25 @@ members = ["symbiont", "environment", "modality", "embodiment", "lab"]
 
 [tool.uv.sources]
 lab = { workspace = true }
+
+# Architectural invariants, checked with `lint-imports`.
+[tool.importlinter]
+root_packages = ["symbiont", "embodiment", "modality", "environment", "lab"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "The four domain libraries are mutually independent"
+type = "independence"
+modules = ["symbiont", "embodiment", "modality", "environment"]
+
+[[tool.importlinter.contracts]]
+name = "Domain libraries do not depend on the Lab"
+type = "forbidden"
+source_modules = ["symbiont", "embodiment", "modality", "environment"]
+forbidden_modules = ["lab"]
+
+[[tool.importlinter.contracts]]
+name = "Heavy numeric and physics libraries are imported only by the Lab"
+type = "forbidden"
+source_modules = ["symbiont", "embodiment", "modality", "environment"]
+forbidden_modules = ["pybullet", "torch", "numpy", "PIL"]

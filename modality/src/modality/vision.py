@@ -5,8 +5,8 @@ receptor array → bounded luminance per opaque receptor. The channel reads only
 simulation state through the deterministic CPU renderer. It never reads
 observer geometry, world_scene entities, the presentation camera or wall-clock
 time, and it never emits depth, segmentation, entity identity or colour-channel
-names. Which body carries the array, and under which receptor ids, is decided
-by the embodiment that mounts it.
+names. Which link carries the array, where on it, and under which receptor ids
+is supplied by whoever mounts it; this module knows no body.
 """
 
 from __future__ import annotations
@@ -47,10 +47,6 @@ class VisualApparatus:
     FIELD_OF_VIEW_DEG = 70.0
     NEAR = 0.02
     FAR = 8.0
-    # Mount point and gaze in the link frame (metres): just outside the head
-    # surface, looking along the link's +x axis, slightly downward.
-    MOUNT_OFFSET = (0.12, 0.0, 0.14)
-    GAZE_OFFSET = (1.0, 0.0, -0.1)
 
     def __init__(
         self,
@@ -60,6 +56,8 @@ class VisualApparatus:
         body_id: int,
         link_index: int,
         receptor_ids: tuple[str, ...],
+        mount_offset: tuple[float, float, float],
+        gaze_offset: tuple[float, float, float],
         side: int = VISUAL_ARRAY_SIDE,
     ) -> None:
         if len(receptor_ids) != side * side:
@@ -69,6 +67,9 @@ class VisualApparatus:
         self.body_id = body_id
         self.link_index = link_index
         self.side = side
+        # Mount point and gaze target in the carrying link's frame (metres).
+        self.mount_offset = mount_offset
+        self.gaze_offset = gaze_offset
         self.receptor_ids = receptor_ids
         self.topology = PerceptualTopology.grid(receptor_ids, side)
         self._projection = pybullet_module.computeProjectionMatrixFOV(
@@ -94,8 +95,8 @@ class VisualApparatus:
 
     def sample(self) -> dict[str, float]:
         position, orientation = self._link_pose()
-        eye = self._world_point(position, orientation, self.MOUNT_OFFSET)
-        target = self._world_point(position, orientation, self.GAZE_OFFSET)
+        eye = self._world_point(position, orientation, self.mount_offset)
+        target = self._world_point(position, orientation, self.gaze_offset)
         up = (
             self.p.rotateVector(orientation, (0.0, 0.0, 1.0))
             if hasattr(self.p, "rotateVector")

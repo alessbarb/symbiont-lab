@@ -1,9 +1,10 @@
 """Import boundaries of the five-domain architecture.
 
-Symbiont (organism) / Embodiment / Modality / Environment / Lab. The hard rules
-fail on any violation. The ratchets pin debt that already existed when the
-layout was introduced: they fail when it grows, and when it shrinks they ask
-for the baseline to be tightened. See migration/dependency-audit.md.
+Symbiont, Embodiment, Modality and Environment are peer, self-contained
+libraries: none imports another or the Lab. The Lab is the only composition
+root and owns every adapter that knows more than one domain. One ratchet pins
+debt inside the organism that predates the layout. See
+migration/dependency-audit.md.
 """
 
 from __future__ import annotations
@@ -36,33 +37,34 @@ def _edges(source: str, target: str) -> list[str]:
     )
 
 
+PEERS = ("symbiont", "embodiment", "modality", "environment")
+
+
 @pytest.mark.parametrize(
     ("source", "target"),
     [
-        # the organism knows neither the Lab, the Environment nor the observer
-        ("symbiont", "lab"),
-        ("symbiont", "environment"),
-        *(("symbiont", heavy) for heavy in HEAVY),
-        # the Environment holds ground truth and knows no organism and no Lab
-        ("environment", "symbiont"),
-        ("environment", "lab"),
-        *(("environment", heavy) for heavy in HEAVY),
-        # a Modality is a signal channel: it knows no organism, body, world or Lab
-        ("modality", "symbiont"),
-        ("modality", "embodiment"),
-        ("modality", "environment"),
-        ("modality", "lab"),
-        # an Embodiment couples; it never depends on the Lab or the observer
-        ("embodiment", "lab"),
-        # nothing below the Lab reaches the new domains from the organism side
-        ("symbiont", "modality"),
-        ("symbiont", "embodiment"),
-        ("environment", "modality"),
-        ("environment", "embodiment"),
+        # the four domains are peer libraries: none imports another, none imports the Lab
+        *((source, target) for source in PEERS for target in (*PEERS, "lab") if source != target),
+        # heavy numeric and physics libraries are only imported by the Lab
+        *((source, heavy) for source in PEERS for heavy in HEAVY),
     ],
 )
 def test_forbidden_domain_dependency(source: str, target: str) -> None:
     assert _edges(source, target) == []
+
+
+def test_import_linter_contracts_hold() -> None:
+    """The permanent invariants live in [tool.importlinter]; this keeps them in the test run."""
+    import subprocess
+
+    result = subprocess.run(
+        [str(Path(sys.executable).with_name("lint-imports")), "--no-cache"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_source_roots_hold_exactly_their_domain_packages() -> None:
@@ -103,21 +105,19 @@ def test_organism_core_reaches_concrete_host_modality_only_where_it_already_did(
     ]
 
 
-def test_physics3d_reaches_cognition_internals_only_where_it_already_did() -> None:
-    """Ratchet for environment/embodiment -X-> cognition internals (OI-4)."""
-    internals = ("symbiont.cognition", "symbiont.core.cognition")
-    assert _importers(internals, source="embodiment") + _importers(
-        internals, source="lab.physics3d"
-    ) == [
-        ("embodiment.physics3d.apparatus", "symbiont.cognition.birth"),
-        ("embodiment.physics3d.apparatus", "symbiont.cognition.limits"),
-        # pre-existing edges of the world adapter, visible here since it moved from lab.world
-        ("embodiment.world.adapter", "symbiont.cognition.birth"),
-        ("embodiment.world.adapter", "symbiont.cognition.limits"),
-        ("lab.physics3d.runtime", "symbiont.cognition.generative"),
-        ("lab.physics3d.runtime", "symbiont.cognition.limits"),
-        ("lab.physics3d.runtime", "symbiont.cognition.types"),
-    ]
+def test_domain_distributions_declare_no_first_party_dependency() -> None:
+    import tomllib
+
+    names = {*PEERS, "lab"}
+    for domain in PEERS:
+        project = tomllib.loads((ROOT / domain / "pyproject.toml").read_text(encoding="utf-8"))
+        declared = {
+            dependency.split("[")[0].split(">")[0].split("=")[0].split("<")[0].strip()
+            for dependency in project["project"]["dependencies"]
+        }
+        assert not declared & names, domain
+    lab = tomllib.loads((ROOT / "lab" / "pyproject.toml").read_text(encoding="utf-8"))
+    assert set(PEERS) <= set(lab["project"]["dependencies"])
 
 
 def test_public_api_resolves_and_is_modality_free() -> None:

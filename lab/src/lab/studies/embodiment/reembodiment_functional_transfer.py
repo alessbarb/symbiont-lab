@@ -25,7 +25,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Sequence
 
-from embodiment.physics3d.reembodiment import (
+from lab.integration.physics3d.reembodiment import (
     PhysicsEmbodimentDescriptor,
     prepare_fresh_embodiment_checkpoint,
 )

@@ -8,14 +8,14 @@ from pathlib import Path
 import pytest
 
 from embodiment.physics3d import vision
-from embodiment.physics3d.bodies import (
-    ANTHROPOMORPHIC_V6,
-    ANTHROPOMORPHIC_V6_VISION,
-)
 from embodiment.physics3d.humanoid import receptor_contract_ids
 from embodiment.physics3d.vision import (
     vision_receptor_contract_ids,
     visual_receptor_contract_ids,
+)
+from lab.integration.physics3d.bodies import (
+    ANTHROPOMORPHIC_V6,
+    ANTHROPOMORPHIC_V6_VISION,
 )
 from modality import vision as vision_channel
 from modality.vision import VISUAL_ARRAY_SIDE, PerceptualTopology

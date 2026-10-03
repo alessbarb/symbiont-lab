@@ -17,16 +17,16 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
-from embodiment.world.adapter import (
-    ActuationAdapter,
-    ActuationBinding,
-    ActuationBindingConstitution,
-)
 from environment.constitution import WorldConstitution
 from environment.events import EventJournal
 from environment.genesis import GroundTruth
 from environment.terrain import DynamicGeography
 from environment.topology import BodyPlacement, HexCoord, HexTopology, OccupancyGrid
+from lab.integration.world.adapter import (
+    ActuationAdapter,
+    ActuationBinding,
+    ActuationBindingConstitution,
+)
 from lab.world.population import PopulationGenesisRuntime
 from symbiont.core.social.ecology import SharedHabitat
 from symbiont.host.durable import durable_atomic_write, sync_directory

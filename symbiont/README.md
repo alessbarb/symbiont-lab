@@ -8,6 +8,6 @@ uv pip install --python /tmp/symbiont-alone/bin/python ./symbiont pytest
 /tmp/symbiont-alone/bin/python -m pytest symbiont/tests -p no:cacheprovider
 ```
 
-Import package: `symbiont`. Public surface: `symbiont.api`. It imports nothing
-from `lab`, `environment`, `modality` or `embodiment`, and no PyBullet, torch,
+Import package: `symbiont`. Public surface: `symbiont.api`. It has no dependency
+on Embodiment, Modality, Environment or Lab, and imports no PyBullet, torch,
 numpy or PIL.

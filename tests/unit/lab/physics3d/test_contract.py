@@ -2,11 +2,6 @@ import inspect
 
 import pytest
 
-from embodiment.physics3d.apparatus import (
-    OpaqueBodyInteroception,
-    physics3d_cognition,
-    physics3d_sensory_system,
-)
 from embodiment.physics3d.humanoid import (
     BODY_KIND,
     BODY_MATERIAL,
@@ -28,6 +23,11 @@ from embodiment.physics3d.humanoid import (
     mechanical_joint_limits,
     physical_receptor_contract_ids,
     receptor_contract_ids,
+)
+from lab.integration.physics3d.apparatus import (
+    OpaqueBodyInteroception,
+    physics3d_cognition,
+    physics3d_sensory_system,
 )
 from symbiont.cognition.limits import KernelLimits
 from symbiont.core.embodiment.physiology import LivingBodyState
@@ -673,7 +673,7 @@ def test_physics3d_resume_projects_solver_penetration_but_direct_restore_stays_s
 
 
 def test_physics3d_newborns_use_mode_free_sensorimotor_constitution():
-    import embodiment.physics3d.apparatus as apparatus
+    import lab.integration.physics3d.apparatus as apparatus
     import lab.physics3d.runtime as runtime
 
     runtime_source = inspect.getsource(runtime.PyBulletEmbodimentRuntime.__init__)
@@ -1086,7 +1086,7 @@ def test_action_domain_applies_exclusion_before_execution_and_credit():
 def test_apparatus_projects_directional_pairs_to_opaque_actuator_groups():
     from types import SimpleNamespace
 
-    from embodiment.physics3d.apparatus import actuator_exclusion_groups
+    from lab.integration.physics3d.apparatus import actuator_exclusion_groups
 
     constitution = SimpleNamespace(
         actuator_ids=("a0", "a1", "a2", "a3"),
@@ -1108,7 +1108,7 @@ def test_apparatus_projects_directional_pairs_to_opaque_actuator_groups():
 def test_apparatus_motor_unit_contract_requires_complete_disjoint_coverage():
     from types import SimpleNamespace
 
-    from embodiment.physics3d.apparatus import actuator_exclusion_groups
+    from lab.integration.physics3d.apparatus import actuator_exclusion_groups
 
     constitution = SimpleNamespace(
         actuator_ids=("a0", "a1", "a2", "a3"),

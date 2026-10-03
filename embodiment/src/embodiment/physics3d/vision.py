@@ -1,13 +1,16 @@
-"""Vision body kind: the anthropomorphic body with a head-mounted receptor array (ADR-0011).
+"""Vision body kind: the anthropomorphic body with a head mount for a receptor array (ADR-0011).
 
-Binds the modality's receptor-array channel to a body link and assigns it
-opaque receptor ids that extend, without reordering, the v6 receptor contract.
+The body owns the mount: which link carries the array, where on it, how many
+receptor slots it has and their opaque ids, which extend the v6 receptor
+contract without reordering it. What fills the mount and produces the values is
+supplied from outside as ``receptor_array_factory``.
 """
 
 from __future__ import annotations
 
 import random
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
+from typing import Any
 
 from embodiment.physics3d.humanoid import (
     INTEROCEPTIVE_RECEPTOR_COUNT,
@@ -17,9 +20,15 @@ from embodiment.physics3d.humanoid import (
     interoceptive_receptor_contract_ids,
     physical_receptor_contract_ids,
 )
-from modality.vision import VISUAL_RECEPTOR_COUNT, VisualApparatus
 
 VISION_BODY_KIND = "anthropomorphic-v6-vision"
+# The head mount: a square of receptor slots, just outside the head surface,
+# looking along the head link's +x axis, slightly downward (link frame, metres).
+VISUAL_ARRAY_SIDE = 12
+VISUAL_RECEPTOR_COUNT = VISUAL_ARRAY_SIDE * VISUAL_ARRAY_SIDE
+HEAD_MOUNT_LINK = "head"
+HEAD_MOUNT_OFFSET = (0.12, 0.0, 0.14)
+HEAD_MOUNT_GAZE_OFFSET = (1.0, 0.0, -0.1)
 VISION_TOTAL_RECEPTOR_COUNT = TOTAL_RECEPTOR_COUNT + VISUAL_RECEPTOR_COUNT
 # Versioned constitution of the position → opaque ordinal permutation.
 _VISUAL_PERMUTATION_SEED = 0x5EE1
@@ -46,16 +55,31 @@ def vision_receptor_contract_ids() -> tuple[str, ...]:
 
 
 class VisionHumanoidPhysics(HumanoidPhysics):
-    """anthropomorphic-v6 plus one head-mounted visual receptor array."""
+    """anthropomorphic-v6 plus one head-mounted receptor array.
 
-    def __init__(self, pybullet_module, client_id: int, **kwargs) -> None:
+    ``receptor_array_factory(pybullet_module, client_id, *, body_id, link_index,
+    receptor_ids, mount_offset, gaze_offset, side)`` must return an object with
+    ``receptor_ids`` and ``sample() -> Mapping[str, float]``.
+    """
+
+    def __init__(
+        self,
+        pybullet_module,
+        client_id: int,
+        *,
+        receptor_array_factory: Callable[..., Any],
+        **kwargs,
+    ) -> None:
         super().__init__(pybullet_module, client_id, **kwargs)
-        self.visual_apparatus = VisualApparatus(
+        self.visual_apparatus = receptor_array_factory(
             pybullet_module,
             client_id,
             body_id=self.body_id,
-            link_index=self._link_index_by_name["head"],
+            link_index=self._link_index_by_name[HEAD_MOUNT_LINK],
             receptor_ids=visual_receptor_contract_ids(),
+            mount_offset=HEAD_MOUNT_OFFSET,
+            gaze_offset=HEAD_MOUNT_GAZE_OFFSET,
+            side=VISUAL_ARRAY_SIDE,
         )
         self.receptor_ids = self.physical_receptor_ids + self.visual_apparatus.receptor_ids
 
@@ -69,7 +93,12 @@ class VisionHumanoidPhysics(HumanoidPhysics):
 assert PHYSICAL_RECEPTOR_COUNT + INTEROCEPTIVE_RECEPTOR_COUNT == TOTAL_RECEPTOR_COUNT
 
 __all__ = [
+    "HEAD_MOUNT_GAZE_OFFSET",
+    "HEAD_MOUNT_LINK",
+    "HEAD_MOUNT_OFFSET",
     "VISION_BODY_KIND",
+    "VISUAL_ARRAY_SIDE",
+    "VISUAL_RECEPTOR_COUNT",
     "VISION_TOTAL_RECEPTOR_COUNT",
     "VisionHumanoidPhysics",
     "vision_receptor_contract_ids",

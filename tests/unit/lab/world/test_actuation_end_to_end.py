@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from embodiment.world.adapter import (
+from environment.genesis_v1 import build_ground_truth
+from environment.topology import HexCoord, HexTopology
+from lab.integration.world.adapter import (
     ActuationBinding,
     ActuationBindingConstitution,
     _load_base_genome,
 )
-from environment.genesis_v1 import build_ground_truth
-from environment.topology import HexCoord, HexTopology
 from lab.world.population import PopulationGenesisRuntime
 from symbiont.actuation.surface import derive_actuator_constitution
 

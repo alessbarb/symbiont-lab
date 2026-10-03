@@ -407,9 +407,9 @@ def test_cognitive_success_cannot_create_physical_reserve():
 
 def test_clean_world_executes_without_legacy_runtime_monkeypatched(monkeypatch):
     """Dynamic proof: ModeledOrganismRuntime.tick raises RuntimeError, but clean World runs cleanly."""
-    from embodiment.world.adapter import ModeledOrganismRuntime
     from environment.genesis_v1 import build_ground_truth
     from environment.topology import HexCoord, HexTopology
+    from lab.integration.world.adapter import ModeledOrganismRuntime
     from lab.world.population import PopulationGenesisRuntime
 
     def _forbidden_legacy_tick(*args, **kwargs):
@@ -443,8 +443,8 @@ def test_clean_world_executes_without_legacy_runtime_monkeypatched(monkeypatch):
 
 def test_clean_world_architecture_has_zero_legacy_runtime_dependency():
     """Architectural proof: In clean mode, rigs have None for runtime and actuation_adapter, and 0 legacy actions."""
-    from embodiment.world.adapter import _construct_organism
     from environment.genesis_v1 import build_ground_truth
+    from lab.integration.world.adapter import _construct_organism
 
     rig = _construct_organism(
         organism_id="clean-arch-check",

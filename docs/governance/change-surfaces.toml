@@ -32,6 +32,7 @@ paths = [
   "lab/src/lab/physics3d/runtime.py",
   "lab/src/lab/physics3d/settling.py",
   "lab/src/lab/world/**",
+  "lab/src/lab/integration/**",
   "environment/src/environment/**",
   "embodiment/src/embodiment/**",
   "modality/src/modality/**",
@@ -41,7 +42,7 @@ equivalence = ["established-anthropomorphic", "developed-cognition"]
 
 [[surface]]
 id = "reembodiment"
-paths = ["embodiment/src/embodiment/physics3d/reembodiment.py", "symbiont/src/symbiont/**"]
+paths = ["lab/src/lab/integration/physics3d/reembodiment.py", "symbiont/src/symbiont/**"]
 classification = "SCIENTIFIC"
 symbols = ["reembodiment", "embodiment", "BodySchema", "body_schema"]
 equivalence = ["reembodied-established"]

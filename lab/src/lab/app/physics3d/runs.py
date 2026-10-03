@@ -11,8 +11,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from embodiment.physics3d.bodies import DEFAULT_BODY_REGISTRY, BodyRegistry
-from embodiment.physics3d.reembodiment import lifecycle_summary
 from environment.physics3d.environments import environment_recipe
 from lab.experience import (
     RunGuard,
@@ -20,6 +18,8 @@ from lab.experience import (
     consequence_policy,
     run_definition,
 )
+from lab.integration.physics3d.bodies import DEFAULT_BODY_REGISTRY, BodyRegistry
+from lab.integration.physics3d.reembodiment import lifecycle_summary
 from lab.observation.cadence import ExecutionRates
 from lab.physics3d.engine import (
     DEFAULT_STATE_DIR,

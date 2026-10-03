@@ -12,7 +12,7 @@ from lab.observation.world_scene import WorldScenePublisher, project_world_scene
 
 
 def _body_descriptor_for_state(physical_state: Mapping[str, object]):
-    from embodiment.physics3d.bodies import DEFAULT_BODY_REGISTRY
+    from lab.integration.physics3d.bodies import DEFAULT_BODY_REGISTRY
 
     body_kind = str(physical_state.get("body_kind") or "anthropomorphic-v6")
     try:

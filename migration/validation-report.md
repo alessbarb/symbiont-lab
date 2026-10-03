@@ -19,7 +19,8 @@ back-end tests. The baseline command is the `canonical-full` CI job.
 | Bodies, apparatus, re-embodiment → embodiment; fixtures → environment | 3857 passed, 0 failed |
 | Genome schema 1 removed (payloads converted first) | 3857 passed, 0 failed |
 | Telemetry v3/v4 removed | 3834 passed, 0 failed |
-| **Final**: world terrain/genesis → environment, world adapter → embodiment, Lab web view removed | **3834 passed, 0 failed, 10 skipped, 2 xfailed** |
+| World terrain/genesis → environment; Lab web view removed | 3834 passed, 0 failed |
+| **Final**: four peer libraries, cross-domain code in `lab.integration`, Import Linter | **FINAL_COUNT** |
 
 Skips and xfails are the same ten and two as in the baseline.
 
@@ -62,28 +63,38 @@ Re-embodiment tests pass from their new location in `embodiment`.
 
 Not run: a full Physics3D equivalence campaign through `agentctl` (OI-10).
 
-## Organism independence (§18)
+## Self-containment of the four libraries (§18)
 
-A wheel built from `symbiont/` alone, installed in an empty environment
-(`cffi, cryptography, pycparser, pytest` and its dependencies, nothing else):
-`symbiont/tests/test_independence.py`, 2 passed on the final tree. It creates
-an organism, runs it, saves, loads, checks the state hash, and asserts that
-`lab`, `environment`, `modality`, `embodiment`, pybullet, torch, numpy and PIL
-are neither installed nor loaded.
+Each library was built as a wheel on its own and installed in an empty
+environment containing no other first-party package. Its own tests assert that
+none of the others is installed or loaded.
+
+| Library | Installed with it | Own tests |
+|---|---|---|
+| `symbiont` | `cryptography`, `cffi`, `pycparser` | 2 passed: create, run, save, load, state hash preserved |
+| `embodiment` | nothing | 3 passed: body contracts complete; vision body leaves the array to the caller |
+| `modality` | nothing | 2 passed: receptor adjacency over opaque ids |
+| `environment` | nothing | 3 passed: fixture recipes resolve; seeded randomness |
+
+These own-tests are small. The bulk of the unit tests still lives in `tests/`
+and runs against the whole workspace (OI-8).
 
 ## Architecture gates (§19)
 
-`tests/experimental_integrity/test_five_domain_architecture.py`, 25 tests, all
-passing:
+Import Linter, `lint-imports`: 3 contracts kept, 0 broken (618 files analysed).
 
-- `symbiont` ✗→ `lab`, `environment`, `modality`, `embodiment`, pybullet, torch, numpy, PIL;
-- `environment` ✗→ `symbiont`, `lab`, `modality`, `embodiment`, heavy libraries;
-- `modality` ✗→ `symbiont`, `embodiment`, `environment`, `lab`;
-- `embodiment` ✗→ `lab`;
-- each source root holds exactly its domain package;
-- ratchets on two known violations (organism core → concrete host providers;
-  embodiment and physics runtime → cognition internals);
-- `symbiont.api` resolves and carries no modality-specific types.
+1. The four domain libraries are mutually independent.
+2. Domain libraries do not depend on the Lab.
+3. pybullet, torch, numpy and PIL are imported only by the Lab.
+
+A deliberate `from modality.vision import …` inside `embodiment` made contract 1
+fail with exit code 1, and reverting it restored the pass.
+
+`tests/experimental_integrity/test_five_domain_architecture.py` runs the linter,
+repeats the matrix as a hard gate, checks that the four `pyproject.toml` declare
+no first-party dependency and that each source root holds exactly its package,
+and keeps one ratchet on debt inside the organism (core → concrete host
+providers).
 
 The pre-existing boundary tests in `tests/experimental_integrity` pass against
 the new paths.

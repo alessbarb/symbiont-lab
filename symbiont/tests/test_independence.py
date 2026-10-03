@@ -14,7 +14,7 @@ import sys
 
 from symbiont import api
 
-FOREIGN = ("symbiont_lab", "symbiont_world", "observatory", "pybullet", "torch", "numpy", "PIL")
+FOREIGN = ("lab", "environment", "modality", "embodiment", "pybullet", "torch", "numpy", "PIL")
 
 
 def test_nothing_outside_the_organism_is_installed_or_loaded() -> None:

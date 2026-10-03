@@ -1,7 +1,7 @@
 # Dependency audit
 
 Final layout. Source: `migration/tools/depgraph.py` over the five source roots:
-548 modules, 3855 import edges. Counts are runtime imports (`top` = at import
+550 modules, 3860 import edges. Counts are runtime imports (`top` = at import
 time, `lazy` = inside a function); `TYPE_CHECKING` imports are excluded.
 
 Reproduce:
@@ -13,62 +13,65 @@ python migration/tools/depgraph.py --root symbiont/src --root environment/src \
 
 ## Domain-level graph
 
+The four domain libraries are peers. None imports another, none imports the Lab.
+
 | From → To | Edges | Class |
 |---|---|---|
-| symbiont → environment / modality / embodiment / lab | 0 | VALID (enforced) |
-| symbiont → pybullet, torch, numpy, PIL | 0 | VALID (enforced) |
-| environment → anything first-party | 0 | VALID (enforced) |
-| modality → anything first-party | 0 | VALID (enforced) |
-| embodiment → modality | 2 | VALID |
-| embodiment → environment | 12 | VALID (world adapter) |
-| embodiment → symbiont | 50 | TRANSITIONAL: into organism internals, not `symbiont.api` |
-| embodiment → lab | 0 | VALID (enforced) |
-| lab → symbiont | 793 | TRANSITIONAL: into organism internals (OI-5) |
-| lab → embodiment | 66 | VALID |
-| lab → environment | 62 | VALID |
-| lab → pybullet, torch, numpy, PIL | 20 | VALID: heavy libraries live only in the Lab |
+| symbiont → embodiment / modality / environment / lab | 0 | VALID (enforced) |
+| embodiment → symbiont / modality / environment / lab | 0 | VALID (enforced) |
+| modality → symbiont / embodiment / environment / lab | 0 | VALID (enforced) |
+| environment → symbiont / embodiment / modality / lab | 0 | VALID (enforced) |
+| any of the four → pybullet, torch, numpy, PIL | 0 | VALID (enforced) |
+| lab → symbiont, embodiment, modality, environment | many | VALID: the Lab is the composition root |
+
+Declared dependencies match: `symbiont` needs only `cryptography`; `embodiment`,
+`modality` and `environment` declare none; `lab` declares the four.
 
 ## Pairs required by the instructions (§7)
 
 | Pair | Finding | Class |
 |---|---|---|
 | Symbiont ↔ World | no edge either way | VALID |
-| Symbiont ↔ Physics3D | no edge from the organism; no heavy library in it | VALID |
+| Symbiont ↔ Physics3D | no edge; no heavy library in the organism | VALID |
 | Symbiont ↔ Lab | no edge from the organism | VALID |
-| Symbiont ↔ Observatory | no edge from the organism; `lab.observatory` → `symbiont` 48 | TRANSITIONAL |
-| Symbiont ↔ Embodiment | the `embodiment` package depends on the organism (50). Inside the organism, `core.orchestration` → `actuation` 46 and `core.domains` → `actuation` 48 still tie the core to coupling code | ARCHITECTURAL VIOLATION of the target, inside the organism (OI-3) |
-| Embodiment ↔ Physics3D | bodies and apparatus are in `embodiment`; the engine and runtime in `lab.physics3d` compose them | VALID |
+| Symbiont ↔ Observatory | no edge from the organism | VALID |
+| Symbiont ↔ Embodiment | no edge between the packages. Inside the organism, `core.orchestration` → `actuation` 46 and `core.domains` → `actuation` 48 still tie the core to coupling code that has not been separated | debt inside the organism (OI-3) |
+| Embodiment ↔ Physics3D | bodies are in `embodiment`; the engine and runtime in `lab.physics3d` compose them | VALID |
 | Modality ↔ Environment | no edge | VALID |
 
-## Violations of the target architecture
+## Debt that remains
 
-| # | Edge | Evidence | Class |
+| # | Where | Evidence | Class |
 |---|---|---|---|
-| V1 | organism core → concrete host modality implementations | `core.orchestration.runtime` → `host.providers.{stdlib, stdlib_readings}` (top), `{interoception, linux_surfaces, portable_surfaces}` (lazy); `core.domains.perception` → `host.providers.interoception` (lazy) | ARCHITECTURAL VIOLATION, pinned by ratchet |
-| V2 | organism core ↔ host boundary is circular | `core.*` → `symbiont.host` 78; `symbiont.host` → `symbiont.core` 7 | ARCHITECTURAL VIOLATION |
-| V3 | embodiment and physics runtime → cognition internals | `embodiment.physics3d.apparatus` and `embodiment.world.adapter` → `symbiont.cognition.{birth, limits}`; `lab.physics3d.runtime` → `symbiont.cognition.{generative, limits, types}` | ARCHITECTURAL VIOLATION, pinned by ratchet |
-| V4 | physics runtime → other Lab units | `lab.physics3d` → `lab.app` 4, `lab.modeling` 9, `lab.observation` 3, `lab.experiments` 1 | TRANSITIONAL: keeps engine, runtime and persistence in the Lab |
-| V5 | embodiment → organism internals | `apparatus` → host, sensory, actuation, core.embodiment; `world.adapter` → 21 organism modules including `core.orchestration` and `modeling.runtime` | TRANSITIONAL (OI-5) |
-| V6 | observation ↔ observatory cycle | `lab.observation` → `lab.observatory` 4; `lab.observatory` → `lab.observation` 4, → `lab.server` 2 | UNCERTAIN |
-| V7 | organism submodules → top-level `symbiont` | for `__version__`; and `symbiont/__init__.py` imports `symbiont.core` to hold a pre-existing import cycle in order (OI-6) | PRE-EXISTING |
+| V1 | organism builds concrete host modality implementations | `core.orchestration.runtime` → `host.providers.{stdlib, stdlib_readings}` (top), `{interoception, linux_surfaces, portable_surfaces}` (lazy); `core.domains.perception` → `host.providers.interoception` (lazy) | ARCHITECTURAL VIOLATION inside the organism, pinned by ratchet (OI-3) |
+| V2 | organism core ↔ host boundary is circular | `core.*` → `symbiont.host` 78; `symbiont.host` → `symbiont.core` 7 | ARCHITECTURAL VIOLATION inside the organism |
+| V3 | Lab integration code uses organism internals | `lab.integration.physics3d.apparatus` and `lab.integration.world.adapter` → `symbiont.cognition.{birth, limits}`, `symbiont.host`, `symbiont.actuation`, …; `lab.physics3d.runtime` → `symbiont.cognition.{generative, limits, types}` | TRANSITIONAL: allowed for the Lab, but should go through `symbiont.api` (OI-5) |
+| V4 | physics runtime ↔ other Lab units | `lab.physics3d` → `lab.app` 4, `lab.modeling` 9, `lab.observation` 3, `lab.experiments` 1 | internal to the Lab |
+| V5 | observation ↔ observatory cycle | `lab.observation` ↔ `lab.observatory` 4 each way | internal to the Lab |
+| V6 | organism submodules → top-level `symbiont` | for `__version__`; `symbiont/__init__.py` imports `symbiont.core` to hold a pre-existing import cycle in order (OI-6) | PRE-EXISTING |
 
 ## Resolved during the migration
 
-- `symbiont.environment` and `symbiont.simulation` (legacy synthetic environment
-  and simulation inside the organism namespace) no longer exist.
-- Physics3D bodies, apparatus, re-embodiment and the world adapter no longer
-  live in the Lab, so the Lab is no longer the only place a body can be defined.
-- The vision receptor array is separated from the body that carries it.
+- `symbiont.environment` and `symbiont.simulation` no longer exist.
+- Physics3D bodies are an independent library; the vision receptor array is
+  separated from the body that carries it, and the mount pose belongs to the
+  body, not to the channel.
+- Code that knew two domains was moved to `lab.integration`: the Physics3D
+  apparatus adapters, re-embodiment, the composed vision body and body
+  catalogue, and the hex-world adapter.
 
 ## Enforcement
 
-`tests/experimental_integrity/test_five_domain_architecture.py` (25 tests):
+Import Linter (`[tool.importlinter]` in `pyproject.toml`, run with
+`lint-imports`; in CI, pre-commit and the test suite), three contracts:
 
-- hard rules for every 0-edge row above;
-- each source root holds exactly its domain package;
-- ratchets on V1 and V3: the exact current edge set is asserted, so the debt
-  cannot grow, and a reduction forces the baseline to be tightened;
-- `symbiont.api` resolves and carries no modality-specific types.
+1. the four domain libraries are mutually independent;
+2. domain libraries do not depend on the Lab;
+3. pybullet, torch, numpy and PIL are imported only by the Lab.
 
-Not enforced: "embodiment / modality / environment use only `symbiont.api`".
-Today embodiment needs organism internals that the API does not expose (OI-5).
+`tests/experimental_integrity/test_five_domain_architecture.py` repeats the
+matrix as a hard gate, checks that the four `pyproject.toml` declare no
+first-party dependency, that each source root holds exactly its package, and
+keeps one ratchet (V1). Each library also has a test that runs with nothing
+else installed (`symbiont/tests`, `embodiment/tests`, `modality/tests`,
+`environment/tests`).

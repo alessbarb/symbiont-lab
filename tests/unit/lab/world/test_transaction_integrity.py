@@ -10,10 +10,10 @@ from unittest.mock import patch
 
 import pytest
 
-from embodiment.world.deferred import DeferredEffect
 from environment.genesis_v1 import build_ground_truth
 from environment.state import TickAborted
 from environment.topology import HexTopology
+from lab.integration.world.deferred import DeferredEffect
 from lab.world.population import PopulationGenesisRuntime, founder_placement
 
 

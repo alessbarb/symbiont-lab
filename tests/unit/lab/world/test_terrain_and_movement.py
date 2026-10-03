@@ -324,7 +324,7 @@ def test_substrate_history_can_open_and_close_traversal_without_new_action_type(
 
 
 def test_population_observation_changes_after_same_opaque_motor_consequence():
-    from embodiment.world.adapter import local_substrate_signals
+    from lab.integration.world.adapter import local_substrate_signals
 
     topo = HexTopology(width=4, height=4)
     gt = build_ground_truth()
@@ -399,8 +399,8 @@ def test_motor_actuation_commits_substrate_impulse_event_without_new_world_actio
 
 
 def test_clean_population_observation_contains_no_apparatus_resource_hazard_or_occupancy_ids():
-    from embodiment.world.adapter import local_substrate_signals
     from environment.observation import LOCAL_OCCUPANCY_SIGNAL
+    from lab.integration.world.adapter import local_substrate_signals
 
     truth = build_ground_truth()
     pop = PopulationGenesisRuntime(

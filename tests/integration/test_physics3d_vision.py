@@ -9,8 +9,8 @@ import pytest
 pybullet = pytest.importorskip("pybullet")
 pybullet_data = pytest.importorskip("pybullet_data")
 
-from embodiment.physics3d.vision import VisionHumanoidPhysics
 from environment.physics3d.environments import build_environment, environment_recipe
+from lab.integration.physics3d.bodies import ANTHROPOMORPHIC_V6_VISION
 from lab.physics3d.engine import run
 from lab.physics3d.persistence import read_symbiont_bundle_manifest
 
@@ -23,7 +23,7 @@ def _eye() -> dict[str, float]:
         pybullet.setAdditionalSearchPath(pybullet_data.getDataPath(), physicsClientId=client)
         pybullet.loadURDF("plane.urdf", physicsClientId=client)
         build_environment(pybullet, client, environment_recipe("vision-nursery-v1"))
-        return VisionHumanoidPhysics(pybullet, client).sample_receptors()
+        return ANTHROPOMORPHIC_V6_VISION.apparatus_factory(pybullet, client).sample_receptors()
     finally:
         pybullet.disconnect(client)
 

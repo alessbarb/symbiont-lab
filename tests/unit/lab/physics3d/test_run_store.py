@@ -4,8 +4,8 @@ import json
 
 import pytest
 
-from embodiment.physics3d.bodies import DEFAULT_BODY_REGISTRY, BodyDescriptor, BodyRegistry
 from lab.app.physics3d.runs import Physics3DRunStore
+from lab.integration.physics3d.bodies import DEFAULT_BODY_REGISTRY, BodyDescriptor, BodyRegistry
 
 
 def test_run_store_prepares_new_organism_and_fresh_body(tmp_path) -> None:

@@ -12,37 +12,55 @@ Classification follows `INSTRUCTIONS.md` §23. Nothing here was fixed silently.
 | Remove the desktop workbench | DONE. `lab.app.physics3d` stays: the server uses its run store and session, and the Physics3D engine uses its Qt viewer. |
 | Remove the lab demo and the Observatory front-end | DONE |
 | Domain packages named after the domain, not after the organism | DONE |
-| Move into `modality/` and `embodiment/` what belongs there | PARTLY: see OI-3 and OI-4 |
+| Move into `modality/` and `embodiment/` what belongs there | PARTLY: see OI-3 |
+| The four domain libraries are peers with no first-party dependency on each other or on the Lab; the Lab is the only composition root | DONE for the packages as they stand (Import Linter, hard test gate, per-library isolated tests). Not yet true of code still inside the organism: OI-3 |
+| Enforce the boundaries with Import Linter | DONE: three contracts in `pyproject.toml`; runs in CI, pre-commit and the test suite |
 
 ## Architecture debt
 
-**OI-3 — Embodiment and Modality code still inside the organism.**
-`symbiont.core.embodiment`, `symbiont.actuation`, `symbiont.sensory` and
-`symbiont.host` mix organism state with coupling and channel code, and the core
-depends on them heavily (`core.orchestration` → `actuation` 46 imports, → `host`
-38; `core.domains` → `actuation` 48). The organism core also builds concrete
-host modality implementations itself: `OrganismRuntime.__init__` chooses and
-constructs `host.providers.{stdlib, stdlib_readings, interoception,
-linux_surfaces, portable_surfaces}` from its own flags. Moving those providers
-to `modality` needs the constructor to receive them instead, which changes how
-every caller creates an organism. That is a design decision, not a file move.
-Pinned by a ratchet test so it cannot grow.
+**OI-3 — The organism still owns embodiment and modality code.**
+The target is that Symbiont keeps only generic signal machinery, learning and
+sensory plasticity, and receives everything concrete through a boundary of its
+own, connected by the Lab. Today:
+
+- `OrganismRuntime.__init__` must not create concrete modality implementations,
+  and it does: from its own flags it chooses and constructs
+  `host.providers.{stdlib, stdlib_readings, interoception, linux_surfaces,
+  portable_surfaces}`. Those implementations should live outside the organism
+  (host modality) and be injected by the Lab. Doing it changes how every caller
+  creates an organism (`OrganismRuntime()` with no arguments is used throughout
+  the tests and studies), so it was not done mechanically. Pinned by a ratchet
+  test so it cannot grow.
+- `symbiont.core.embodiment`, `symbiont.actuation`, `symbiont.sensory` and
+  `symbiont.host` mix organism state with coupling and channel code, and the
+  core depends on them heavily (`core.orchestration` → `actuation` 46 imports,
+  → `host` 38; `core.domains` → `actuation` 48). Each has to be split by
+  knowledge boundary; nothing in them may move to `embodiment` or `modality`
+  while it still imports the organism.
 
 **OI-4 — What remains in `lab.physics3d` and `lab.world`.**
-Engine, runtime and persistence compose organism, body and environment and
-import `lab.app`, `lab.modeling`, `lab.observation`; they are Lab composition.
-`resource` is environment code but imports `SurfaceMaterial` from the humanoid
-body, and environment must not depend on embodiment: `SurfaceMaterial` has to
-move to environment first. `observer_semantics` is observer-only labelling and
-belongs to the Lab. `lab.world` keeps the population runtime, transactions and
-persistence.
+Engine, runtime and persistence compose organism, body and environment; they
+are Lab composition and stay. `resource` is environment code but imports
+`SurfaceMaterial` from the humanoid body; since environment must not import
+embodiment, it needs its own material description and the Lab to map one onto
+the other. `observer_semantics` is observer-only labelling and belongs to the
+Lab. `lab.world` keeps the population runtime, transactions and persistence.
 
-**OI-5 — Consumers import organism internals, not `symbiont.api`.**
-Lab has 793 import edges into `symbiont.*`, embodiment 50. `symbiont.api`
-exists and is tested, but nothing uses it yet, and it does not cover what
-embodiment needs (host contracts and readings, actuator surface, sensory
-system). Whether `symbiont.modeling` and `symbiont.cognition.generative` are
-public surface is an open decision.
+**OI-5 — The Lab imports organism internals, not `symbiont.api`.**
+This applies to the Lab only. The other three libraries import nothing from
+Symbiont, and the fix for them was never to widen the API: code that needed the
+organism moved to `lab.integration`. The Lab has 843 import edges into
+`symbiont.*`; `symbiont.api` exists and is tested but nothing uses it yet.
+Whether `symbiont.modeling` and `symbiont.cognition.generative` are public
+surface is an open decision.
+
+**OI-17 — Domain contracts are implicit.**
+The libraries meet in the Lab through plain values and callables (a receptor
+array factory, opaque receptor ids, `Mapping[str, float]` samples), not through
+named protocols. `lab.integration.physics3d.apparatus` still builds organism
+types (`SensorReading`, `Capability`, `ActuatorConstitution`) directly from
+body internals. Giving each library small contracts of its own, as the target
+describes, is not done.
 
 **OI-6 — PRE-EXISTING: import cycle inside the organism.**
 `symbiont.cognition.checkpoint` and `symbiont.host.acclimation` fail with
@@ -62,10 +80,11 @@ organism itself uses it in 25 places, tests in 85. Left as is.
 `characterize_kernel.py`, `aggregate_e8_*`, `run_e8_*`, `reprofile_performance.py`
 are Lab analysis; `scripts/agentctl.py` and `scripts/governance/` are governance.
 
-**OI-8 — Tests are not split per domain.** `tests/` spans all domains and keeps
-its old directory names (`tests/unit/lab/physics3d` now also tests
-`embodiment`). Only `symbiont/tests` and `lab/src/lab/observatory/tests` live
-with their domain.
+**OI-8 — Tests are not split per domain.** `tests/` spans all domains, keeps its
+old directory names and needs the whole workspace. Each library has only a
+small test of its own that runs with nothing else installed (`symbiont/tests`,
+`embodiment/tests`, `modality/tests`, `environment/tests`); the bulk of each
+library's unit tests has not been moved beside it.
 
 **OI-9 — Runner scripts of completed experiments use the old package names.**
 `lab/experiments/world/genesis-v1/{run_w01_w02,run_w02_retry,run_w03,view_world}.py`
@@ -80,8 +99,7 @@ integration tests pass, but `agentctl`'s equivalence suite was not run.
 `.github/workflows/` point at the new paths, and their unit tests pass.
 Frozen-evidence detection keys on `lab/experiments/`. No `agentctl publish` or
 CI run was done, `ci_plan.py` still names an `observatory` lane, and
-`change-surfaces.toml` has no entries for `embodiment/` or `modality/`, so a
-change there classifies as ORDINARY.
+the CI job names (`observatory-tests`, …) are unchanged.
 
 **OI-12 — Docs still describe removed systems.** `README.md` was updated to the
 new layout. Links to deleted files were turned into plain text and five rows

@@ -18,23 +18,29 @@ organism later touches one package only.
 
 ## Elements extracted into the domains
 
+The four domain libraries are peers: none imports another. A module that knew
+two domains went to `lab/src/lab/integration/`.
+
 | Old path (under `src/symbiont_lab/`) | New path | Domain |
 |---|---|---|
-| `physics3d/vision.py`: `PerceptualTopology`, `VisualApparatus`, array constants | `modality/src/modality/vision.py` | MODALITY |
-| `physics3d/vision.py`: `VisionHumanoidPhysics`, receptor ids, body kind | `embodiment/src/embodiment/physics3d/vision.py` | EMBODIMENT |
-| `physics3d/humanoid.py` | `embodiment/src/embodiment/physics3d/humanoid.py` | EMBODIMENT |
-| `physics3d/articulated.py`, `alternative_bodies.py`, `bodies.py` | `embodiment/src/embodiment/physics3d/` | EMBODIMENT |
-| `physics3d/apparatus.py` | `embodiment/src/embodiment/physics3d/apparatus.py` | EMBODIMENT |
-| `physics3d/reembodiment.py`, `longitudinal.py` | `embodiment/src/embodiment/physics3d/` | EMBODIMENT |
-| `world/adapter.py`, `world/deferred.py` | `embodiment/src/embodiment/world/` | EMBODIMENT |
+| `physics3d/vision.py`: `PerceptualTopology`, `VisualApparatus` | `modality/src/modality/vision.py` | MODALITY |
+| `physics3d/vision.py`: body kind, receptor ids, head mount, `VisionHumanoidPhysics` (array now injected) | `embodiment/src/embodiment/physics3d/vision.py` | EMBODIMENT |
+| `physics3d/humanoid.py`, `articulated.py`, `alternative_bodies.py`, `longitudinal.py` | `embodiment/src/embodiment/physics3d/` | EMBODIMENT |
+| `physics3d/bodies.py`: descriptors, `BodyRegistry` | `embodiment/src/embodiment/physics3d/bodies.py` | EMBODIMENT |
+| `physics3d/bodies.py`: `ANTHROPOMORPHIC_V6_VISION`, `DEFAULT_BODY_REGISTRY` | `lab/src/lab/integration/physics3d/bodies.py` | LAB (embodiment + modality) |
+| `physics3d/apparatus.py` | `lab/src/lab/integration/physics3d/apparatus.py` | LAB (embodiment + symbiont) |
+| `physics3d/reembodiment.py` | `lab/src/lab/integration/physics3d/reembodiment.py` | LAB (embodiment + symbiont) |
+| `world/adapter.py`, `world/deferred.py` | `lab/src/lab/integration/world/` | LAB (environment + symbiont) |
 | `physics3d/environments.py` | `environment/src/environment/physics3d/environments.py` | ENVIRONMENT |
 | `world/terrain.py`, `genesis_v1.py`, `genesis_v2.py` | `environment/src/environment/` | ENVIRONMENT |
 | `src/symbiont/environment/rng.py` | `lab/src/lab/studies/common/rng.py` | LAB |
 | `RunCoordinator` in `workbench/runs.py` | `lab/src/lab/workbench/coordinator.py` | LAB |
 
-All moved verbatim except `vision.py`, which was split in two. Every importer was
-rewritten; nothing forwards the old path. Validation for all rows: full suite
-and architecture gates.
+Moved verbatim except `vision.py` and `bodies.py`, which were split by knowledge
+boundary. One behaviour-neutral change: the head mount pose moved from the
+receptor array class to the body and is passed in at composition. Every importer
+was rewritten; nothing forwards an old path. Validation for all rows: full
+suite, Import Linter contracts, architecture gates.
 
 New in the organism: `symbiont/src/symbiont/api.py` (public surface, re-exports only).
 

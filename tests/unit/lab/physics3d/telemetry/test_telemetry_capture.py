@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from embodiment.physics3d.apparatus import PhysicsReadingProvider
+from lab.integration.physics3d.apparatus import PhysicsReadingProvider
 
 
 class FakeApparatus:

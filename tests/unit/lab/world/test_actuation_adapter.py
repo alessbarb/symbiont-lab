@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from embodiment.world.adapter import (
+from lab.integration.world.adapter import (
     ActuationAdapter,
     ActuationBinding,
     ActuationBindingConstitution,
