@@ -77,13 +77,13 @@ notes = "ADR-0062: profile v1 canonical in every scope, closed studies bound to 
 [programmes.reembodiment-functional-transfer-v1]
 state = "blocked"
 priority = "P0"
-blocked_by = "competence-establishment-evidence-v1"
-notes = "#274, acceptance test of the owner's re-embodiment requirement. r6 and r7 development stages recorded as not runnable; r7 found a balanced Body family but development organisms do not hold a valid binding at once because competences established on two samples are later demoted. No confirmation seed has run."
+blocked_by = "owner-decision"
+notes = "#274, acceptance test of the owner's re-embodiment requirement. r6 and r7 development stages recorded as not runnable; r7 found a balanced Body family but D was not reached because a few slow development organisms do not hold a valid binding by D_max = 1000. Competence Establishment Evidence v1 showed a stricter gate does not help. Next revision awaits the owner. No confirmation seed has run."
 
 [programmes.competence-establishment-evidence-v1]
-state = "active"
+state = "closed-bounded"
 priority = "P0"
-notes = "Preregistration approved 2026-10-03 (27-arm establishment-gate selection on own seeds, then confirmation against the current gate). Apparatus in progress; nothing run."
+notes = "Closed 2026-10-03 with no change: the selection stage picked the current establishment gate (2, 0.60), median T_stable 392 ticks against 814 for the next of 27 gates; confirmation not run."
 
 [programmes.world]
 state = "maintenance-only"

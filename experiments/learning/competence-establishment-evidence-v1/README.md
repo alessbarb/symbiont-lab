@@ -52,4 +52,31 @@ The result is bounded to the synthetic causal Body with four actuators, the
 listed seeds and the 2000-tick horizon. The protocol is
 `docs/design/experimentation/competence-establishment-evidence-v1.md`.
 
-Nothing has been run yet.
+## Selection stage (2026-10-03): no change
+
+Governed run `cee-v1-selection-parallel-20261003` at commit `7d669432`: the six
+parts with four workers each, 73 minutes. The parts are in `selection-parts/`
+and the receipt, without host-specific paths, is `selection-receipt.json`. The
+merge (`select`) is a pure, deterministic function of the six part files and was
+applied to them outside the launcher; its output is `selection.json`.
+
+**The selection rule picked the current gate `(2, 0.60)`.** By the
+preregistration this is the result **no change**, and the confirmation stage is
+not run.
+
+| Gate `(S, C)` | Median `T_stable` | Median holding fraction | Median false establishment |
+| --- | --- | --- | --- |
+| (2, 0.60), current | 392 | 0.935 | 0.473 |
+| (3, 0.60) | 814 | 0.874 | 0.360 |
+| (2, 0.70) | 849.5 | 0.751 | 0.407 |
+| (4, 0.60) | 899.5 | 0.873 | 0.408 |
+| (5, 0.60) | 1224 | 0.936 | 0.310 |
+| 16 of the 27 gates | 2000 (no stable binding within the horizon) | | |
+
+Every stricter gate delays the first stable binding. Stricter gates do reduce
+false establishment, but they do not make the binding stable sooner, which is
+the preregistered measure. The full per-arm table is in `selection.json`.
+
+A first attempt as one serial run (`cee-v1-selection-20261003`) and a serial
+part 0 (`cee-v1-selection-part0-20261003`) were stopped by the operator before
+completion and produced no result.
