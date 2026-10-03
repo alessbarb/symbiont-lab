@@ -76,7 +76,7 @@ equivalence = ["established-anthropomorphic", "developed-cognition"]
 
 [[surface]]
 id = "reembodiment"
-paths = ["lab/src/lab/integration/physics3d/reembodiment.py", "symbiont/src/symbiont/**"]
+paths = ["symbiont/src/symbiont/core/embodiment/transition.py", "symbiont/src/symbiont/**"]
 classification = "SCIENTIFIC"
 symbols = ["reembodiment", "embodiment", "BodySchema", "body_schema"]
 equivalence = ["reembodied-established"]

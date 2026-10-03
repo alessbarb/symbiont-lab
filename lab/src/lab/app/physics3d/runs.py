@@ -19,7 +19,6 @@ from lab.experience import (
     run_definition,
 )
 from lab.integration.physics3d.bodies import DEFAULT_BODY_REGISTRY, BodyRegistry
-from lab.integration.physics3d.reembodiment import lifecycle_summary
 from lab.observation.cadence import ExecutionRates
 from lab.physics3d.engine import (
     DEFAULT_STATE_DIR,
@@ -31,6 +30,7 @@ from lab.physics3d.persistence import (
     read_symbiont_bundle_runtime,
 )
 from symbiont import __version__ as symbiont_version
+from symbiont.core.embodiment.transition import lifecycle_summary
 
 DEFAULT_LAB_STATE_ROOT = DEFAULT_STATE_DIR.parent
 DEFAULT_SEED = 42

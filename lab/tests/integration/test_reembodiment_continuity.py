@@ -11,10 +11,6 @@ import json
 
 import pytest
 
-from lab.integration.physics3d.reembodiment import (
-    PhysicsEmbodimentDescriptor,
-    prepare_fresh_embodiment_checkpoint,
-)
 from lab.studies.learning.agency_acquisition_body import (
     CausalBody,
     build_subject,
@@ -23,6 +19,10 @@ from lab.studies.learning.agency_acquisition_body import (
 )
 from symbiont.actuation.binding import BindingStatus
 from symbiont.cognition.limits import KernelLimits
+from symbiont.core.embodiment.transition import (
+    EmbodimentDescriptor,
+    prepare_fresh_embodiment_checkpoint,
+)
 from symbiont.host.checkpoint import CheckpointError
 from symbiont.host.continuity import REGISTER, Reembodiment
 from symbiont.modeling.private_runtime import PrivateModelOrganismRuntime
@@ -81,7 +81,7 @@ class _Case:
         self.transformed = prepare_fresh_embodiment_checkpoint(
             self.previous,
             self.fresh,
-            contract=PhysicsEmbodimentDescriptor(
+            contract=EmbodimentDescriptor(
                 body_kind="causal-body-b", receptor_count=6, effector_count=6
             ),
             canonical_contract_fingerprint=self.body_b.surface.contract_fingerprint,
@@ -263,7 +263,7 @@ def test_the_whole_lifecycle_holds_per_register_entry(case: _Case) -> None:
     transformed = prepare_fresh_embodiment_checkpoint(
         resaved,
         case.fresh,
-        contract=PhysicsEmbodimentDescriptor(
+        contract=EmbodimentDescriptor(
             body_kind="causal-body-b", receptor_count=6, effector_count=6
         ),
         canonical_contract_fingerprint=case.body_b.surface.contract_fingerprint,

@@ -1,4 +1,4 @@
-"""Bounded longitudinal memory and epoch summaries for Physics3D re-embodiment."""
+"""Bounded longitudinal memory and epoch summaries across the organism's embodiments."""
 
 from __future__ import annotations
 

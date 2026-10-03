@@ -1,4 +1,10 @@
-"""Body-independent Symbiont lifecycle and re-embodiment transforms."""
+"""How the organism transforms its own state when its embodiment changes.
+
+A caller describes the new embodiment by an opaque contract (kind, receptor and
+effector counts) and asks for the transition. What is kept, archived or cleared
+is decided here, in terms of the organism's own state; no simulator, body
+implementation or apparatus is known to this module.
+"""
 
 from __future__ import annotations
 
@@ -6,7 +12,13 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, Mapping
 
-from embodiment.physics3d.longitudinal import (
+from symbiont.actuation.surface import ActuatorSurface
+from symbiont.core.embodiment import (
+    BodySpecificMemory,
+    EmbodimentArchive,
+    archive_episode_checkpoint,
+)
+from symbiont.core.embodiment.longitudinal import (
     CONTRACT_FINGERPRINT_SCHEMA_VERSION,
     append_epoch_summary,
     archive_contract_memory,
@@ -15,12 +27,6 @@ from embodiment.physics3d.longitudinal import (
     historical_motor_candidates,
     inject_memory_candidates,
     memory_for_contract,
-)
-from symbiont.actuation.surface import ActuatorSurface
-from symbiont.core.embodiment import (
-    BodySpecificMemory,
-    EmbodimentArchive,
-    archive_episode_checkpoint,
 )
 from symbiont.host.checkpoint import stamp_checkpoint_identity
 from symbiont.host.continuity import LongitudinalContract
@@ -34,7 +40,7 @@ _CANONICAL_CONTRACT_FINGERPRINT_SCHEMA_VERSION = 3
 
 
 @dataclass(frozen=True, slots=True)
-class PhysicsEmbodimentDescriptor:
+class EmbodimentDescriptor:
     body_kind: str
     receptor_count: int
     effector_count: int
@@ -56,9 +62,9 @@ def _body_vital_state(payload: Mapping[str, Any]) -> str:
     return "unknown"
 
 
-def _legacy_contract(_payload: Mapping[str, Any]) -> PhysicsEmbodimentDescriptor:
+def _legacy_contract(_payload: Mapping[str, Any]) -> EmbodimentDescriptor:
     # Every pre-epoch portable Physics3D checkpoint used anthropomorphic-v4.
-    return PhysicsEmbodimentDescriptor("anthropomorphic-v4", 107, 62)
+    return EmbodimentDescriptor("anthropomorphic-v4", 107, 62)
 
 
 def migrate_temporal_domains(payload: Mapping[str, Any]) -> dict[str, Any]:
@@ -376,7 +382,7 @@ def migrate_legacy_memory_store(
 
 def _legacy_equivalent_contract_fingerprint(
     fresh: Mapping[str, Any],
-    descriptor: PhysicsEmbodimentDescriptor,
+    descriptor: EmbodimentDescriptor,
 ) -> str:
     """Reconstruct the pre-v3 contract identity for one equivalent interface."""
     legacy_surface = ActuatorSurface.from_count(
@@ -402,7 +408,7 @@ def prepare_fresh_embodiment_checkpoint(
     previous: Mapping[str, Any],
     fresh: Mapping[str, Any],
     *,
-    contract: PhysicsEmbodimentDescriptor,
+    contract: EmbodimentDescriptor,
     canonical_contract_fingerprint: str | None = None,
 ) -> dict[str, Any]:
     """Move one unchanged Symbiont into a fresh Body.
@@ -462,7 +468,7 @@ def prepare_fresh_embodiment_checkpoint(
         current = {**_legacy_contract(previous).as_dict(), "started_tick": 0}
         history = []
 
-    previous_contract = PhysicsEmbodimentDescriptor(
+    previous_contract = EmbodimentDescriptor(
         body_kind=str(current.get("body_kind") or "unknown"),
         receptor_count=int(current.get("receptor_count") or 0),
         effector_count=int(current.get("effector_count") or 0),
@@ -721,7 +727,7 @@ def prepare_fresh_embodiment_checkpoint(
 def update_lifecycle_for_checkpoint(
     payload: dict[str, Any],
     *,
-    contract: PhysicsEmbodimentDescriptor,
+    contract: EmbodimentDescriptor,
     state: str,
     metrics: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
@@ -819,7 +825,7 @@ def update_lifecycle_for_checkpoint(
 
 
 __all__ = [
-    "PhysicsEmbodimentDescriptor",
+    "EmbodimentDescriptor",
     "lifecycle_summary",
     "migrate_legacy_memory_store",
     "migrate_temporal_domains",

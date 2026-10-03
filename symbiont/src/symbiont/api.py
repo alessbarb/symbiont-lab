@@ -10,6 +10,10 @@ It deliberately carries no modality-, body- or physics-specific types.
 
 from symbiont import __version__
 from symbiont.core.embodiment.reembodiment import begin_reembodiment, replace_body
+from symbiont.core.embodiment.transition import (
+    EmbodimentDescriptor,
+    prepare_fresh_embodiment_checkpoint,
+)
 from symbiont.core.lineage.heritage import HeritagePattern, SpeciesHeritage
 from symbiont.core.orchestration.canonical_birth import restore_resident_with_canonical_cognition
 from symbiont.core.orchestration.governor import (
@@ -59,5 +63,7 @@ __all__ = [
     # re-embodiment
     "begin_reembodiment",
     "replace_body",
+    "EmbodimentDescriptor",
+    "prepare_fresh_embodiment_checkpoint",
     "__version__",
 ]

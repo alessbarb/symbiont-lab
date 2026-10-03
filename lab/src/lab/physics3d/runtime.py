@@ -37,13 +37,6 @@ from lab.integration.physics3d.apparatus import (
     physics3d_sensory_system,
 )
 from lab.integration.physics3d.bodies import DEFAULT_BODY_REGISTRY
-from lab.integration.physics3d.reembodiment import (
-    PhysicsEmbodimentDescriptor,
-    migrate_legacy_memory_store,
-    migrate_temporal_domains,
-    prepare_fresh_embodiment_checkpoint,
-    update_lifecycle_for_checkpoint,
-)
 from lab.observation.subsystem_status import generative_status
 from lab.physics3d.observer_semantics import (
     action_dimension_semantics,
@@ -69,6 +62,13 @@ from symbiont.core.embodiment import (
 )
 from symbiont.core.embodiment.metabolism import MetabolicLedger
 from symbiont.core.embodiment.physiology import LivingBodyState, VitalState
+from symbiont.core.embodiment.transition import (
+    EmbodimentDescriptor,
+    migrate_legacy_memory_store,
+    migrate_temporal_domains,
+    prepare_fresh_embodiment_checkpoint,
+    update_lifecycle_for_checkpoint,
+)
 from symbiont.host.checkpoint import verify_checkpoint_identity
 from symbiont.host.continuity import LongitudinalContract
 from symbiont.host.discovery import HostDiscovery
@@ -476,7 +476,7 @@ class PyBulletEmbodimentRuntime:
             reading_providers=(reading_provider,),
         )
 
-        contract = PhysicsEmbodimentDescriptor(
+        contract = EmbodimentDescriptor(
             body_kind=self.body_descriptor.body_kind,
             receptor_count=self.body_descriptor.receptor_count,
             effector_count=self.body_descriptor.effector_count,

@@ -29,6 +29,8 @@ CANONICAL = {"prepare_fresh_embodiment_checkpoint"}
 # The package that defines the seed and re-exports it is not a study.
 DEFINING = {
     SRC / "symbiont" / "core" / "__init__.py",
+    # the public surface re-exports the transition; it builds nothing itself
+    SRC / "symbiont" / "api.py",
     SRC / "symbiont" / "core" / "orchestration" / "individual.py",
     SRC / "symbiont" / "core" / "orchestration" / "clean_embodiment_seed.py",
 }

@@ -25,10 +25,6 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Sequence
 
-from lab.integration.physics3d.reembodiment import (
-    PhysicsEmbodimentDescriptor,
-    prepare_fresh_embodiment_checkpoint,
-)
 from lab.studies.learning.agency_acquisition_body import (
     CausalBody,
     build_subject,
@@ -36,6 +32,10 @@ from lab.studies.learning.agency_acquisition_body import (
 )
 from symbiont.actuation.binding import BindingStatus
 from symbiont.cognition.limits import KernelLimits
+from symbiont.core.embodiment.transition import (
+    EmbodimentDescriptor,
+    prepare_fresh_embodiment_checkpoint,
+)
 from symbiont.core.organism_profile import CANONICAL
 from symbiont.host.checkpoint import verify_checkpoint_identity
 from symbiont.host.continuity import REGISTER, LongitudinalContract, Reembodiment
@@ -231,7 +231,7 @@ def _entry_checkpoint(
     transformed = prepare_fresh_embodiment_checkpoint(
         previous,
         fresh,
-        contract=PhysicsEmbodimentDescriptor(
+        contract=EmbodimentDescriptor(
             body_kind="causal-body-transfer-target",
             receptor_count=ACTUATORS,
             effector_count=ACTUATORS,
