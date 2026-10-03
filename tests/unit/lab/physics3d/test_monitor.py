@@ -177,6 +177,21 @@ def test_camera_state_is_bounded_for_safe_passive_rendering():
     assert bounded.target_z == 2.5
 
 
+def test_viewer_ecology_fields_cover_all_rendered_values():
+    from symbiont_lab.app.physics3d.monitor.viewer import ECOLOGY_FIELD_LABELS
+
+    assert {key for key, _ in ECOLOGY_FIELD_LABELS} == {
+        "reserve",
+        "distance",
+        "progress",
+        "displacement",
+        "repertoire",
+        "competences",
+        "control",
+        "sources",
+    }
+
+
 def test_viewer_process_poll_commands_and_stop():
     import time
     from multiprocessing import get_context

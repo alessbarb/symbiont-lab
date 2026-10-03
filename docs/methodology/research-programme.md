@@ -812,11 +812,16 @@ This block follows A1–A4 and E8 and precedes the causal remediation programme.
 
 ### A5 — Observation independence
 
-**Status:** PARTIAL.
+**Status:** CLOSED-BOUNDED for the observation-independence contract; the broader performance decomposition is not assessed by this closure.
 
-Observer OFF/ON equivalence infrastructure already exists.
+Observer OFF/ON equivalence infrastructure already exists. The bounded gate
+passed on two seeds across three canonical setups (anthropomorphic-v6 flat,
+and anthropomorphic-v6-vision in vision-nursery D1-v1 and D1-v2), comparing
+organism state, motor intent/actuation, physical checkpoints and tick after
+each of 16 ticks. See `research/perf/2026-10-p1-a5-a6-evidence.md`.
 
-The final contract must explicitly cover the current canonical organism path.
+The recorded bounded contract covers the tested canonical organism setups;
+unlisted bodies, environments, seeds and horizons are not claimed.
 
 #### Required equality
 
@@ -833,7 +838,8 @@ Observer state changes must not alter:
 
 #### Profiling
 
-Performance profiling must separately measure:
+The wider performance decomposition remains outstanding and must separately
+measure:
 
 ```text
 causal runtime
@@ -852,10 +858,18 @@ No technology migration is justified solely by aggregate timing.
 
 ### A6 — Equivalence harness
 
-**Status:** PARTIAL.
+**Status:** CLOSED-BOUNDED for the current canonical Physics3D loop and its shared deterministic-replay and causal-perturbation harness.
 
-Any performance or infrastructure refactor must pass a shared causal
-equivalence harness.
+The focused equivalence-harness validation passed. Any performance or
+infrastructure refactor must continue to pass a shared causal equivalence
+harness. See `research/perf/2026-10-p1-a5-a6-evidence.md`.
+
+The Physics3D harness compares a per-tick trace containing the organism
+checkpoint, motor intents and delivered actuations, physical checkpoint and
+tick, `Tick3D` record (excluding host-load timing fields), and passive observer projection. It also compares
+per-tick model lifecycle/learning state and run-level provenance, training,
+promotion and model-file outcomes. Other domains or new causal boundaries must
+extend this trace rather than assume they are covered.
 
 This applies to changes in:
 

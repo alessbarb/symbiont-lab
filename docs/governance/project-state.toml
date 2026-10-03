@@ -1,5 +1,5 @@
 schema_version = 2
-updated = "2026-10-02"
+updated = "2026-10-03"
 canonical_roadmap = "docs/roadmap.md"
 current_gate = "phase-a-p1"
 
@@ -65,9 +65,9 @@ priority = "P0"
 notes = "Owner-closed for governed run publication under ADR-0061; multi-file checkpoints written during a run remain explicitly out of scope."
 
 [programmes.phase-a-p1]
-state = "next"
+state = "active"
 priority = "P1"
-notes = "A5-A7 are unblocked by P0 closure; no P1 implementation or scientific campaign has started."
+notes = "A5 observation-independence and A6 shared equivalence harness are closed-bounded on recorded tests; A7 numerical/mechanical stability audit remains active."
 
 [programmes.world]
 state = "maintenance-only"
@@ -85,7 +85,7 @@ state = "closed-bounded"
 items = ["A1-fault-injection", "A2-hermetic-execution", "A3-dependency-lock", "A4-generational-commit", "A8-E8"]
 
 [phases.P1]
-state = "next"
+state = "active"
 items = ["A5-observation-independence", "A6-equivalence-harness", "A7-numerical-mechanical-stability"]
 
 [phases.P2]
