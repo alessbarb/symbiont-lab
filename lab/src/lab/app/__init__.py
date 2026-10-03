@@ -1,4 +1,1 @@
-"""Primary Symbiont Lab desktop application layer.
-
-Scientific logic remains in experiments, studies, world and physics3d.
-"""
+"""Physics3D run management and viewer used by the Lab server and engine."""

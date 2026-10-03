@@ -1,41 +1,3 @@
-from pathlib import Path
-
-from lab.app.discovery import discover_experiments
-from lab.app.models import RunKind, RunStatus
-
-
-def test_desktop_run_model_is_explicit():
-    assert RunKind.EXPERIMENT.value == "experiment"
-    assert RunKind.PHYSICS3D.value == "physics3d"
-    assert RunStatus.RUNNING.value == "running"
-
-
-def test_discover_experiments_reads_declarative_catalog(tmp_path: Path):
-    exp = tmp_path / "learning" / "demo"
-    exp.mkdir(parents=True)
-    (exp / "experiment.toml").write_text(
-        """schema_version = 1
-[experiment]
-id = "demo"
-title = "Demo experiment"
-protocol = "simulate"
-protocol_version = 1
-hypothesis = "demo hypothesis"
-success_criteria = "demo criteria"
-[world]
-hosts = 4
-steps = 12
-seed = 7
-""",
-        encoding="utf-8",
-    )
-    entries = discover_experiments(tmp_path)
-    assert len(entries) == 1
-    assert entries[0].category == "learning"
-    assert entries[0].experiment_id == "demo"
-    assert entries[0].steps == 12
-
-
 def test_physics3d_monitor_facade_reexports_private_contract():
     from lab.app.physics3d.monitor import viewer as facade
     from lab.app.physics3d.monitor import viewer as implementation
@@ -82,17 +44,6 @@ def test_embedded_viewer_api_is_exposed():
     assert physics3d_monitor.QueueViewerBridge is not None
 
 
-def test_workbench_has_physics_focus_mode():
-    import inspect
-
-    from lab.app.main_window import SymbiontLabWindow
-
-    source = inspect.getsource(SymbiontLabWindow._set_physics_focus)
-    assert "forget(self.left_sidebar)" in source
-    assert "forget(self.right_sidebar)" in source
-    assert "physics_controls" in source
-
-
 def test_embedded_viewer_renders_to_actual_viewport_size():
     import inspect
 
@@ -117,18 +68,6 @@ def test_mission_control_uses_resizable_internal_panes():
     assert "workspace.forget(right_panel)" in source
 
 
-def test_modern_workbench_shell_has_persistent_navigation_rail():
-    import inspect
-
-    from lab.app.main_window import SymbiontLabWindow
-
-    source = inspect.getsource(SymbiontLabWindow._build_body)
-    assert "self.nav_rail" in source
-    assert "Experiments" in source
-    assert "Body" in source
-    assert "Output" in source
-
-
 def test_embedded_monitor_does_not_repeat_mission_control_branding():
     import inspect
 
@@ -136,18 +75,6 @@ def test_embedded_monitor_does_not_repeat_mission_control_branding():
 
     source = inspect.getsource(physics3d_monitor._viewer_main)
     assert 'text="BODY" if embedded else "SYMBIONT 3D"' in source
-
-
-def test_workspace_navigation_replaces_visible_notebook_tabs():
-    import inspect
-
-    from lab.app.main_window import SymbiontLabWindow
-
-    style_source = inspect.getsource(SymbiontLabWindow._configure_style)
-    body_source = inspect.getsource(SymbiontLabWindow._build_body)
-    assert 'style.layout("Workspace.TNotebook.Tab", [])' in style_source
-    assert 'style="Workspace.TNotebook"' in body_source
-    assert "_nav_buttons" in body_source
 
 
 def test_viewer_supports_contextual_3d_selection():
@@ -198,18 +125,3 @@ def test_cognition_deep_dive_has_human_facing_knowledge_summary():
     assert 'knowledge_vars["world"]' in source
     assert 'knowledge_vars["agency"]' in source
     assert "never labels injected into cognition" in source
-
-
-def test_physics3d_cli_is_only_an_adapter_over_the_engine():
-    import inspect
-
-    from lab.app import physics3d_session, run_controller
-    from lab.physics3d import cli, engine
-
-    assert cli.run is engine.run
-    session_source = inspect.getsource(physics3d_session.Physics3DSession._run)
-    worker_source = inspect.getsource(run_controller._run_physics3d_worker)
-    assert "lab.physics3d.engine" in session_source
-    assert "lab.physics3d.cli" not in session_source
-    assert "lab.physics3d.engine" in worker_source
-    assert "lab.physics3d.cli" not in worker_source

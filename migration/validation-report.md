@@ -1,8 +1,6 @@
 # Validation report
 
 All runs are in this repository; the source repository was never executed.
-Nothing has been committed: the 14 commit-dependent failures below are a
-consequence of that.
 
 ## Test suite
 
@@ -13,27 +11,28 @@ consequence of that.
 | New layout only, paths adapted | same | 4200 passed, 10 failed (8 commit-dependent, 2 caused by the new `api.py`, since fixed) |
 | After first modality/embodiment extraction | same | 4212 passed, 8 failed (commit-dependent) |
 | After alias/forwarder removal | same | 4211 passed, 8 failed (commit-dependent) |
-| **Final** (legacy simulation, lab demo, Observatory front removed; packages renamed) | `pytest -o addopts= -n 8` over `tests` and `lab/src/lab/observatory/tests` | **3918 passed, 14 failed, 10 skipped, 2 xfailed** |
+| Legacy simulation, lab demo, Observatory front removed; packages renamed (uncommitted tree) | `pytest -o addopts= -n 8` over `tests` and `lab/src/lab/observatory/tests` | 3918 passed, 14 failed, 10 skipped, 2 xfailed |
+| Same tree, committed | same | 3932 passed, 0 failed, 10 skipped, 2 xfailed |
+| **Final**, desktop workbench removed | same | **3925 passed, 0 failed, 10 skipped, 2 xfailed** |
 
-The drop from 4456 to 3932 collected tests is deletion of tests for removed
+The drop from 4456 to 3925 passing tests is deletion of tests for removed
 code: legacy simulation and its studies, the Observatory front-end, the lab
-demo, archived tests. No test of surviving code was deleted to make the suite
+demo, the desktop workbench, archived tests. No test of surviving code was deleted to make the suite
 pass, with three exceptions listed under "Coverage given up".
 
 Skips and xfails are the same as in the baseline.
 
-### The 14 failures
+### The 14 failures seen before committing
 
-None is a behavioural regression in surviving code; each depends on git state
-that does not exist until the work is committed.
+None was a behavioural regression; each depended on git state that did not
+exist until the work was committed. All 14 pass on the committed tree.
 
 | Tests | Why |
 |---|---|
 | `tests/governance/test_publish_classification.py` (7) | the classifier loads `docs/governance/change-surfaces.toml` from the committed baseline (`git show <base>:…`), which still has the old paths. Verified in `scripts/governance/classify.py`. |
 | `tests/docs/test_all_markdown_links_resolve.py` (1) | iterates `git ls-files '*.md'`, which still lists deleted files (`ORGANISM.md`). `migration/tools/fix_markdown_links.py --check` over the working tree reports 0 broken links. |
-| `tests/unit/test_checkout_isolation.py::test_agentctl_run_start_records_verified_child_receipt` (6) | the child fails with `No module named 'lab'`. Inferred, not verified: the scientific child environment is built from the committed tree, where the package is still `symbiont_lab`. These passed before the rename. |
+| `tests/unit/test_checkout_isolation.py::test_agentctl_run_start_records_verified_child_receipt` (6) | the child failed with `No module named 'lab'`: the scientific child environment is built from the committed tree, where the package was still `symbiont_lab`. |
 
-Expected to pass after a commit; that has not been checked.
 
 ## Lint
 

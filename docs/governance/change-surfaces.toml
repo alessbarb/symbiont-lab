@@ -79,7 +79,6 @@ id = "lab-run-control"
 paths = [
   "lab/src/lab/app/physics3d/runs.py",
   "lab/src/lab/app/physics3d/session.py",
-  "lab/src/lab/app/run_controller.py",
   "lab/src/lab/workbench/runs.py",
 ]
 classification = "SCIENTIFIC"

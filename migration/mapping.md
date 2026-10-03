@@ -52,6 +52,7 @@ New in the organism: `symbiont/src/symbiont/api.py` (public surface, re-exports 
 | 12 protocols (`simulate`, `attention.*`, `evidence.*`, `heritage.*`, `learning.longitudinal-population-ecology`) and 7 experiment specs under `lab/experiments` | legacy protocols |
 | `src/symbiont_lab/observation/demo.py`, server/CLI `--demo` | synthetic UI telemetry |
 | `observatory/` front-end: `index.html`, `app.js`, `styles.css`, `communication/`, `projection/`, `render/`, `state/`, `transport/`, `ui/` | legacy Observatory UI, including its demo state |
+| `src/symbiont_lab/app/{main,main_window,discovery,models,run_controller}.py`, `physics3d_*.py` facades, `app` command, `symbiont-lab-gui` | desktop workbench |
 | `src/symbiont/core/lineage/heredity.py`, `core/canonical_birth.py`, telemetry and monitor facades, `tests/archive/` | removed-API stubs, forwarders, archived tests |
 
 Everything removed remains in the source repository and in this repository's

@@ -22,7 +22,6 @@ physics3d = [
 
 [project.scripts]
 symbiont-lab = "lab.cli.main:main"
-symbiont-lab-gui = "lab.app.main:main"
 symbiont-world = "lab.cli.world:main"
 symbiont-body-3d = "lab.physics3d.cli:main"
 symbiont-physics-audit = "lab.studies.physics3d.constitution_audit:main"

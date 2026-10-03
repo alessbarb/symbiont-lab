@@ -7,7 +7,7 @@ Classification follows `INSTRUCTIONS.md` §23. Nothing here was fixed silently.
 | # | Item | State |
 |---|---|---|
 | OI-A | Remove old persisted-format support: checkpoint migrations v1→v10 (`symbiont.host.checkpoint`), genome v1 migration (`symbiont.genetics.migration`), `core.cognition.bridge_compat`, telemetry v3/v4 readers, `tests/compatibility` | NOT STARTED. It rewrites the organism's load path; after it only schema 11 loads. |
-| OI-B | Remove the desktop workbench (`app` command) | NOT STARTED. `lab.app` is also imported by `lab.physics3d` (5 edges) and `lab.server`, so only the desktop-only part can go. |
+| OI-B | Remove the desktop workbench (`app` command) | DONE: `app/{main,main_window,discovery,models,run_controller}.py`, three facades, the `app` command and the `symbiont-lab-gui` script. `lab.app.physics3d` stays: the server uses its run store and session, and the Physics3D engine uses its Qt viewer (`monitor/viewer.py`, 3386 lines), which is itself a desktop window. |
 | OI-C | Keep moving elements into `modality/` and `embodiment/` | STARTED: vision channel, humanoid body, vision body. Next candidates in OI-3 and OI-4. |
 | OI-D | Web workbench views still call removed endpoints | `workbench/web/views/archive.js`, `views/lab/api.js`, `views/home.js` reference `/api/experiments/start`, `/api/studies/start` or the archive. Not edited; they cannot be exercised from here. |
 | OI-E | "Legacy/demo telemetry" path in `workbench/web/views/body/viewer.js` (joint-angle interpolation) | Left in place: untestable from here, and it is also the fallback for telemetry without link poses. |

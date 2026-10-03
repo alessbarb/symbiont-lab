@@ -107,16 +107,6 @@ def test_private_model_file_is_scientific_without_keyword_match() -> None:
     assert result.classification == ChangeClass.SCIENTIFIC
 
 
-def test_lab_run_controller_is_scientific() -> None:
-    result = assess(
-        ROOT,
-        "HEAD",
-        ["lab/src/lab/app/run_controller.py"],
-        "diff --git a/src/lab/app/run_controller.py b/src/lab/app/run_controller.py\n+ return launch(spec)",
-    )
-    assert result.classification == ChangeClass.SCIENTIFIC
-
-
 def test_workbench_web_presentation_stays_ordinary() -> None:
     result = assess(
         ROOT,

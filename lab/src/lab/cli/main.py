@@ -68,7 +68,6 @@ def main(argv: list[str] | None = None) -> None:
     )
     subparsers = parser.add_subparsers(dest="subcommand", required=True)
 
-    subparsers.add_parser("app", help="Launch the legacy desktop workbench")
     server_p = subparsers.add_parser("server", help="Launch the unified local browser workbench")
     server_p.add_argument("--port", type=int, default=8765, help="Port to listen on")
     server_p.add_argument(
@@ -140,11 +139,6 @@ def main(argv: list[str] | None = None) -> None:
 
     args = parser.parse_args(argv)
 
-    if args.subcommand == "app":
-        from lab.app.main import main as app_main
-
-        app_main()
-        return
     if args.subcommand == "server":
         from lab.server.server import main as unified_main
 
