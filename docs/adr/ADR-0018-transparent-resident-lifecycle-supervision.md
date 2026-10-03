@@ -35,7 +35,7 @@ Milestone R (Resident Observatory).
 
 ## Evidence
 
-`observatory/resident.py`, `tests/unit/test_resident.py`, `tests/unit/host/test_lifecycle.py`.
+`observatory/resident.py`, `symbiont/tests/unit/test_resident.py`, `symbiont/tests/unit/host/test_lifecycle.py`.
 
 ## Amendment — 2026-10-02
 

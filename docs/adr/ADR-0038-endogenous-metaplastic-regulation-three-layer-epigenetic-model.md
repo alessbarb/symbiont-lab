@@ -34,4 +34,4 @@ Milestone EME (Endogenous Metaplastic Epigenetics v1).
 
 ## Evidence
 
-`docs/design/genome/endogenous-metaplastic-epigenetics-v1.md`, `tests/unit/genetics/test_germline_expression_v2.py`, `tests/experimental_integrity/test_genome_causal_validation.py`.
+`docs/design/genome/endogenous-metaplastic-epigenetics-v1.md`, `symbiont/tests/unit/genetics/test_germline_expression_v2.py`, `lab/tests/experimental_integrity/test_genome_causal_validation.py`.

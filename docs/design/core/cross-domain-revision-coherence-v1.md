@@ -357,7 +357,7 @@ beside `reacclimation_window_completed`.
 - Property: across 900 ticks of E6 in both effect modes, no competence is
   suppressed and admissible, and nothing is executable without a
   live-usable binding; projections are identical after restore (tests in
-  `tests/integration/test_competence_availability_runtime.py`).
+  `lab/tests/integration/test_competence_availability_runtime.py`).
 - Structural: no `is_executable` call outside the projection; only the
   action domain revises binding status; the executive never imports
   bindings.

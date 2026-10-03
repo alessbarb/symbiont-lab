@@ -12,11 +12,17 @@ from __future__ import annotations
 import importlib.util
 import sys
 
+import pytest
+
 from symbiont import api
 
 FOREIGN = ("lab", "environment", "modality", "embodiment", "pybullet", "torch", "numpy", "PIL")
 
 
+@pytest.mark.skipif(
+    any(importlib.util.find_spec(name) for name in FOREIGN[:4] if name != "pybullet"),
+    reason="meaningful only where this library is installed alone",
+)
 def test_nothing_outside_the_organism_is_installed_or_loaded() -> None:
     assert [name for name in FOREIGN if importlib.util.find_spec(name)] == []
     assert [name for name in sys.modules if name.split(".")[0] in FOREIGN] == []

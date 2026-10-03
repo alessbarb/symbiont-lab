@@ -32,4 +32,4 @@ Milestone W1 / World Ecology v1.
 
 ## Evidence
 
-`docs/design/world/world-ecology-v1.md`, `tests/unit/world/test_transaction_integrity.py`, `tests/unit/world/test_laws.py`.
+`docs/design/world/world-ecology-v1.md`, `tests/unit/world/test_transaction_integrity.py`, `environment/tests/unit/world/test_laws.py`.

@@ -2,23 +2,23 @@
 
 ## Purpose
 
-This folder contains automated checks for software, contracts, and experimental boundaries. Its documentation is part of the repository organization contract.
+Repository-wide checks: governance tooling, documentation integrity, and scans of the source layout and of the boundaries between domains. Tests of one library live beside that library (`symbiont/tests`, `embodiment/tests`, `modality/tests`, `environment/tests`); tests that compose libraries live in `lab/tests`.
 
 ## Belongs here
 
-Deterministic pytest tests for implementation, integration, documentation, regressions, smoke checks, and mechanical runner contracts.
+Deterministic pytest checks that concern the repository as a whole or read source across several domains: `governance/`, `docs/`, the architecture and boundary scans in `experimental_integrity/`, and the few tests that drive `scripts/`.
 
 ## Does not belong here
 
-No full scientific campaigns, run results, research fixtures, or evidence interpretation. Those belong in `experiments/` or `research/`.
+Tests of a single library, integration tests, full scientific campaigns, run results, research fixtures, or evidence interpretation.
 
 ## Criterion for creating a file
 
-A new file must answer a verifiable software or reproducible-contract question. If it needs a campaign, many seeds, or produces scientific evidence, put the campaign in `experiments/` and keep only its mechanical contract here.
+A new file must answer a question about the repository as a whole. If it imports exactly one domain library and nothing repository-wide, it belongs in that library's suite; if it imports the Lab or two libraries, in `lab/tests`.
 
 ## Execution
 
-The default `pytest` profile excludes tests marked `slow`. Run layers explicitly, for example `pytest tests/unit tests/docs tests/smoke`, `pytest tests/integration tests/experimental_integrity`, or `pytest tests/experiments`. Run the scientific suite explicitly with `pytest -o addopts='' tests/integration/studies` or select it with `pytest -o addopts='' -m slow`.
+`pytest tests` runs this suite. `python scripts/run_tests.py` runs every suite, one pytest session each (several directories are named `tests`, so they cannot share a session). The default profile excludes tests marked `slow`; pass `-o addopts=` to include them.
 
 ## Superseded tests (norm)
 
@@ -27,7 +27,7 @@ The canonical test run describes the organism and laboratory as they are now
 
 1. **Migrate or archive, never weaken.** If the mechanism the test checks still
    exists, migrate the test to the canonical organism (canonical profile; a
-   deterministic Body from `tests/bodies.py` instead of the real host). If the
+   deterministic Body from `symbiont/tests/bodies.py` instead of the real host). If the
    behavior it asserts no longer applies, archive it. Do not skip it, loosen its
    assertion until it passes, or leave it failing.
 2. **Archive with a replacement.** Move the test to `tests/archive/` and mark it

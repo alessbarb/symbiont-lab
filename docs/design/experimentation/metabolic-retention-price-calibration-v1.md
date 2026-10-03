@@ -17,7 +17,7 @@ has been run.
 the retention prices are not backed by any result, and at full sensory capacity
 retention alone would cost about five times the organism's basal spend. The
 inconsistency is held as a strict expected failure
-(`tests/experimental_integrity/test_metabolic_cost_coherence.py`) until this
+(`symbiont/tests/experimental_integrity/test_metabolic_cost_coherence.py`) until this
 study decides.
 
 ## 1. Current prices

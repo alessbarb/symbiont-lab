@@ -5,20 +5,14 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).parents[2]
 TESTS = REPO_ROOT / "tests"
 EXPERIMENTS = REPO_ROOT / "lab" / "experiments"
-REQUIRED_TEST_DIRS = {
-    "unit",
-    "integration",
-    "contract",
-    "experimental_integrity",
-    "regression",
-    "smoke",
-    "docs",
-    "observatory",
-    "experiments",
-    "experiments/protocols",
-    "experiments/runners",
-    "experiments/pilots",
-}
+# Repository-wide checks live in `tests/`; every domain owns `<domain>/tests`.
+SUITES = (
+    TESTS,
+    *(
+        REPO_ROOT / domain / "tests"
+        for domain in ("symbiont", "embodiment", "modality", "environment", "lab")
+    ),
+)
 
 
 def _meaningful_readme(path: Path) -> bool:
@@ -37,13 +31,20 @@ def _meaningful_readme(path: Path) -> bool:
     )
 
 
-def test_expected_test_layers_have_specific_readmes() -> None:
-    missing = [name for name in sorted(REQUIRED_TEST_DIRS) if not _meaningful_readme(TESTS / name)]
-    assert not missing, f"test layers without a specific README: {missing}"
+def test_every_suite_has_a_readme() -> None:
+    missing = [
+        str(suite.relative_to(REPO_ROOT)) for suite in SUITES if not _meaningful_readme(suite)
+    ]
+    assert not missing, f"test suites without a specific README: {missing}"
 
 
 def test_every_directory_containing_tests_has_a_readme() -> None:
-    dirs = {path.parent for path in TESTS.rglob("test_*.py") if "__pycache__" not in path.parts}
+    dirs = {
+        path.parent
+        for suite in SUITES
+        for path in suite.rglob("test_*.py")
+        if "__pycache__" not in path.parts
+    }
     missing = sorted(
         str(path.relative_to(REPO_ROOT)) for path in dirs if not _meaningful_readme(path)
     )

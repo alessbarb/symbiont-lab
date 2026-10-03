@@ -12,7 +12,6 @@ import ast
 import inspect
 from pathlib import Path
 
-from tests.checkpoints import edited
 from tests.layout import source_files
 
 from symbiont.core.domains.intention import IntentionPolicy
@@ -26,6 +25,14 @@ from symbiont.core.organism_profile import (
     symbol_seed_for,
 )
 from symbiont.modeling.runtime import ModeledOrganismRuntime
+
+
+def _stamp(payload):
+    """Declare a hand-made change so restore reaches the validator under test."""
+    from symbiont.host.checkpoint import stamp_checkpoint_identity
+
+    return stamp_checkpoint_identity(payload, transform="test-edit")
+
 
 ROOT = Path(__file__).resolve().parents[2]
 REGISTER = ROOT / "docs" / "design" / "core" / "canonical-organism-profile-v1.md"
@@ -107,7 +114,7 @@ def test_restored_organisms_keep_the_profile_they_were_born_with() -> None:
     # A checkpoint written before profiles existed carries no profile_version.
     legacy = historical.checkpoint()
     del legacy["effective_config"]["profile_version"]
-    restored_legacy = OrganismRuntime.from_checkpoint(edited(legacy))
+    restored_legacy = OrganismRuntime.from_checkpoint(_stamp(legacy))
     assert restored_legacy._profile_version == HISTORICAL_V0.version
 
 

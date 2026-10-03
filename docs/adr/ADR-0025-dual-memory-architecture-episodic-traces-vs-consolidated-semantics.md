@@ -28,4 +28,4 @@ Milestone M / Episodic Experience Memory v2.
 
 ## Evidence
 
-`docs/design/cognition/episodic-experience-memory-v2.md`, `tests/unit/modeling/test_episodic.py`, `tests/unit/lab/test_generative_consolidation_gates.py`.
+`docs/design/cognition/episodic-experience-memory-v2.md`, `symbiont/tests/unit/modeling/test_episodic.py`, `lab/tests/unit/lab/test_generative_consolidation_gates.py`.

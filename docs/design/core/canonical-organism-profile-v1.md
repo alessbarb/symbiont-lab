@@ -148,5 +148,5 @@ No result backs these prices. They are `pending` a preregistered, multi-seed
 calibration experiment over a grid of prices, measuring survival and learning,
 with reduced retention during dormancy as one arm: Metabolic Retention Price
 Calibration v1 (`docs/design/experimentation/metabolic-retention-price-calibration-v1.md`). Until then the prices do not
-change, and `tests/experimental_integrity/test_metabolic_cost_coherence.py` keeps
+change, and `symbiont/tests/experimental_integrity/test_metabolic_cost_coherence.py` keeps
 the incoherence declared as a strict expected failure.

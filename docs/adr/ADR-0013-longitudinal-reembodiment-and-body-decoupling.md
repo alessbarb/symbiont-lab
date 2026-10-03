@@ -28,4 +28,4 @@ v0.30.0 (Milestone H).
 
 ## Evidence
 
-`tests/experimental_integrity/test_embodiment_v2_architecture.py`, `tests/experimental_integrity/test_reembodiment_reacclimation.py`.
+`tests/experimental_integrity/test_embodiment_v2_architecture.py`, `lab/tests/experimental_integrity/test_reembodiment_reacclimation.py`.

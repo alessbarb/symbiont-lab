@@ -149,9 +149,11 @@ jobs:
             uv.lock
             pyproject.toml
       - run: uv sync --frozen --extra dev
-      - run: uv run --no-sync pytest tests/unit tests/integration -q --ignore=tests/integration/test_equivalence_suite.py
-      - run: uv run --no-sync pytest tests/regression -q
-      - run: uv run --no-sync pytest tests/smoke -q
+      - run: uv run --no-sync python scripts/run_tests.py symbiont embodiment modality environment -- -q
+      - run: uv run --no-sync pytest lab/tests/unit lab/tests/integration -q --ignore=lab/tests/integration/test_equivalence_suite.py
+      - run: uv run --no-sync pytest tests/unit -q
+      - run: uv run --no-sync pytest symbiont/tests/regression -q
+      - run: uv run --no-sync pytest lab/tests/smoke -q
 
   physics3d-tests:
     name: physics3d-tests (py3.12)
@@ -173,7 +175,9 @@ jobs:
             uv.lock
             pyproject.toml
       - run: uv sync --frozen --extra dev --extra physics3d
-      - run: uv run --no-sync pytest tests/unit/lab/physics3d tests/integration/test_physics3d_*.py tests/integration/test_equivalence_suite.py -q
+      - run: uv run --no-sync pytest lab/tests/unit/lab/physics3d lab/tests/integration/test_physics3d_*.py lab/tests/integration/test_equivalence_suite.py -q
+      - run: uv run --no-sync pytest embodiment/tests -q
+      - run: uv run --no-sync pytest modality/tests -q
 
   modeling-tests:
     name: modeling-tests (py3.12)
@@ -199,10 +203,10 @@ jobs:
           uv run --no-sync pytest
           tests/unit/modeling
           tests/unit/lab/modeling
-          tests/integration/test_private_model_training.py
-          tests/integration/test_private_model_learnability.py
-          tests/integration/test_private_model_adaptation.py
-          tests/integration/test_training_ancestry_end_to_end.py
+          lab/tests/integration/test_private_model_training.py
+          lab/tests/integration/test_private_model_learnability.py
+          lab/tests/integration/test_private_model_adaptation.py
+          lab/tests/integration/test_training_ancestry_end_to_end.py
           -q
 
   world-tests:
@@ -225,7 +229,8 @@ jobs:
             uv.lock
             pyproject.toml
       - run: uv sync --frozen --extra dev
-      - run: uv run --no-sync pytest tests/unit/world tests/unit/lab/world -q
+      - run: uv run --no-sync pytest environment/tests -q
+      - run: uv run --no-sync pytest lab/tests/unit/lab/world -q
 
   observatory-tests:
     name: observatory-tests (py3.12)
@@ -247,7 +252,8 @@ jobs:
             uv.lock
             pyproject.toml
       - run: uv sync --frozen --extra dev
-      - run: uv run --no-sync pytest lab/src/lab/observatory tests/unit/observatory tests/unit/workbench -q
+      - run: uv run --no-sync pytest lab/src/lab/observatory lab/tests/unit/observatory lab/tests/unit/workbench -q
+      - run: uv run --no-sync pytest tests/unit/workbench -q
 
   architecture-integrity:
     name: architecture-integrity
@@ -270,6 +276,8 @@ jobs:
             pyproject.toml
       - run: uv sync --frozen --extra dev
       - run: uv run --no-sync pytest -o addopts= tests/experimental_integrity -q
+      - run: uv run --no-sync pytest -o addopts= symbiont/tests/experimental_integrity -q
+      - run: uv run --no-sync pytest -o addopts= lab/tests/experimental_integrity -q
 
   runtime-contracts:
     name: runtime-contracts
@@ -291,7 +299,7 @@ jobs:
             uv.lock
             pyproject.toml
       - run: uv sync --frozen --extra dev
-      - run: uv run --no-sync pytest -o addopts= tests/contract tests/compatibility -q
+      - run: uv run --no-sync pytest -o addopts= symbiont/tests/experimental_integrity symbiont/tests/integration -q
 
   experiment-mechanics:
     name: experiment-mechanics
@@ -313,6 +321,7 @@ jobs:
             uv.lock
             pyproject.toml
       - run: uv sync --frozen --extra dev
+      - run: uv run --no-sync pytest -o addopts= lab/tests/experiments -q
       - run: uv run --no-sync pytest -o addopts= tests/experiments -q
 
   canonical-full:
@@ -335,8 +344,7 @@ jobs:
             uv.lock
             pyproject.toml
       - run: uv sync --frozen --extra dev --extra physics3d
-      - run: uv run --no-sync pytest -o addopts= tests -q
-      - run: uv run --no-sync pytest lab/src/lab/observatory -q
+      - run: uv run --no-sync python scripts/run_tests.py -- -o addopts= -q
 
   python-compatibility:
     name: python-compatibility (py${{ matrix.python-version }})
@@ -362,8 +370,9 @@ jobs:
             uv.lock
             pyproject.toml
       - run: uv sync --frozen --extra dev
-      - run: uv run --no-sync pytest -o addopts= tests/contract tests/compatibility tests/experimental_integrity -q
-      - run: uv run --no-sync pytest tests/smoke -q
+      - run: uv run --no-sync pytest -o addopts= symbiont/tests/experimental_integrity -q
+      - run: uv run --no-sync pytest -o addopts= tests/experimental_integrity -q
+      - run: uv run --no-sync pytest lab/tests/smoke -q
       - run: uv run --no-sync symbiont-lab --help
 
   host-portability:
@@ -392,7 +401,7 @@ jobs:
       - shell: bash
         run: uv sync --frozen --extra dev
       - shell: bash
-        run: uv run --no-sync pytest tests/unit/host tests/unit/core -k "host or checkpoint or organism or governor or runtime or capsule" -q
+        run: uv run --no-sync pytest symbiont/tests/unit/host symbiont/tests/unit/core -k "host or checkpoint or organism or governor or runtime or capsule" -q
       - shell: bash
         run: uv run --no-sync symbiont-lab host discover
       - shell: bash
@@ -412,7 +421,7 @@ jobs:
       - run: apk add --no-cache gcc musl-dev libffi-dev openssl-dev cargo rust
       - run: python -m pip install --upgrade pip
       - run: pip install -e '.[dev]'
-      - run: pytest tests/unit/host -q
+      - run: pytest symbiont/tests/unit/host -q
       - run: symbiont-lab host discover
       - run: symbiont-lab host sample
 

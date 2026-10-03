@@ -19,7 +19,7 @@ import pytest
 )
 def test_profile_classifies_cost_not_entire_boundary_layer(relative_path, slow):
     root = Path(__file__).parents[1]
-    spec = importlib.util.spec_from_file_location("repo_profile", root / "conftest.py")
+    spec = importlib.util.spec_from_file_location("repo_profile", root.parent / "conftest.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     markers = []

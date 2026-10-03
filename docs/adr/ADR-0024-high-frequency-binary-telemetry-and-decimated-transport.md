@@ -27,4 +27,4 @@ Milestone P (Physics3D Telemetry v4.1 / P0–P7 Observability Optimization).
 
 ## Evidence
 
-`docs/design/telemetry/physics3d-telemetry-v4.1.md`, `tests/unit/lab/physics3d/telemetry/test_telemetry_binary.py`, `tests/experimental_integrity/test_live_delta_boundary.py`.
+`docs/design/telemetry/physics3d-telemetry-v4.1.md`, `lab/tests/unit/lab/physics3d/telemetry/test_telemetry_binary.py`, `tests/experimental_integrity/test_live_delta_boundary.py`.

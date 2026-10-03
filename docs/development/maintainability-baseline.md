@@ -118,7 +118,7 @@ compatibility facade.
 - **Owned responsibility:** convex hull and ray-casting containment over 2D
   points. The module has no UI, IPC, PyBullet, or organism dependencies.
 - **Callers:** the monitor's support-polygon rendering path is the only source
-  caller; `tests/unit/lab/physics3d/test_monitor.py` exercises both algorithms
+  caller; `lab/tests/unit/lab/physics3d/test_monitor.py` exercises both algorithms
   through the compatibility facade.
 - **Compatibility surface:** function names, signatures, geometry semantics,
   import facade and rendering call sites are unchanged.

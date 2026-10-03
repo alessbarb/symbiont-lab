@@ -36,4 +36,4 @@ v0.20.0.
 
 ## Evidence
 
-`docs/safety/README.md`, `tests/unit/host/test_linux_surfaces.py`, `tests/unit/host/test_discovery.py`.
+`docs/safety/README.md`, `symbiont/tests/unit/host/test_linux_surfaces.py`, `symbiont/tests/unit/host/test_discovery.py`.

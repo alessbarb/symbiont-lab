@@ -350,9 +350,9 @@ Model staleness must be evidence/validation-driven.
 Create/update:
 
 ```text
-tests/unit/core/test_temporal_domains.py
-tests/unit/core/test_ontogeny.py
-tests/unit/core/test_physiology.py
+symbiont/tests/unit/core/test_temporal_domains.py
+symbiont/tests/unit/core/test_ontogeny.py
+symbiont/tests/unit/core/test_physiology.py
 ```
 
 Cases:
@@ -366,8 +366,8 @@ Cases:
 ### Physics3D
 
 ```text
-tests/unit/lab/physics3d/test_reembodiment.py
-tests/integration/test_physics3d_existing_reuse.py
+lab/tests/unit/lab/physics3d/test_reembodiment.py
+lab/tests/integration/test_physics3d_existing_reuse.py
 tests/integration/test_physics3d_temporal_domains.py
 ```
 

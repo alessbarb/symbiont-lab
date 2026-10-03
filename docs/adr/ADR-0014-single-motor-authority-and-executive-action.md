@@ -30,4 +30,4 @@ Milestone J.
 
 ## Evidence
 
-`tests/experimental_integrity/test_single_motor_authority.py`, `tests/experimental_integrity/test_executive_authority.py`, `tests/experimental_integrity/test_reduced_symbiont_action_authority.py`.
+`tests/experimental_integrity/test_single_motor_authority.py`, `tests/experimental_integrity/test_executive_authority.py`, `symbiont/tests/experimental_integrity/test_reduced_symbiont_action_authority.py`.

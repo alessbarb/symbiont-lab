@@ -17,7 +17,7 @@ organism, and prevents noisy host timing from creating false CI failures.
 
 ## Deterministic gate
 
-`tests/experimental_integrity/test_performance_optimization_gate.py` runs
+`lab/tests/experimental_integrity/test_performance_optimization_gate.py` runs
 matched organisms with the same opaque body, seed and tick schedule.
 
 The trace compares, tick by tick:

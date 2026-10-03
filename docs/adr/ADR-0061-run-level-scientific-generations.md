@@ -97,11 +97,11 @@ outside this decision and outside this closure.
 
 ## Tests
 
-- `tests/unit/lab/experiments/test_scientific_generations.py`: directory commit,
+- `lab/tests/unit/lab/experiments/test_scientific_generations.py`: directory commit,
   collision refusal, crash injection at every publication boundary.
 - `tests/unit/test_checkout_isolation.py`: the launcher's commit, a crash before
   publication (no visible result, outputs kept), a crash after `CURRENT` is
   replaced (complete generation), and an end-to-end launcher run that ends with
   a committed generation.
-- `tests/unit/host/test_durable_io.py`: compound replacement preserves the prior
+- `symbiont/tests/unit/host/test_durable_io.py`: compound replacement preserves the prior
   file when a payload write fails part-way through.

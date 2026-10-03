@@ -1341,7 +1341,7 @@ counterfactual, without creating factual evidence or action authority. The
 focused regression is:
 
 ```text
-tests/unit/cognition/test_generative_resident.py
+symbiont/tests/unit/cognition/test_generative_resident.py
 test_recurring_conflict_routes_to_counterfactual_without_factual_authority
 ```
 

@@ -30,4 +30,4 @@ Milestone IHR (Integrated Habitat Runtime v1).
 
 ## Evidence
 
-`docs/design/runtime/integrated-habitat-runtime-v1.md`, `tests/unit/test_autonomous_cultural_agency.py`, `tests/unit/lab/world/test_population.py`.
+`docs/design/runtime/integrated-habitat-runtime-v1.md`, `symbiont/tests/unit/test_autonomous_cultural_agency.py`, `lab/tests/unit/lab/world/test_population.py`.

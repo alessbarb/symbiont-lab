@@ -39,7 +39,13 @@ from symbiont.host.adaptive import (
     _ADAPTIVE_HISTORICAL_MIN_SAMPLES,
     AdaptiveSenseModel,
 )
-from tests.checkpoints import edited
+
+
+def _stamp(payload):
+    """Declare a hand-made change so restore reaches the validator under test."""
+    from symbiont.host.checkpoint import stamp_checkpoint_identity
+
+    return stamp_checkpoint_identity(payload, transform="test-edit")
 
 
 def test_epistemic_conventions_invariants() -> None:
@@ -639,4 +645,4 @@ def test_checkpoint_rejects_contradictory_sensory_constitution() -> None:
     checkpoint["effective_config"]["sensory_plasticity"] = False
 
     with pytest.raises(CheckpointError, match="sensory constitution contradicts"):
-        OrganismRuntime.from_checkpoint(edited(checkpoint))
+        OrganismRuntime.from_checkpoint(_stamp(checkpoint))

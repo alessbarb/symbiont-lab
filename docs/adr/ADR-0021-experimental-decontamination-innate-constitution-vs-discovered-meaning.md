@@ -34,4 +34,4 @@ Milestone E (Decontamination P0–P2).
 
 ## Evidence
 
-`docs/design/experimentation/experimental-decontamination-p0.md`, `tests/unit/world/test_constitution.py`, `tests/unit/lab/test_canonical_sensorimotor_agency.py`.
+`docs/design/experimentation/experimental-decontamination-p0.md`, `environment/tests/unit/world/test_constitution.py`, `lab/tests/unit/lab/test_canonical_sensorimotor_agency.py`.

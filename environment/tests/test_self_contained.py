@@ -10,12 +10,18 @@ from __future__ import annotations
 import importlib.util
 import sys
 
+import pytest
+
 from environment.physics3d.environments import ENVIRONMENT_NAMES, environment_recipe
 from environment.rng import derive_world_rng
 
 FOREIGN = ("symbiont", "embodiment", "modality", "lab")
 
 
+@pytest.mark.skipif(
+    any(importlib.util.find_spec(name) for name in FOREIGN[:4] if name != "pybullet"),
+    reason="meaningful only where this library is installed alone",
+)
 def test_no_other_domain_is_installed_or_loaded() -> None:
     assert [name for name in FOREIGN if importlib.util.find_spec(name)] == []
     assert [name for name in sys.modules if name.split(".")[0] in FOREIGN] == []

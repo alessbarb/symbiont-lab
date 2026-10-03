@@ -38,7 +38,7 @@ With a real cognitive graph attached (`load_base_cognition`, base genome): **~6.
 
 ## What this baseline is for
 
-Every later change in the perf phase must reproduce this: same `ticks/s` improvement claim backed by re-running `bench_organism_tick.py`, and losslessness backed by `OrganismRuntime.state_hash()` equality tick-by-tick against this same seed/genome/tick-budget (L6.9.8 in your plan) — the continuity-equivalence tooling from L5.5 (`state_hash()`, `tests/unit/core/test_continuity_equivalence.py`) already gives us the comparison primitive; it just needs to be run at every intermediate tick, not only at save/load boundaries.
+Every later change in the perf phase must reproduce this: same `ticks/s` improvement claim backed by re-running `bench_organism_tick.py`, and losslessness backed by `OrganismRuntime.state_hash()` equality tick-by-tick against this same seed/genome/tick-budget (L6.9.8 in your plan) — the continuity-equivalence tooling from L5.5 (`state_hash()`, `lab/tests/unit/core/test_continuity_equivalence.py`) already gives us the comparison primitive; it just needs to be run at every intermediate tick, not only at save/load boundaries.
 
 ## Not done
 

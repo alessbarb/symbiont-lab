@@ -30,4 +30,4 @@ Milestone RC (Revision Coherence / Binding Degradation v1).
 
 ## Evidence
 
-`docs/design/core/binding-degradation-v1.md`, `tests/unit/lab/test_embodiment_causal_revision.py`, `tests/experimental_integrity/test_revision_authority_boundaries.py`.
+`docs/design/core/binding-degradation-v1.md`, `lab/tests/unit/lab/test_embodiment_causal_revision.py`, `tests/experimental_integrity/test_revision_authority_boundaries.py`.

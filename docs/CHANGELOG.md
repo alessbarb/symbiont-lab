@@ -1281,7 +1281,7 @@ evaluador al runtime.
 
 ## Validación
 
-- `tests/integration/studies/test_social_reciprocity.py`
+- `lab/tests/integration/studies/test_social_reciprocity.py`
 - suite completa de tests del repositorio
 
 La reciprocidad se conserva como contador direccional y no se convierte en una

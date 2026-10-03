@@ -49,7 +49,7 @@ ownership is clear but the unit is entangled; **low** = mixed responsibilities.
 
 | Unit | Responsibility | First-party dependencies | Composed by | Tests | Domain | Confidence |
 |---|---|---|---|---|---|---|
-| `vision` | square receptor array: bounded luminance per opaque receptor, receptor adjacency. Carrying link, mount pose and receptor ids are supplied by the caller | none | `lab.integration.physics3d.bodies` | `modality/tests`, `tests/unit/lab/physics3d/test_vision_apparatus.py` | MODALITY | high |
+| `vision` | square receptor array: bounded luminance per opaque receptor, receptor adjacency. Carrying link, mount pose and receptor ids are supplied by the caller | none | `lab.integration.physics3d.bodies` | `modality/tests`, `lab/tests/unit/lab/physics3d/test_vision_apparatus.py` | MODALITY | high |
 
 ## Embodiment — `embodiment/src/embodiment`
 

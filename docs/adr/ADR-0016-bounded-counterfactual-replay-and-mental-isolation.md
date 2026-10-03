@@ -30,4 +30,4 @@ Milestone K.
 
 ## Evidence
 
-`tests/experimental_integrity/test_generative_cognition_boundary.py`, `tests/experimental_integrity/test_replay_state_host_boundary.py`, `tests/unit/lab/test_autonomous_replay_stopping.py`.
+`tests/experimental_integrity/test_generative_cognition_boundary.py`, `lab/tests/experimental_integrity/test_replay_state_host_boundary.py`, `lab/tests/unit/lab/test_autonomous_replay_stopping.py`.

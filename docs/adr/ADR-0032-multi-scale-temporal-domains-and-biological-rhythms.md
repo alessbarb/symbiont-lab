@@ -29,4 +29,4 @@ v0.28.0 (Temporal Domains Architecture).
 
 ## Evidence
 
-`docs/explanation/02-temporal-domains.md`, `tests/unit/core/test_temporal_domains.py`, `src/symbiont/host/rhythms.py`.
+`docs/explanation/02-temporal-domains.md`, `symbiont/tests/unit/core/test_temporal_domains.py`, `src/symbiont/host/rhythms.py`.

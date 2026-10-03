@@ -527,7 +527,7 @@ the per-seed values next to the classification.
 
 Implemented: `symbiont_lab.studies.embodiment.reembodiment_functional_transfer`,
 the experiment record, and the contract tests in
-`tests/experiments/protocols/test_reembodiment_functional_transfer_protocol.py`.
+`lab/tests/experiments/protocols/test_reembodiment_functional_transfer_protocol.py`.
 
 Order, each step a governed run through `agentctl run start`:
 

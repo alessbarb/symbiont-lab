@@ -161,7 +161,7 @@ Example:
     "software_core": {
       "mode": "targeted",
       "tests": [
-        "tests/unit/test_resident.py",
+        "symbiont/tests/unit/test_resident.py",
         "tests/unit/test_local_habitat.py",
         "tests/integration/test_resident_*.py"
       ],
@@ -204,7 +204,7 @@ Examples:
 
 ~~~text
 src/symbiont/core/orchestration/resident.py
-    -> tests/unit/test_resident.py
+    -> symbiont/tests/unit/test_resident.py
 
 src/symbiont_lab/physics3d/reembodiment.py
     -> tests/unit/lab/physics3d/test_reembodiment*.py
@@ -478,7 +478,7 @@ fallback = [
 
 [[ownership]]
 source = "src/symbiont/core/orchestration/resident.py"
-tests = ["tests/unit/test_resident.py"]
+tests = ["symbiont/tests/unit/test_resident.py"]
 
 [[semantic_guard]]
 paths = ["src/symbiont/**/persistence.py", "src/symbiont/**/checkpoint*.py"]

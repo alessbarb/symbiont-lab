@@ -232,17 +232,17 @@ findings above without reading it.
 
 | ID | State | Where |
 | --- | --- | --- |
-| LI-01 | Resolved. Restore recomputes and verifies the state identity before migration and fails closed. | `verify_checkpoint_identity`; `tests/unit/host/test_strict_restore.py` |
+| LI-01 | Resolved. Restore recomputes and verifies the state identity before migration and fails closed. | `verify_checkpoint_identity`; `symbiont/tests/unit/host/test_strict_restore.py` |
 | LI-02 | Resolved for current schemas. A current-schema checkpoint that lacks a required field is rejected. | `require_current_schema_fields` |
 | LI-03 | Resolved by ARCH-1 Option A: the core ledger was removed from the organism runtime and the modeled ledger, which is checkpointed, is the single owner. | [Social Epistemology Ownership v1](../../../../docs/design/core/social-epistemology-ownership-v1.md) |
-| LI-04 | Resolved. The replay guard and the exchange sequence are restored. | `tests/integration/test_communication_restart.py` |
+| LI-04 | Resolved. The replay guard and the exchange sequence are restored. | `symbiont/tests/integration/test_communication_restart.py` |
 | LI-05 | Resolved by ARCH-1 Option A. | same record as LI-03 |
-| LI-06 | Resolved. Session controls are recorded in `runtime_provenance` and reapplied; a changed value is recorded as a changed condition. | `tests/integration/test_restart_configuration.py` |
+| LI-06 | Resolved. Session controls are recorded in `runtime_provenance` and reapplied; a changed value is recorded as a changed condition. | `symbiont/tests/integration/test_restart_configuration.py` |
 | LI-07 | Resolved as terminology: runtime checkpoint and portable bundle are separate, defined terms. | `docs/glossary.md` |
 | GOV-01 | Resolved. An active ruleset requires `governed-ci-gate` on `main` with no bypass actors. Closed by the owner as GOV-1. | ADR-0057 |
 | GOV-02 | Stands as a standing limit, not a defect: a green gate means the applicable validation plan passed. | — |
 | EQ-01 | Stands. Equivalence remains evidence only inside available scenario coverage. No workstream is open for it. | — |
-| EMB-01 | Resolved-positive, unchanged. | `tests/integration/test_reembodiment_continuity.py` |
+| EMB-01 | Resolved-positive, unchanged. | `lab/tests/integration/test_reembodiment_continuity.py` |
 | EMB-02 | Stands as a recorded limit: the clock coordinate is corrected and recorded; physiology already produced is not reconstructed. | `migrate_temporal_domains` |
 | ARCH-01 | Recorded as an inventory; decisions are the owner's. | [World Responsibility Map v1](../../../../docs/design/world/world-responsibility-map-v1.md) |
 | OBS-01 | Resolved-positive, unchanged. | — |

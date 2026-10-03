@@ -202,7 +202,7 @@ in-flight motor commitment       DISCARDED
 actuator authority               NEW
 ```
 
-Supported by `tests/integration/test_reembodiment_continuity.py` and by real
+Supported by `lab/tests/integration/test_reembodiment_continuity.py` and by real
 schema 10 compatibility in
 `tests/compatibility/checkpoint_v10/test_real_v10_checkpoints.py`; this is not
 merely an artificial round trip.
@@ -240,7 +240,7 @@ false: current ones do, some accepted historical ones do not.
 
 ### F-05 — restart is not an uninterrupted run
 
-`tests/integration/test_restart_equivalence.py` develops a non-trivial organism
+`symbiont/tests/integration/test_restart_equivalence.py` develops a non-trivial organism
 before the restart. It checks a non-empty graph, more than 10 experiences,
 episodic memory, an ACTIVE private model, social knowledge, the replay guard and
 narrative; it then serializes, builds a new runtime and restores.
@@ -543,12 +543,12 @@ acceptance. Decisions that are the owner's are listed, not taken.
 
 | ID | Resolution | Evidence | Left to the owner |
 | --- | --- | --- | --- |
-| F-01 | The reduced seed's transplant semantics are declared per attribute in `REDUCED_SEED_REGISTER`; each attribute where it discards or ungrounds what canonical re-embodiment keeps is marked. The module and class docstrings no longer present the seed as the same longitudinal contract. | `tests/unit/host/test_reduced_seed_register.py`; [Lifecycle Continuity Contract v1](../../../../docs/design/core/lifecycle-continuity-contract-v1.md) §7 | Whether the two semantics converge. Changing the seed changes the apparatus of the embodiment falsification studies. |
-| F-02 | No action: resolved-positive. | `tests/integration/test_reembodiment_continuity.py` | — |
-| F-03 | No action: resolved-positive. | `tests/unit/host/test_strict_restore.py` | — |
-| F-04 | Acceptance of an unverified legacy checkpoint is now recorded durably: every later save carries `checkpoint_lineage.unverified_legacy_origin`. | `tests/unit/core/test_canonical_birth.py`; contract §6 | Whether and when legacy checkpoints stop being accepted. |
-| F-05 | The discontinuity is stated in one place as part of the contract and stays pinned by the restart test. | `tests/integration/test_restart_equivalence.py`; contract §5 | — |
-| F-06 | One adoption path for every runtime layer (`runtime_class`); the resident launcher's hand-inlined copy is removed. `checkpoint_lineage.transforms` is carried into every later save, so an adopted organism stays identifiable after its next checkpoint. Before this the transform existed only on the in-memory payload. | `tests/unit/core/test_canonical_birth.py`; `tests/compatibility/checkpoint_v10/test_real_v10_checkpoints.py::test_lineage_history_survives_consecutive_boundaries` (legacy → adoption → save → re-embodiment → restore → saves → restart); contract §4 and §6 | — |
+| F-01 | The reduced seed's transplant semantics are declared per attribute in `REDUCED_SEED_REGISTER`; each attribute where it discards or ungrounds what canonical re-embodiment keeps is marked. The module and class docstrings no longer present the seed as the same longitudinal contract. | `symbiont/tests/unit/host/test_reduced_seed_register.py`; [Lifecycle Continuity Contract v1](../../../../docs/design/core/lifecycle-continuity-contract-v1.md) §7 | Whether the two semantics converge. Changing the seed changes the apparatus of the embodiment falsification studies. |
+| F-02 | No action: resolved-positive. | `lab/tests/integration/test_reembodiment_continuity.py` | — |
+| F-03 | No action: resolved-positive. | `symbiont/tests/unit/host/test_strict_restore.py` | — |
+| F-04 | Acceptance of an unverified legacy checkpoint is now recorded durably: every later save carries `checkpoint_lineage.unverified_legacy_origin`. | `symbiont/tests/unit/core/test_canonical_birth.py`; contract §6 | Whether and when legacy checkpoints stop being accepted. |
+| F-05 | The discontinuity is stated in one place as part of the contract and stays pinned by the restart test. | `symbiont/tests/integration/test_restart_equivalence.py`; contract §5 | — |
+| F-06 | One adoption path for every runtime layer (`runtime_class`); the resident launcher's hand-inlined copy is removed. `checkpoint_lineage.transforms` is carried into every later save, so an adopted organism stays identifiable after its next checkpoint. Before this the transform existed only on the in-memory payload. | `symbiont/tests/unit/core/test_canonical_birth.py`; `tests/compatibility/checkpoint_v10/test_real_v10_checkpoints.py::test_lineage_history_survives_consecutive_boundaries` (legacy → adoption → save → re-embodiment → restore → saves → restart); contract §4 and §6 | — |
 | F-07 | The resident and replay launchers moved to `symbiont_lab.cli.observed_resident` and `symbiont_lab.cli.observed_replay`. No `observatory` module constructs, restores or drives an organism. A second launcher found during the fix (`main` inside `observatory/adapter.py`) was moved as well. | `tests/experimental_integrity/test_observatory_passive_boundary.py` | — |
 | F-08 | A manifest write failure is reported on stderr and makes the launcher exit non-zero after the organism is saved. The organism is not stopped by an observer failure. | `tests/unit/lab/test_observed_resident_manifest.py` | — |
 | F-09 | Every environment family is inventoried with owner, role, consumers and state. Nothing was removed. Stale World specification paths in docstrings were corrected. | [World Responsibility Map v1](../../../../docs/design/world/world-responsibility-map-v1.md) | Location of the habitat classes, status of Physics3D surroundings, retirement of legacy environments, reserved meaning of "World". |

@@ -29,4 +29,4 @@ Milestone E4 / Executive Outcome Learning v1.1.
 
 ## Evidence
 
-`docs/design/core/factorized-effect-representation-v1.md`, `tests/unit/lab/test_structured_causal_experience.py`, `tests/unit/core/test_causal_provenance.py`.
+`docs/design/core/factorized-effect-representation-v1.md`, `lab/tests/unit/lab/test_structured_causal_experience.py`, `tests/unit/core/test_causal_provenance.py`.

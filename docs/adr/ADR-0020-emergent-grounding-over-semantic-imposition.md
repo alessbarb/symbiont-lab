@@ -29,4 +29,4 @@ Milestone C (Emergent Structured Communication).
 
 ## Evidence
 
-`tests/unit/test_autonomous_cultural_agency.py`, `tests/unit/test_symbols.py`, `tests/unit/test_cumulative_culture.py`.
+`symbiont/tests/unit/test_autonomous_cultural_agency.py`, `symbiont/tests/unit/test_symbols.py`, `symbiont/tests/unit/test_cumulative_culture.py`.

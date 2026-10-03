@@ -115,6 +115,6 @@ something removed:
 | `tests/experiments/runners/test_reproducibility_e2e.py`, `test_generic_fallback_protocol_uses_declared_seeds_not_defaults` | experiment runner end-to-end reproducibility and seed handling (were exercised through the removed `simulate` / `evidence.replicated` protocols) |
 | `tests/unit/host/test_legacy_admission_policy.py`, `tests/unit/lab/experiments/test_snapshot_origin.py` | admission of checkpoints flagged `unverified_legacy_origin` (subjects were built from schema-10 payloads) |
 | four tests in `test_telemetry_tools.py` | `benchmark_run`, `compare_runs`, acceptance gates on a real run (inputs were built with the v4 writer and the converter) |
-| two assays in `tests/integration/studies/test_primitive_effects.py` | `analyze_primitive_effects` on recurrent and between-state effects (inputs were written with the v3 writer); the v4.1 assay remains |
+| two assays in `lab/tests/integration/studies/test_primitive_effects.py` | `analyze_primitive_effects` on recurrent and between-state effects (inputs were written with the v3 writer); the v4.1 assay remains |
 | `test_unified_server_emits_live_organism_sse` | live organism SSE through the server (used demo telemetry as its source) |
 | `tests/unit/lab/world/test_w01_w02_experiment.py` | none in `lab/src`; it imported a runner script of a completed experiment that still uses the old package names (OI-9) |

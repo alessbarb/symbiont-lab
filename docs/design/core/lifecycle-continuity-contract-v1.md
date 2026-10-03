@@ -59,7 +59,7 @@ treatment in `src/symbiont/host/continuity.py::REGISTER`.
 | Must be reset or invalidated | `MUST_RESET` | never crosses the process boundary | not applicable |
 | Apparatus configuration | `MUST_REAPPLY_CONFIG` | recorded in provenance and reapplied | reapplied |
 
-`tests/unit/host/test_continuity_register.py` fails when a runtime attribute or
+`lab/tests/unit/host/test_continuity_register.py` fails when a runtime attribute or
 checkpoint field is unclassified.
 
 ## 4. Lifecycle operations
@@ -95,7 +95,7 @@ restart = same organism
         + reacclimation
 ```
 
-`tests/integration/test_restart_equivalence.py` fixes the set of fields that may
+`symbiont/tests/integration/test_restart_equivalence.py` fixes the set of fields that may
 differ from an uninterrupted run and asserts that exactly one transition is
 absent. A claim of restart equivalence stronger than this is not supported.
 
@@ -127,7 +127,7 @@ Consequences:
 - owner-facing launchers share one adoption path for every runtime layer, so the
   CLI and the resident launcher cannot adopt differently.
 
-Tests: `tests/unit/core/test_canonical_birth.py`,
+Tests: `symbiont/tests/unit/core/test_canonical_birth.py`,
 `tests/compatibility/checkpoint_v10/`.
 
 ### 6.1 Legacy admission policy (owner, 2026-10-02; issue #276)
@@ -183,7 +183,7 @@ The reduced seed is the apparatus of the clean-embodiment studies
 (`symbiont_lab.studies.embodiment`). Its semantics are declared per attribute in
 `REDUCED_SEED_REGISTER`; every attribute where it discards or ungrounds something
 canonical re-embodiment keeps is marked `diverges`.
-`tests/unit/host/test_reduced_seed_register.py` checks that the register covers
+`symbiont/tests/unit/host/test_reduced_seed_register.py` checks that the register covers
 every attribute of the class, that the declared divergences are exactly the real
 ones, and that a transplant treats each attribute as declared.
 
@@ -244,12 +244,12 @@ canonical re-embodiment: `symbiont_lab.physics3d.{runtime, reembodiment}`.
 
 | Rule | Register | Test |
 | --- | --- | --- |
-| Every runtime attribute is classified | `REGISTER` | `tests/unit/host/test_continuity_register.py` |
-| Current-schema checkpoints fail closed | `required_checkpoint_fields` | `tests/unit/host/test_strict_restore.py` |
-| Whole lifecycle per register entry: state → checkpoint → restore → checkpoint → re-embodiment → restore → checkpoint | `REGISTER` | `tests/integration/test_reembodiment_continuity.py::test_the_whole_lifecycle_holds_per_register_entry` |
-| Restart differs from an uninterrupted run only on the declared surface | — | `tests/integration/test_restart_equivalence.py` |
-| Transforms and unverified legacy origin are durable | `lineage_history` | `tests/unit/core/test_canonical_birth.py` |
-| Reduced-seed transplant contract and its divergences | `REDUCED_SEED_REGISTER` | `tests/unit/host/test_reduced_seed_register.py` |
+| Every runtime attribute is classified | `REGISTER` | `lab/tests/unit/host/test_continuity_register.py` |
+| Current-schema checkpoints fail closed | `required_checkpoint_fields` | `symbiont/tests/unit/host/test_strict_restore.py` |
+| Whole lifecycle per register entry: state → checkpoint → restore → checkpoint → re-embodiment → restore → checkpoint | `REGISTER` | `lab/tests/integration/test_reembodiment_continuity.py::test_the_whole_lifecycle_holds_per_register_entry` |
+| Restart differs from an uninterrupted run only on the declared surface | — | `symbiont/tests/integration/test_restart_equivalence.py` |
+| Transforms and unverified legacy origin are durable | `lineage_history` | `symbiont/tests/unit/core/test_canonical_birth.py` |
+| Reduced-seed transplant contract and its divergences | `REDUCED_SEED_REGISTER` | `symbiont/tests/unit/host/test_reduced_seed_register.py` |
 
 ## 10. Claims this contract does not make
 

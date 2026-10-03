@@ -28,4 +28,4 @@ Milestone EW-B.
 
 ## Evidence
 
-`tests/experimental_integrity/test_ground_truth_boundary.py`, `tests/unit/observatory/test_world_integration.py`.
+`tests/experimental_integrity/test_ground_truth_boundary.py`, `lab/tests/unit/observatory/test_world_integration.py`.

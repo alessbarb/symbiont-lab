@@ -30,4 +30,4 @@ Milestone GC (Generative Cognition v1).
 
 ## Evidence
 
-`docs/design/cognition/generative-cognition-v1.md` (§2), `tests/experimental_integrity/test_generative_cognition_boundary.py`, `tests/unit/lab/test_generative_predictive_utility.py`.
+`docs/design/cognition/generative-cognition-v1.md` (§2), `tests/experimental_integrity/test_generative_cognition_boundary.py`, `lab/tests/unit/lab/test_generative_predictive_utility.py`.

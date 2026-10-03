@@ -108,7 +108,7 @@ def main() -> None:
         "observer_on_samples": on,
         "note": (
             "Timing is evidence, not a deterministic test. "
-            "Use tests/experimental_integrity/test_performance_optimization_gate.py "
+            "Use lab/tests/experimental_integrity/test_performance_optimization_gate.py "
             "for causal equivalence."
         ),
     }

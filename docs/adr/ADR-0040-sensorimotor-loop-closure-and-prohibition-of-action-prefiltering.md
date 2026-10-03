@@ -27,4 +27,4 @@ Milestone A1 (Symbiont Actuation v1).
 
 ## Evidence
 
-`docs/design/sensorimotor/symbiont-actuation-v1.md` (§1), `tests/unit/lab/world/test_actuation_adapter.py`, `tests/unit/lab/world/test_actuation_end_to_end.py`.
+`docs/design/sensorimotor/symbiont-actuation-v1.md` (§1), `lab/tests/unit/lab/world/test_actuation_adapter.py`, `lab/tests/unit/lab/world/test_actuation_end_to_end.py`.

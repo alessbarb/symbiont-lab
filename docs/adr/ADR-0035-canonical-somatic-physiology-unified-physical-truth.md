@@ -29,4 +29,4 @@ Milestone L (Living Body P0).
 
 ## Evidence
 
-`docs/design/embodiment/living-body-p0.md`, `src/symbiont/core/domains/physiology.py`, `tests/unit/host/test_interoception.py`.
+`docs/design/embodiment/living-body-p0.md`, `src/symbiont/core/domains/physiology.py`, `symbiont/tests/unit/host/test_interoception.py`.

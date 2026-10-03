@@ -24,7 +24,10 @@ physics3d = ["lab[physics3d]"]
 
 [tool.pytest.ini_options]
 norecursedirs = ["backups", ".claude", "archive"]
-testpaths = ["tests", "lab/src/lab/observatory/tests"]
+# `tests/` holds only repository-wide checks. Each domain keeps its own suite in
+# `<domain>/tests` and is run on its own (several directories are named `tests`,
+# so they cannot share one pytest session): `python scripts/run_tests.py`.
+testpaths = ["tests"]
 addopts = "-m 'not slow'"
 markers = [
   "experiment_contract: mechanical contract for an experiment protocol or runner",

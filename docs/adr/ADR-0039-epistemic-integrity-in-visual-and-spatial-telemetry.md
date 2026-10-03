@@ -29,4 +29,4 @@ Milestone OW (Experienced World / Observatory Integration).
 
 ## Evidence
 
-`docs/design/observatory/experienced-world-v1.md`, `src/symbiont_lab/observation/world_scene.py`, `tests/unit/observatory/test_world_integration.py`.
+`docs/design/observatory/experienced-world-v1.md`, `src/symbiont_lab/observation/world_scene.py`, `lab/tests/unit/observatory/test_world_integration.py`.

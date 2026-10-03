@@ -30,4 +30,4 @@ Milestone G (Genome v2).
 
 ## Evidence
 
-`tests/unit/genetics/test_genome_v2.py`, `tests/experimental_integrity/test_genome_causal_validation.py`.
+`symbiont/tests/unit/genetics/test_genome_v2.py`, `lab/tests/experimental_integrity/test_genome_causal_validation.py`.

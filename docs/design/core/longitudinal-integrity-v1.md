@@ -494,18 +494,18 @@ scientific acceptance.
 
 | Gate item | Implementation | Evidence |
 | --- | --- | --- |
-| 1. Lineage identity verified or fail closed | `host/checkpoint.py`: `checkpoint_state_hash`, `verify_checkpoint_identity`, `stamp_checkpoint_identity`; schema 11 | `tests/unit/host/test_strict_restore.py`, `tests/compatibility/migrations/test_host_checkpoint_v10_identity_migration.py` |
-| 2. No silent fresh subsystem on current-schema loss | `host/checkpoint.py`: `require_current_schema_fields` | `tests/unit/host/test_strict_restore.py` |
-| 3. Every field has a continuity class | `host/continuity.py` | `tests/unit/host/test_continuity_register.py` |
-| 4. Active social epistemic knowledge round-trips or lives in its canonical owner | ARCH-1 Option A: the core ledger is removed from the organism runtime; the modeled ledger is the single owner, persisted and inside checkpoint identity | `tests/integration/test_restart_equivalence.py`, `tests/integration/test_communication_restart.py`, `tests/unit/host/test_continuity_register.py` |
-| 5. Exchange replay protection and sequence survive | `core/social/exchange.py`: `ExchangeReplayGuard.restore`; runtime restore | `tests/integration/test_communication_restart.py` |
-| 6. Runtime-only configuration recorded and reapplied | `runtime_provenance.session_controls`, `changed_since_restore` | `tests/integration/test_restart_configuration.py` |
-| 7. Checkpoint and bundle semantics documented and tested | `docs/glossary.md`, `docs/symbiont/11-persistence-provenance-and-reembodiment.md` | `tests/unit/lab/physics3d/test_persistence.py` |
-| 8. Cold restart equivalence with developed cognition | — | `tests/integration/test_restart_equivalence.py` |
-| 9. Re-embodiment continuity, Body authority withdrawn | transforms re-identify their output | `tests/integration/test_reembodiment_continuity.py` |
-| 10. Temporal contamination stays bounded | `physics3d/reembodiment.py`: `migrate_temporal_domains` | `tests/unit/lab/physics3d/test_reembodiment.py` |
+| 1. Lineage identity verified or fail closed | `host/checkpoint.py`: `checkpoint_state_hash`, `verify_checkpoint_identity`, `stamp_checkpoint_identity`; schema 11 | `symbiont/tests/unit/host/test_strict_restore.py`, `tests/compatibility/migrations/test_host_checkpoint_v10_identity_migration.py` |
+| 2. No silent fresh subsystem on current-schema loss | `host/checkpoint.py`: `require_current_schema_fields` | `symbiont/tests/unit/host/test_strict_restore.py` |
+| 3. Every field has a continuity class | `host/continuity.py` | `lab/tests/unit/host/test_continuity_register.py` |
+| 4. Active social epistemic knowledge round-trips or lives in its canonical owner | ARCH-1 Option A: the core ledger is removed from the organism runtime; the modeled ledger is the single owner, persisted and inside checkpoint identity | `symbiont/tests/integration/test_restart_equivalence.py`, `symbiont/tests/integration/test_communication_restart.py`, `lab/tests/unit/host/test_continuity_register.py` |
+| 5. Exchange replay protection and sequence survive | `core/social/exchange.py`: `ExchangeReplayGuard.restore`; runtime restore | `symbiont/tests/integration/test_communication_restart.py` |
+| 6. Runtime-only configuration recorded and reapplied | `runtime_provenance.session_controls`, `changed_since_restore` | `symbiont/tests/integration/test_restart_configuration.py` |
+| 7. Checkpoint and bundle semantics documented and tested | `docs/glossary.md`, `docs/symbiont/11-persistence-provenance-and-reembodiment.md` | `lab/tests/unit/lab/physics3d/test_persistence.py` |
+| 8. Cold restart equivalence with developed cognition | — | `symbiont/tests/integration/test_restart_equivalence.py` |
+| 9. Re-embodiment continuity, Body authority withdrawn | transforms re-identify their output | `lab/tests/integration/test_reembodiment_continuity.py` |
+| 10. Temporal contamination stays bounded | `physics3d/reembodiment.py`: `migrate_temporal_domains` | `lab/tests/unit/lab/physics3d/test_reembodiment.py` |
 
-Experimental-integrity tier: `tests/experimental_integrity/test_longitudinal_integrity.py`.
+Experimental-integrity tier: `symbiont/tests/experimental_integrity/test_longitudinal_integrity.py`.
 
 ### Decisions taken during implementation
 

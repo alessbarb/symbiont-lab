@@ -7,7 +7,7 @@ checkpoint state identity (``checkpoint_lineage.checkpoint_id``).
 
 The register describes the code as it is, including contracts it does not yet
 meet: ``known_gap`` names the audit finding that tracks the unmet part. It is
-validated against the live runtimes by ``tests/unit/host/test_continuity_register.py``
+validated against the live runtimes by ``lab/tests/unit/host/test_continuity_register.py``
 so a new attribute or checkpoint field cannot be added unclassified.
 
 Nested state is owned by the subsystem named in ``owner`` through its own

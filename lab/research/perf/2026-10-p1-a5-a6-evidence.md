@@ -9,7 +9,7 @@ PyBullet is optional and one test was skipped by the suite.
 
 **Outcome: confirmed within the tested contract and configurations.** The
 matched-run test
-`tests/experimental_integrity/test_physics3d_observation_independence.py`
+`lab/tests/experimental_integrity/test_physics3d_observation_independence.py`
 passed all six cases: seeds 127 and 149, each across anthropomorphic-v6 in the
 flat environment, anthropomorphic-v6-vision in vision-nursery-d1-v1, and
 anthropomorphic-v6-vision in vision-nursery-d1-v2. Each pair started from one
@@ -63,7 +63,7 @@ performance threshold, or general claim across hosts, body kinds, or workloads.
 ## A6 — Shared equivalence harness
 
 **Outcome: confirmed within the expanded shared harness contract.** The
-focused `tests/integration/test_physics3d_equivalence_harness.py` test passed.
+focused `lab/tests/integration/test_physics3d_equivalence_harness.py` test passed.
 The harness now also captures a canonical per-tick trace digest covering the
 `Tick3D` record, full physical checkpoint and physical tick, motor intents,
 delivered actuations, and passive observer projection. Existing per-tick
@@ -76,9 +76,9 @@ Focused run after adding the per-tick trace regression:
 
 ```text
 uv run pytest -q \
-  tests/experimental_integrity/test_physics3d_observation_independence.py \
-  tests/integration/test_physics3d_equivalence_harness.py \
-  tests/unit/lab/physics3d/test_dynamics.py
+  lab/tests/experimental_integrity/test_physics3d_observation_independence.py \
+  lab/tests/integration/test_physics3d_equivalence_harness.py \
+  embodiment/tests/unit/lab/physics3d/test_dynamics.py
 23 passed, 1 skipped, 1 deselected in 44.43s
 ```
 
@@ -86,7 +86,7 @@ The deterministic replay/causal perturbation test (marked `slow`) was run
 separately:
 
 ```text
-uv run pytest -q -m slow tests/integration/test_physics3d_equivalence_harness.py
+uv run pytest -q -m slow lab/tests/integration/test_physics3d_equivalence_harness.py
 1 passed, 1 deselected in 7.33s
 ```
 
@@ -103,7 +103,7 @@ dimensions.
 ## A7 — Current audit; no complete closure
 
 The existing deterministic humanoid actuation test
-`tests/unit/lab/physics3d/test_dynamics.py::test_humanoid_v4_hard_limits_hold_under_deterministic_actuation`
+`embodiment/tests/unit/lab/physics3d/test_dynamics.py::test_humanoid_v4_hard_limits_hold_under_deterministic_actuation`
 exercises 360 ticks and 720 physics substeps. Its declared assertions are:
 
 - joint angular limit violation below `JOINT_LIMIT_SOLVER_TOLERANCE`

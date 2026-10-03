@@ -100,7 +100,7 @@ rather than guessing.
 
 ## 5. Tests
 
-`tests/unit/workbench/test_observability_state.py` executes the classifier
+`lab/tests/unit/workbench/test_observability_state.py` executes the classifier
 as the browser runs it and covers every state, checks the lifecycle against real
 runtimes, and checks that a malformed status reaches the Workbench unaltered.
 

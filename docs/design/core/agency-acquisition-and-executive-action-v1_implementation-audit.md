@@ -124,7 +124,7 @@ Study subjects run on apparatus time (`ApparatusClock`, body timestamps), and
 every sampling path of a tick now shares the host time base. A fresh run gives
 identical trajectories across processes, twins restored from one checkpoint
 continue identically, and restore reproduces the causal estimate tables exactly.
-`tests/experiments/protocols/test_agency_acquisition_protocols.py` enforces the
+`lab/tests/experiments/protocols/test_agency_acquisition_protocols.py` enforces the
 first two (E6 through a closed loop, run twice; matched twins).
 
 ### 1.4 Overhead
@@ -162,7 +162,7 @@ Interpretation limits: one synthetic body family, fixed budgets; E1/E4/E6 on thr
 | 7.1 | Cognition never emits MotorCommand | unchanged single authority | `test_cognition_cannot_issue_motor_command`, `test_single_motor_authority` |
 | 7.2 | Intent = WHAT, controller = HOW | `agency/intention.py` (no actuator/controller fields or refs) | `test_action_intent_contains_no_actuator_ids`, `test_action_intent_cannot_call_controller_directly` |
 | 7.3 | Exploration without competence | ActionDomain + reduced Symbiont exploration name no competence; `ActionProposal` rejects intents on exploration | `test_exploration_creates_attempt_without_competence`, `test_exploration_does_not_require_action_intent` |
-| 7.4 | Causal evidence without competence | `CausalEvidence` subject = attempt/signature/commitment/competence | `tests/unit/actuation/test_causal_evidence.py` |
+| 7.4 | Causal evidence without competence | `CausalEvidence` subject = attempt/signature/commitment/competence | `symbiont/tests/unit/actuation/test_causal_evidence.py` |
 | 7.5 | Dimension ≠ actuator | channel-set families, opaque ids | `test_dimension_identity_does_not_equal_actuator_identity`, `test_dimension_can_span_multiple_channels` |
 | 7.6 | Intent does not govern all action | protection/exploration/regulation proposals need no intent | `test_protection_does_not_require_action_intent` |
 | 7.7, 22–23 | Prediction match ≠ agency | `AgencyModel`: zero unless positive contingency and specificity; counterfactual support factor | `test_prediction_match_alone_does_not_create_agency` |
@@ -194,8 +194,8 @@ Interpretation limits: one synthetic body family, fixed budgets; E1/E4/E6 on thr
 | 82–83 | Checkpoint v4, executive section, migration | sensorimotor schema 4 (`agency_acquisition`), top-level `executive_intention`; v3 and older restore with no dimensions | `test_dimension_survives_checkpoint`, `test_intention_checkpoint_keeps_only_live_intent`, legacy tests |
 | 84 | Reduced Symbiont | shares `AgencyAcquisition` through its ActionDomain | experimental-integrity embodiment tests |
 | 85–91 | Observatory, Atlas, metrics (verified in the real Observatory app with a live organism: the Mind agency panels populate through `applyMindSnapshot`, and the Atlas canvas draws the live `action_intent` node in the region of its competence and target effect) | snapshot §90 metrics; rich state → projection → Atlas (`action_intent` node, `affords` temporal overlay, agency metrics); Mind panels | atlas/projection tests |
-| 104–111 | Integration | `tests/integration/test_agency_acquisition_closure.py` | 7 tests |
-| 112–118 | E1–E6, release gate | `symbiont_lab/studies/learning/agency_acquisition.py`, `experiments/learning/agency-*` | `tests/experiments/protocols/test_agency_acquisition_protocols.py`; registered runs above |
+| 104–111 | Integration | `lab/tests/integration/test_agency_acquisition_closure.py` | 7 tests |
+| 112–118 | E1–E6, release gate | `symbiont_lab/studies/learning/agency_acquisition.py`, `experiments/learning/agency-*` | `lab/tests/experiments/protocols/test_agency_acquisition_protocols.py`; registered runs above |
 
 ---
 

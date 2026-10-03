@@ -64,8 +64,8 @@ paths = [
   "lab/src/lab/experiments/execution_workspace.py",
   "lab/experiments/equivalence/**",
   "tests/integration/test_equivalence*.py",
-  "tests/unit/lab/experiments/test_snapshot_archive.py",
-  "tests/unit/lab/experiments/test_resource_guard.py",
+  "lab/tests/unit/lab/experiments/test_snapshot_archive.py",
+  "lab/tests/unit/lab/experiments/test_resource_guard.py",
 ]
 classification = "CONSTITUTIONAL"
 
@@ -102,7 +102,13 @@ classification = "ORDINARY"
 
 [[surface]]
 id = "scientific-evidence-tests"
-paths = ["tests/experimental_integrity/**", "tests/contract/**", "tests/experiments/**"]
+paths = [
+  "tests/experimental_integrity/**",
+  "tests/experiments/**",
+  "symbiont/tests/experimental_integrity/**",
+  "lab/tests/experimental_integrity/**",
+  "lab/tests/experiments/**",
+]
 classification = "SCIENTIFIC"
 
 [[surface]]

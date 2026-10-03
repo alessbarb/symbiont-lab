@@ -28,4 +28,4 @@ Milestone H3 / Embodiment Memory v1.
 
 ## Evidence
 
-`docs/design/embodiment/embodiment-memory-v1.md`, `tests/experimental_integrity/test_reembodiment_reacclimation.py`.
+`docs/design/embodiment/embodiment-memory-v1.md`, `lab/tests/experimental_integrity/test_reembodiment_reacclimation.py`.

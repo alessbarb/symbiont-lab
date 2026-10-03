@@ -16,7 +16,7 @@ The preregistered `experiment.toml` and this README.
 
 Results, run artifacts or interpretation (runs go to `.symbiont/runs/`, the
 reading goes to the spec), and pytest files (instrumentation tests live in
-`tests/integration/test_private_model_learnability.py`).
+`lab/tests/integration/test_private_model_learnability.py`).
 
 ## Criterion for creating a file
 

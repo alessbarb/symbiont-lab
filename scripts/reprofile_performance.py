@@ -340,7 +340,7 @@ def main() -> None:
                 "pytest",
                 "-o",
                 "addopts=",
-                "tests/experimental_integrity/test_performance_optimization_gate.py",
+                "lab/tests/experimental_integrity/test_performance_optimization_gate.py",
                 "-q",
             ],
         ),

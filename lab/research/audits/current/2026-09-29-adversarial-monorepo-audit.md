@@ -30,7 +30,7 @@ Límites deliberados: los bundles históricos sin manifiesto/1.0 carecen de hash
 - **Reproducción ejecutada:** runtime de un tick y writer simulados, `telemetry.flush.side_effect = RuntimeError('async telemetry worker failed')`; `_save_checkpoint` instrumentado. Resultado: `checkpoint calls 0`, `runtime close 0`, `telemetry close 0`. No requiere fallo del mecanismo de checkpoint corregido.
 - **Impacto:** pérdida del último estado cognitivo guardable, recursos sin cerrar y handlers sin restaurar. El worker real es no-daemon; saltarse su cierre también puede impedir la terminación del proceso. Este último efecto se deriva del código, no se provocó un bloqueo real.
 - **Corrección recomendada:** aislamiento del fallo de observación; cleanup por recursos independientes y checkpoint cognitivo que no dependa de `flush`. Registrar la pérdida de evidencia sin atribuirla a muerte del sujeto. Añadir inyección de fallo en append/flush/close.
-- **Certeza:** confirmación dinámica del salto de guardado/cleanup. **Estado:** Corregido (`eb827a94`). Pruebas añadidas en `tests/unit/lab/physics3d/test_shutdown.py` validando aislamiento de observación, preservación de presupuesto, checkpoint y cierre independiente de recursos.
+- **Certeza:** confirmación dinámica del salto de guardado/cleanup. **Estado:** Corregido (`eb827a94`). Pruebas añadidas en `lab/tests/unit/lab/physics3d/test_shutdown.py` validando aislamiento de observación, preservación de presupuesto, checkpoint y cierre independiente de recursos.
 
 ### A02 — Alta: las pruebas de integridad experimental no se ejecutan con el comando de CI
 
@@ -68,7 +68,7 @@ Límites deliberados: los bundles históricos sin manifiesto/1.0 carecen de hash
 - **Impacto:** se pierden orientación, radio y origen de emisión; no existe continuidad equivalente de ese estado. Es una API pública exportada desde `symbiont_world.__init__`.
 - **Límite de alcance:** Lab tiene un checkpoint persistente diferente. No se ha demostrado que esta omisión afecte a los guardados de población de Lab; no debe extrapolarse a esa ruta.
 - **Corrección recomendada:** serializar/validar todo el estado causal propiedad de World y probar continuación, no solo ocupación y tick.
-- **Certeza:** reproducción directa. **Estado:** Corregido (`4ab38690`). `WorldCheckpoint` captura `bodies` mediante copia profunda y un mapping de solo lectura y `restore` reinstancia las colocaciones corporales. Pruebas en `tests/unit/world/test_checkpoint.py` y `tests/integration/test_world_checkpoint_continuation.py`.
+- **Certeza:** reproducción directa. **Estado:** Corregido (`4ab38690`). `WorldCheckpoint` captura `bodies` mediante copia profunda y un mapping de solo lectura y `restore` reinstancia las colocaciones corporales. Pruebas en `environment/tests/unit/world/test_checkpoint.py` y `environment/tests/integration/test_world_checkpoint_continuation.py`.
 
 ### A06 — Media: el estudio prospectivo encarnado falla en su primer tick
 
@@ -77,7 +77,7 @@ Límites deliberados: los bundles históricos sin manifiesto/1.0 carecen de hash
 - **Reproducción ejecutada:** invocar `run_prospective_embodied_trial(1, warmup_ticks=1, horizon_ticks=1)` con runtime y servicio de entrenamiento simulados. Resultado: `NameError: name 'slm' is not defined`. Ruff confirma F821.
 - **Impacto:** el protocolo no alcanza su decisión de split ni produce el resultado previsto. No es un resultado científico negativo ni `not_testable`; es un fallo mecánico.
 - **Corrección recomendada:** usar la API real del servicio con el argumento apropiado y añadir un contrato corto del primer tick; no modificar la conducta del organismo ni aumentar presupuestos para ocultarlo.
-- **Certeza:** diagnóstico estático y reproducción dinámica con dobles. **Estado:** Corregido (`f2530793`). Invocación corregida a `private_model_training.poll(runtime.organism)` y test de contrato de 1 tick añadido en `tests/experiments/protocols/test_prospective_embodied_warmup.py`.
+- **Certeza:** diagnóstico estático y reproducción dinámica con dobles. **Estado:** Corregido (`f2530793`). Invocación corregida a `private_model_training.poll(runtime.organism)` y test de contrato de 1 tick añadido en `lab/tests/experiments/protocols/test_prospective_embodied_warmup.py`.
 
 ## Cobertura, evidencias negativas y límites
 

@@ -32,4 +32,4 @@ Milestone S / Adaptive Sensory Specialization.
 
 ## Evidence
 
-`src/symbiont/host/adaptive.py` (L351, L794), `docs/architecture.md` (L179, L590), `tests/unit/host/test_sampling.py`.
+`src/symbiont/host/adaptive.py` (L351, L794), `docs/architecture.md` (L179, L590), `symbiont/tests/unit/host/test_sampling.py`.

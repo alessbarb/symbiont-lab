@@ -10,6 +10,8 @@ from __future__ import annotations
 import importlib.util
 import sys
 
+import pytest
+
 from embodiment.physics3d.bodies import (
     ANTHROPOMORPHIC_V6,
     ASYMMETRIC_V1,
@@ -22,6 +24,10 @@ from embodiment.physics3d.vision import VISUAL_RECEPTOR_COUNT, visual_receptor_c
 FOREIGN = ("symbiont", "modality", "environment", "lab")
 
 
+@pytest.mark.skipif(
+    any(importlib.util.find_spec(name) for name in FOREIGN[:4] if name != "pybullet"),
+    reason="meaningful only where this library is installed alone",
+)
 def test_no_other_domain_is_installed_or_loaded() -> None:
     assert [name for name in FOREIGN if importlib.util.find_spec(name)] == []
     assert [name for name in sys.modules if name.split(".")[0] in FOREIGN] == []

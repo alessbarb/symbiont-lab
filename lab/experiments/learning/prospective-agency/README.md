@@ -28,7 +28,7 @@ that the prospective agency mechanism is causally wired as specified.
 Run through pytest:
 
 ```bash
-pytest -q tests/integration/studies/test_prospective_agency_controls.py
+pytest -q lab/tests/integration/studies/test_prospective_agency_controls.py
 ```
 
 The next stage is an embodied matched-condition study using the same five

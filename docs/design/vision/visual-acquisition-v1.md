@@ -8,7 +8,7 @@ Context: Experience & World Architecture v1, and the pending-implementation spec
 
 - **EW-C (ADR-0011):** causal visual apparatus.
 - **EW-T (ADR-0042):** deterministic causal time and cost.
-- **Gates H and I:** hold at engine level, also for the vision body in the moving-source nursery (`tests/integration/test_physics3d_reproduction_gates.py`).
+- **Gates H and I:** hold at engine level, also for the vision body in the moving-source nursery (`lab/tests/integration/test_physics3d_reproduction_gates.py`).
 
 Implementation: `src/symbiont_lab/studies/learning/visual_acquisition.py`, protocol `learning.visual-acquisition-v1`, experiments under `experiments/learning/visual-acquisition-v1/`.
 
@@ -45,7 +45,7 @@ For each seed, a new Symbiont is born into the vision body in the D1 nursery and
 - **B — sensors without acquisition.** A Lab-owned `CognitiveAcquisitionAblation` (`symbiont_lab/studies/ablations/cognitive.py`) with `plasticity_enabled = false` and `predictor_promotion = false`.
   - It is applied after restoring X and before the arm's first tick, through neutral runtime switches of existing capabilities (`set_cognitive_plasticity_enabled`, `set_predictor_promotion_enabled`).
   - It is never checkpointed and never part of `effective_config`.
-  - Sensor admission and the apparatus are unchanged (`tests/unit/lab/test_cognitive_acquisition_ablation.py`).
+  - Sensor admission and the apparatus are unchanged (`lab/tests/unit/lab/test_cognitive_acquisition_ablation.py`).
 - **C — no visual apparatus.** Not assessable in D1. Its place is transfer: an equivalent lineage without Vision against the one that went through Vision, in the same World.
 
 **Measurement.** Evaluator-side, observation on every tick; Gate I shows observation density does not change causal state.
@@ -215,7 +215,7 @@ held-out seeds are enabled, and no further D1 redesign or threshold relaxation
 is authorized.
 
 Gate I for `vision-nursery-d1-v2` was verified by
-`tests/integration/test_physics3d_reproduction_gates.py::test_gate_i_observer_density_does_not_change_causal_state[vision-d1-v2]`
+`lab/tests/integration/test_physics3d_reproduction_gates.py::test_gate_i_observer_density_does_not_change_causal_state[vision-d1-v2]`
 on 2026-09-30 (1 passed). This establishes observer-density neutrality for that
 mechanical test, not predictive utility or visual acquisition.
 
