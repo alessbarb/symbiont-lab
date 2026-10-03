@@ -143,6 +143,7 @@ is small (about 10 % of basal spend); at full sensory capacity (256 receptors)
 retention alone would be 0.256 per tick against a basal spend of about 0.055.
 No result backs these prices. They are `pending` a preregistered, multi-seed
 calibration experiment over a grid of prices, measuring survival and learning,
-with reduced retention during dormancy as one arm. Until then the prices do not
+with reduced retention during dormancy as one arm: Metabolic Retention Price
+Calibration v1 (`docs/design/experimentation/metabolic-retention-price-calibration-v1.md`). Until then the prices do not
 change, and `tests/experimental_integrity/test_metabolic_cost_coherence.py` keeps
 the incoherence declared as a strict expected failure.
