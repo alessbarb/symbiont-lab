@@ -76,3 +76,46 @@ Current external implementations that need such operations must import the
 explicit internal transition contract until an owner outside `symbiont`
 chooses a new public composition API. This change does not migrate or modify
 those external consumers.
+
+## D-5 — Current resident budding contract
+
+Resident budding is a bounded **clonal seed operation**, not Genome v2
+reproduction. The child receives the parent's current `Genome` value, a new
+organism identifier, `generation + 1`, and a newly loaded birth cognitive
+graph. It does not currently receive an `InheritancePackage`, germline marks,
+or structured biological parentage. `create_child` is a composition seam; it
+does not itself define or enforce inheritance semantics.
+
+This records current behavior and does not claim that the child is biological
+offspring under a richer genetic model. Recombination, mutation,
+transgenerational marks, or biological genealogy require a separate versioned
+inheritance policy and explicit persisted parent identifiers.
+
+## D-6 — Epigenetic state channels
+
+`EpigeneticPrior` and Genome v2 `EpigeneticMark`/`GermlineState` are separate
+state models and MUST NOT be implicitly converted or described as one
+inheritance mechanism. `EpigeneticPrior` is currently bounded, checkpointed,
+and decayed by the full runtime, but the audited path does not apply it to gene
+expression or pass it through resident budding. Genome v2 germline marks
+affect effective gene values when a `GermlineState` is explicitly provided;
+capture of acquired marks is disabled by default and requires an explicit
+protocol. Neither channel establishes that resident budding is
+transgenerational epigenetic inheritance.
+
+The legacy `EpigeneticPrior` channel remains for compatibility until a
+separate checkpoint/API policy authorizes removal. Future code must name which
+channel it uses and must not silently bridge them.
+
+## Follow-up implementation matrix
+
+| Item | Disposition | Required work / boundary |
+|---|---|---|
+| C-1 public Embodiment exports | Implemented | Removed from `symbiont.api`; external consumers are not migrated here. |
+| C-2 dormant social trust prototypes | Implemented as demotion | Removed from aggregate `symbiont.core` exports; module files remain pending deletion policy. |
+| C-3 resident budding | Contract fixed by D-5 | Preserve clonal behavior for now; richer inheritance is a separately authorized feature. |
+| C-4 biological parentage | Deferred | Do not infer biological genealogy from `generation` or child ID formatting. Add structured parent IDs only with a defined lineage/checkpoint contract. |
+| C-5 epigenetic channels | Contract fixed by D-6 | Keep prior and Genome v2 germline channels distinct; no implicit migration or bridge. |
+
+No changes to `OrganismRuntime` decomposition (F-10) or checkpoint schema
+compatibility (F-11) are authorized by these decisions.
