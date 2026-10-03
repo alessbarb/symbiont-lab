@@ -1,0 +1,37 @@
+{
+  "command": [
+    "<scientific-python>",
+    "-m",
+    "symbiont_lab.experiments.verified_child",
+    "code",
+    "import os; from symbiont_lab.studies.learning.competence_establishment import SELECTION_PARTS, main; [main(['selection-part', '--workers', '4', '--part', str(n), '--output', os.path.join(os.environ['SYMBIONT_RUN_WORK'], f'selection-part-{n}.json')]) for n in range(SELECTION_PARTS)]"
+  ],
+  "commit": "7d66943268705eb696726e40b70eab65050366b3",
+  "cpu_threads": 4,
+  "dependency_extras": [],
+  "elapsed_seconds": 4369.943554162979,
+  "ended_at": "2026-10-03T13:03:28.730723+00:00",
+  "execution_fingerprint": {
+    "dependency_lock_hash": "9aba8f9362e8792458a6ac348d2024e1b54f6ccff58ec6f83ee7860bf9d6d477",
+    "effective_config_hash": "f073d190d211e6b6b6be8991c225f45fdf65865ef932039b3fcf58a5414f2f13",
+    "experiment_id": "learning.competence-establishment-evidence-v1",
+    "git_commit": "7d66943268705eb696726e40b70eab65050366b3",
+    "is_dirty": false,
+    "python_version": "3.12.13",
+    "seed": 1009
+  },
+  "experiment_id": "learning.competence-establishment-evidence-v1",
+  "governance_ref": "7d66943268705eb696726e40b70eab65050366b3",
+  "id": "cee-v1-selection-parallel-20261003",
+  "memory_gb": 4.0,
+  "returncode": 0,
+  "scientific_input": {
+    "external_state": false,
+    "mode": "protocol-generated"
+  },
+  "scope": "development",
+  "seed": 1009,
+  "started_at": "2026-10-03T11:50:38.772317+00:00",
+  "state": "complete",
+  "wall_minutes": 240
+}

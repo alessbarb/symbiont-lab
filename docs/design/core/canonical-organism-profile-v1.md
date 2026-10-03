@@ -72,8 +72,8 @@ conflict.
 | `footprint_satisfaction_rule` | `recall` | `recall` | E8 v3: rule AB rejected | — |
 | `symbol_seed_policy` | `shared` | `per_organism` | Independent-Seed Symbol Grounding, negative: convergence was a shared-seed artifact | Seed derived from the organism's own identity, offspring included |
 | `ancestry_training` | off | off | P5.1 owner decision 2026-09-29: ancestry from DEGRADED models | `pending` behind Promotion Stability |
-| `competence_min_support` | 2 | 2 | **Unsupported**: never tested; established competences on two samples are often demoted later | Under test: Competence Establishment Evidence v1 |
-| `competence_min_consistency` | 0.60 | 0.60 | **Unsupported**: never tested | Under test: Competence Establishment Evidence v1 |
+| `competence_min_support` | 2 | 2 | Competence Establishment Evidence v1: the current gate gives the earliest stable binding of 27 gates (selection stage) | No change; stricter gates reduce false establishment but delay stable bindings |
+| `competence_min_consistency` | 0.60 | 0.60 | Competence Establishment Evidence v1, as above | No change |
 | `retention_price_baseline` | 0.001 | 0.001 | **Unsupported**: never tested; at full capacity retention exceeds the basal budget | Under test: Metabolic Retention Price Calibration v1 |
 | `retention_price_node` | 0.0005 | 0.0005 | **Unsupported**: never tested | Under test: Metabolic Retention Price Calibration v1 |
 | `dormancy_retention_factor` | 1.0 | 1.0 | **Unsupported**: never tested | Under test: Metabolic Retention Price Calibration v1 |
@@ -101,7 +101,7 @@ actuators, not on a result. The autonomous training budget
 | P5.1 ancestry from DEGRADED | pending behind Promotion Stability | Not applied |
 | P5.1 promotion churn | pending — Promotion Stability paused | Not applied |
 | E1, E3, E5 | pending — `AgencyModel` repair is Phase B | Not applied |
-| Competence Establishment Evidence v1 | pending — preregistered, apparatus built, not run | `v1` keeps `(2, 0.60)` |
+| Competence Establishment Evidence v1 | no change — selection picked the current gate | Applied (`v1` keeps `(2, 0.60)`) |
 
 ## 5. Declared deviations
 

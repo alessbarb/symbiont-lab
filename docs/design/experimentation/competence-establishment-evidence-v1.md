@@ -3,14 +3,15 @@ id: design.experimentation.competence-establishment-evidence-v1
 title: "Competence Establishment Evidence v1 — Preregistration"
 document_type: design
 domain: experimentation
-status: proposed
+status: closed
 ---
 
 # Competence Establishment Evidence v1 — Preregistration
 
-**Status:** proposed, awaiting owner approval. Regime: **two stages**, an
-exploratory selection on its own seeds and a **confirmatory** comparison on
-fresh seeds. Nothing has been run.
+**Status:** closed, 2026-10-03: **no change**. The selection stage picked the
+current gate `(2, 0.60)` (median `T_stable` 392 ticks against 814 for the next
+gate); by §7 the confirmation stage is not run. Results:
+`experiments/learning/competence-establishment-evidence-v1/`.
 
 **Requirement served.** The owner requires that an organism re-embodied in a new
 Body manages it sooner than a newborn (canonical organism profile register, §6).
