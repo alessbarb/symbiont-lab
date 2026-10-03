@@ -344,6 +344,9 @@ class OrganismRuntime:
         profile: OrganismProfile | None = None,
         competence_min_support: int | None = None,
         competence_min_consistency: float | None = None,
+        retention_price_baseline: float | None = None,
+        retention_price_node: float | None = None,
+        dormancy_retention_factor: float | None = None,
     ) -> None:
         # Governed options left unset come from the organism profile (ADR-0062).
         profile = profile if profile is not None else CANONICAL
@@ -360,6 +363,25 @@ class OrganismRuntime:
             factorized_effects = profile.factorized_effects
         if intention_policy is None:
             intention_policy = profile.intention_policy()
+        retention = (
+            profile.retention_price_baseline
+            if retention_price_baseline is None
+            else float(retention_price_baseline),
+            profile.retention_price_node
+            if retention_price_node is None
+            else float(retention_price_node),
+            profile.dormancy_retention_factor
+            if dormancy_retention_factor is None
+            else float(dormancy_retention_factor),
+        )
+        if (
+            not all(math.isfinite(value) and value >= 0.0 for value in retention)
+            or retention[2] > 1.0
+        ):
+            raise ValueError(
+                "retention prices must be non-negative and the dormancy factor within [0, 1]"
+            )
+        self._retention_prices = retention
         self._competence_gate = CompetenceGate(
             min_support=(
                 profile.competence_min_support
@@ -1435,6 +1457,9 @@ class OrganismRuntime:
             "host_sense_source": self._host_sense_source,
             "competence_min_support": self._competence_gate.min_support,
             "competence_min_consistency": self._competence_gate.min_consistency,
+            "retention_price_baseline": self._retention_prices[0],
+            "retention_price_node": self._retention_prices[1],
+            "dormancy_retention_factor": self._retention_prices[2],
             "mutation_seed": self._mutation_seed,
             "epigenetic_decay": self._epigenetic_decay,
             "actuation_enabled": self._actuation_enabled,
@@ -2213,9 +2238,14 @@ class OrganismRuntime:
         # reserve. Assimilation cost is still charged elsewhere
         # (``_charge_metabolism`` above) regardless of ``_explicit_metabolism``.
 
+        baseline_price, node_price, dormancy_factor = self._retention_prices
         retained_units = self._memory_domain.retained_units(
             drift_baseline_count=len(self._drift_baselines),
             cognitive_node_count=cognition_step.retained_node_count,
+            baseline_price=baseline_price,
+            node_price=node_price,
+            dormant=self._physiology.state is VitalState.DORMANT,
+            dormancy_factor=dormancy_factor,
         )
         embodied_work = self._pending_embodied_work
         self._pending_embodied_work = 0.0
@@ -3140,6 +3170,9 @@ class OrganismRuntime:
             "interoception_mode",
             "competence_min_support",
             "competence_min_consistency",
+            "retention_price_baseline",
+            "retention_price_node",
+            "dormancy_retention_factor",
             "conflict_z",
             "min_samples",
         ):

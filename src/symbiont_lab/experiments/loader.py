@@ -38,6 +38,7 @@ def load_experiment_dict(data: dict[str, Any]) -> ExperimentSpec:
         "vision",
         "transfer",
         "establishment",
+        "retention",
         "output",
     }
     unknown = set(data) - allowed
@@ -202,6 +203,25 @@ def load_experiment_dict(data: dict[str, Any]) -> ExperimentSpec:
             "min_seeds_improved",
             "min_median_paired_reduction",
         },
+        # Metabolic Retention Price Calibration v1: frozen design and decision
+        # constants, checked against the study module by a contract test.
+        "retention": {
+            "pilot_seeds",
+            "selection_seeds",
+            "baseline_prices",
+            "node_prices",
+            "dormancy_factors",
+            "current_prices",
+            "horizon",
+            "body_energy",
+            "support_rule",
+            "coherence_rule",
+            "selection_rule",
+            "min_alive_seeds",
+            "min_seeds_not_worse",
+            "min_t_stable_reduction",
+            "max_retained_growth",
+        },
         "output": {"save_trace", "save_summary"},
     }
     for block_name in (
@@ -217,6 +237,7 @@ def load_experiment_dict(data: dict[str, Any]) -> ExperimentSpec:
         "vision",
         "transfer",
         "establishment",
+        "retention",
         "output",
     ):
         if block_name in data:

@@ -312,6 +312,7 @@ REGISTER: tuple[ContinuityEntry, ...] = (
     _config("_min_samples"),
     _config("_profile_version"),
     _config("_competence_gate"),
+    _config("_retention_prices"),
     _config("_discover_senses"),
     _config("_bootstrap_semantic_senses"),
     _config("_explicit_metabolism"),

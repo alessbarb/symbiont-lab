@@ -38,6 +38,9 @@ class OrganismProfile:
     ancestry_training: bool
     competence_min_support: int
     competence_min_consistency: float
+    retention_price_baseline: float
+    retention_price_node: float
+    dormancy_retention_factor: float
 
     def runtime_kwargs(self) -> dict[str, Any]:
         """Keyword arguments for ``OrganismRuntime`` that realise this profile."""
@@ -51,6 +54,9 @@ class OrganismProfile:
             "intention_policy": self.intention_policy(),
             "competence_min_support": self.competence_min_support,
             "competence_min_consistency": self.competence_min_consistency,
+            "retention_price_baseline": self.retention_price_baseline,
+            "retention_price_node": self.retention_price_node,
+            "dormancy_retention_factor": self.dormancy_retention_factor,
         }
 
     def intention_policy(self) -> IntentionPolicy:
@@ -85,6 +91,9 @@ HISTORICAL_V0 = OrganismProfile(
     ancestry_training=False,
     competence_min_support=2,
     competence_min_consistency=0.60,
+    retention_price_baseline=0.001,
+    retention_price_node=0.0005,
+    dormancy_retention_factor=1.0,
 )
 
 # Convergence of the results closed up to 2026-10-02 (register §3, ADR-0062).
