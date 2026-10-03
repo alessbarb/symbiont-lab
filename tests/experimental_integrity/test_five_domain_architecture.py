@@ -45,8 +45,9 @@ PEERS = ("symbiont", "embodiment", "modality", "environment")
     [
         # the four domains are peer libraries: none imports another, none imports the Lab
         *((source, target) for source in PEERS for target in (*PEERS, "lab") if source != target),
-        # heavy numeric and physics libraries are only imported by the Lab
-        *((source, heavy) for source in PEERS for heavy in HEAVY),
+        # the organism imports no physics, tensor or imaging backend; the other three
+        # libraries may use the external backends they declare
+        *(("symbiont", heavy) for heavy in HEAVY),
     ],
 )
 def test_forbidden_domain_dependency(source: str, target: str) -> None:
@@ -127,3 +128,15 @@ def test_public_api_resolves_and_is_modality_free() -> None:
     assert not {"VisionFrame", "LanguageToken", "HumanoidJoint", "PhysicsObservation"} & set(
         api.__all__
     )
+
+
+def test_all_domains_match_authoritative_root_version() -> None:
+    """The root pyproject.toml defines the authoritative workspace version.
+
+    Every workspace member maintains an exact static PEP 621 copy so it remains
+    independently buildable without a parent workspace.
+    """
+    from scripts.governance.version import check_versions
+
+    mismatches = check_versions(ROOT)
+    assert mismatches == [], "Version mismatches detected:\n" + "\n".join(mismatches)

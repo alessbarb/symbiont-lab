@@ -1535,7 +1535,46 @@ def main() -> int:
     run_sub.add_parser("status")
     run_sub.add_parser("clear-stale")
 
+    p_version = sub.add_parser(
+        "version", help="Manage five-domain workspace version synchronization"
+    )
+    v_sub = p_version.add_subparsers(dest="version_command", required=True)
+    v_sub.add_parser("check", help="Verify all domain packages match root authoritative version")
+    v_sub.add_parser("sync", help="Synchronize all domain packages to match root pyproject.toml")
+    v_bump = v_sub.add_parser("bump", help="Bump semver and synchronize all members")
+    v_bump.add_argument("part", choices=["patch", "minor", "major"], help="Part of semver to bump")
+    v_bump.add_argument("--no-lock", action="store_true", help="Do not run uv lock")
+    v_set = v_sub.add_parser("set", help="Set explicit version and synchronize all members")
+    v_set.add_argument("version", help="Explicit version string (e.g. 0.91.0)")
+    v_set.add_argument("--no-lock", action="store_true", help="Do not run uv lock")
+
     args = parser.parse_args()
+    if args.command == "version":
+        from governance.version import bump_version, check_versions, get_root_version, sync_versions
+
+        if args.version_command == "check":
+            root_v = get_root_version()
+            mismatches = check_versions()
+            if mismatches:
+                print(f"FAILED: Version mismatches against root ({root_v}):", file=sys.stderr)
+                for m in mismatches:
+                    print(f"  - {m}", file=sys.stderr)
+                return 1
+            print(f"OK: All 5 domain packages match authoritative root version {root_v}")
+            return 0
+        if args.version_command == "sync":
+            v = sync_versions()
+            print(f"Synchronized all domain packages to version {v}")
+            return 0
+        if args.version_command == "bump":
+            v = bump_version(args.part, run_lock=not args.no_lock)
+            print(f"Bumped version ({args.part}) to {v} across all domain packages and lockfile")
+            return 0
+        if args.version_command == "set":
+            v = sync_versions(args.version, run_lock=not args.no_lock)
+            print(f"Set version to {v} across all domain packages and lockfile")
+            return 0
+
     if args.command == "status":
         return status()
     if args.command == "context":

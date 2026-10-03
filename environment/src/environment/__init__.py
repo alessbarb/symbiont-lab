@@ -7,6 +7,8 @@ See docs/design/archive/symbiont-world-v1.md for the normative spec.
 
 from __future__ import annotations
 
+__version__ = "0.90.0"
+
 from environment.checkpoint import WorldCheckpoint, restore, take_checkpoint
 from environment.constitution import WorldConstitution
 from environment.contracts import ContactEvidence, ReceivedEmission, WorldAction, WorldObservation
@@ -20,6 +22,7 @@ from environment.state import TickAborted, WorldState
 from environment.topology import BodyPlacement, HexCoord, HexTopology, OccupancyGrid
 
 __all__ = [
+    "__version__",
     "WorldConstitution",
     "ContactEvidence",
     "ReceivedEmission",
