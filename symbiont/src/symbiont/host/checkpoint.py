@@ -350,10 +350,9 @@ def import_checkpoint(
 ) -> tuple[HostAcclimation, RhythmModel, dict[str, DriftAwareBaseline]]:
     """Reconstruct model instances from a checkpoint payload.
 
-    A payload from an older schema version is migrated forward through the
-    registered migration chain (roadmap v0.46) before being read; anything
-    newer than this code understands, or older with no registered
-    migration path, is refused outright rather than guessed at.
+    Only the exact current checkpoint schema is accepted. Historical payloads
+    remain archival evidence but require a separately governed conversion
+    process before they can become live runtime state.
 
     Pass an existing ``acclimation``/``rhythm_model`` (matching the
     ``min_samples``/bound config the checkpoint was exported with) to
