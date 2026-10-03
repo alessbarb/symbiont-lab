@@ -1,10 +1,17 @@
 from __future__ import annotations
 
 import platform
+from pathlib import Path
 from typing import Any
 
 from symbiont.core.orchestration.runtime import OrganismRuntime
-from symbiont.core.organism_profile import CANONICAL
+from symbiont.core.orchestration.sense_requirements import (
+    SENSE_OPTIONS,
+    SenseRequirements,
+    resolve_restore_sense_requirements,
+    resolve_sense_requirements,
+)
+from symbiont.host.checkpoint import load_checkpoint_file
 from symbiont.host.providers.interoception import (
     InteroceptionProvider,
     ShamInteroceptionProvider,
@@ -21,19 +28,15 @@ INTEROCEPTION_MODES = frozenset({"enabled", "sham", "absent"})
 
 
 def canonical_host_sense_sources(
-    *,
-    discover_senses: bool,
-    bootstrap_semantic_senses: bool,
-    interoception_mode: str,
-    system: str | None = None,
+    requirements: SenseRequirements, *, system: str | None = None
 ) -> HostSenseSources:
-    """The concrete sources a canonical organism is given on this platform."""
-    if interoception_mode not in INTEROCEPTION_MODES:
+    """The concrete sources that satisfy ``requirements`` on this platform."""
+    if requirements.interoception_mode not in INTEROCEPTION_MODES:
         raise ValueError("interoception_mode must be enabled, sham or absent")
     system = platform.system() if system is None else system
     discovery: list[Any] = []
     readings: list[Any] = []
-    if bootstrap_semantic_senses:
+    if requirements.bootstrap_semantic_senses:
         discovery.append(StandardLibraryProvider())
         readings.append(StandardLibraryReadingProvider())
 
@@ -41,15 +44,17 @@ def canonical_host_sense_sources(
     # Linux exposes procfs/sysfs; macOS and Windows the portable aggregate surfaces.
     interoception = None
     available = system in HOST_SENSE_SYSTEMS
-    if discover_senses and available:
+    if requirements.discover_senses and available:
         host = (
             LinuxSurfaceProvider() if system == "Linux" else PortableSurfaceProvider(system=system)
         )
         discovery.append(host)
         readings.append(host)
-        if interoception_mode != "absent":
+        if requirements.interoception_mode != "absent":
             provider_type = (
-                ShamInteroceptionProvider if interoception_mode == "sham" else InteroceptionProvider
+                ShamInteroceptionProvider
+                if requirements.interoception_mode == "sham"
+                else InteroceptionProvider
             )
             interoception = provider_type()
             discovery.append(interoception)
@@ -62,30 +67,45 @@ def canonical_host_sense_sources(
     )
 
 
+def _stated(options: dict[str, Any]) -> dict[str, Any]:
+    return {name: options[name] for name in ("profile", *SENSE_OPTIONS) if name in options}
+
+
 def create_canonical_organism(
     runtime_type: type[OrganismRuntime] = OrganismRuntime, **options: Any
 ) -> OrganismRuntime:
-    """Build an organism with the canonical concrete sense sources attached.
+    """A new organism with the canonical concrete sense sources attached.
 
-    Accepts the same options as the runtime. Options left unset come from the
-    organism profile, exactly as in the runtime's own constructor.
+    Accepts the options of the runtime. Which sources it needs is resolved by
+    the organism; this only decides what satisfies them on this platform.
     """
-    profile = options.get("profile") or CANONICAL
-    discover_senses = options.get("discover_senses")
-    if discover_senses is None:
-        discover_senses = profile.discover_senses
-    bootstrap = options.get("bootstrap_semantic_senses")
-    if bootstrap is None:
-        bootstrap = profile.bootstrap_semantic_senses
-    mode = options.get("interoception_mode")
-    if mode is None:
-        enabled = options.get("interoception_enabled")
-        mode = (
-            profile.interoception_mode if enabled is None else ("enabled" if enabled else "absent")
-        )
-    sources = canonical_host_sense_sources(
-        discover_senses=bool(discover_senses),
-        bootstrap_semantic_senses=bool(bootstrap),
-        interoception_mode=mode,
+    requirements = resolve_sense_requirements(**_stated(options))
+    return runtime_type(host_sense_sources=canonical_host_sense_sources(requirements), **options)
+
+
+def restore_canonical_organism(
+    payload: dict[str, Any],
+    runtime_type: type[OrganismRuntime] = OrganismRuntime,
+    **overrides: Any,
+) -> OrganismRuntime:
+    """An organism restored from ``payload`` with the canonical sources attached.
+
+    The checkpoint's recorded controls and the stated overrides are interpreted
+    by the organism, not here.
+    """
+    requirements = resolve_restore_sense_requirements(payload, **_stated(overrides))
+    return runtime_type.from_checkpoint(
+        payload, host_sense_sources=canonical_host_sense_sources(requirements), **overrides
     )
-    return runtime_type(host_sense_sources=sources, **options)
+
+
+def load_or_create_canonical_organism(
+    path: str | Path,
+    runtime_type: type[OrganismRuntime] = OrganismRuntime,
+    **options: Any,
+) -> OrganismRuntime:
+    """Restore from ``path`` if a checkpoint is there, otherwise create."""
+    payload = load_checkpoint_file(path)
+    if payload is None:
+        return create_canonical_organism(runtime_type, **options)
+    return restore_canonical_organism(payload, runtime_type, **options)

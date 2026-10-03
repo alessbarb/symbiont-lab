@@ -54,6 +54,8 @@ DECLARED_DEVIATIONS: dict[str, set[str]] = {
 FORWARDERS = {
     "symbiont/src/symbiont/core/orchestration/runtime.py",
     "symbiont/src/symbiont/core/organism_profile.py",
+    # the organism's own resolution of the sense options from the profile
+    "symbiont/src/symbiont/core/orchestration/sense_requirements.py",
     # resolves the governed options from the profile and forwards them unchanged
     "lab/src/lab/integration/organism/canonical.py",
     "lab/src/lab/reproduction/runtime.py",

@@ -116,7 +116,7 @@ from ..embodiment.physiology import (
 )
 from ..foundation.narrative import NarrativeEntry
 from ..lineage.inheritance import EpigeneticPrior
-from ..organism_profile import CANONICAL, HISTORICAL_V0, PROFILES, OrganismProfile
+from ..organism_profile import CANONICAL, OrganismProfile
 from ..regulation import InnateReactivity, ReactiveMemory
 from ..signals.identity import SignalIdentity
 from ..signals.knowledge import MAX_KNOWLEDGE_CHECKPOINT_BYTES, SignalKnowledgeEngine
@@ -134,6 +134,7 @@ from ..social.relations import (
     SocialPresence,
     SocialRelation,
 )
+from .sense_requirements import resolve_sense_requirements, restored_sense_options
 
 
 def _parse_running_version(version_string: str) -> tuple[int, int, int]:
@@ -352,10 +353,15 @@ class OrganismRuntime:
         # Governed options left unset come from the organism profile (ADR-0062).
         profile = profile if profile is not None else CANONICAL
         self._profile_version = profile.version
-        if discover_senses is None:
-            discover_senses = profile.discover_senses
-        if bootstrap_semantic_senses is None:
-            bootstrap_semantic_senses = profile.bootstrap_semantic_senses
+        sense_requirements = resolve_sense_requirements(
+            profile=profile,
+            discover_senses=discover_senses,
+            bootstrap_semantic_senses=bootstrap_semantic_senses,
+            interoception_enabled=interoception_enabled,
+            interoception_mode=interoception_mode,
+        )
+        discover_senses = sense_requirements.discover_senses
+        bootstrap_semantic_senses = sense_requirements.bootstrap_semantic_senses
         if sensory_plasticity is None:
             sensory_plasticity = profile.sensory_plasticity
         if auto_promote_predictors is None:
@@ -395,12 +401,7 @@ class OrganismRuntime:
                 else float(competence_min_consistency)
             ),
         )
-        if interoception_mode is None:
-            interoception_mode = (
-                profile.interoception_mode
-                if interoception_enabled is None
-                else ("enabled" if interoception_enabled else "absent")
-            )
+        interoception_mode = sense_requirements.interoception_mode
         interoception_enabled = interoception_mode != "absent"
         if attention_budget <= 0.0:
             raise ValueError("attention_budget must be positive")
@@ -3169,10 +3170,6 @@ class OrganismRuntime:
         for name in (
             "attention_budget",
             "investigate_ticks",
-            "discover_senses",
-            "bootstrap_semantic_senses",
-            "interoception_enabled",
-            "interoception_mode",
             "competence_min_support",
             "competence_min_consistency",
             "retention_price_baseline",
@@ -3183,13 +3180,8 @@ class OrganismRuntime:
         ):
             if name not in constructor_kwargs and name in effective:
                 constructor_kwargs[name] = effective[name]
-        # A restored organism keeps the profile it was born with (ADR-0062);
-        # checkpoints written before profiles existed are historical.
-        if "profile" not in constructor_kwargs:
-            born_with = effective.get("profile_version", HISTORICAL_V0.version)
-            if born_with not in PROFILES:
-                raise CheckpointError(f"unknown organism profile version: {born_with!r}")
-            constructor_kwargs["profile"] = PROFILES[born_with]
+        # Sense options and the profile the organism was born with (ADR-0062).
+        constructor_kwargs.update(restored_sense_options(normalized, constructor_kwargs))
         if "min_samples" not in constructor_kwargs:
             constructor_kwargs["min_samples"] = min_samples
         if "conflict_z" not in constructor_kwargs:
