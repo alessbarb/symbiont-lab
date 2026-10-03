@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+import sys
+
 import pytest
 
 import symbiont_lab.studies.embodiment.reembodiment_functional_transfer as transfer
@@ -138,3 +141,15 @@ def test_selection_parts_cover_every_pair_once_and_merge_checks_it(tmp_path) -> 
         study.merge_selection([fake(0, complete=False)] + [fake(i) for i in range(1, 6)])
     with pytest.raises(ValueError):
         study.merge_selection([fake(0, drop=True)] + [fake(i) for i in range(1, 6)])
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="patched runner reaches workers by fork")
+def test_parallel_part_equals_serial_part(tmp_path, monkeypatch) -> None:
+    def fake_run(seed: int, support: int, consistency: float) -> dict:
+        return _run(seed, support, consistency, seed % 97 + support)
+
+    monkeypatch.setattr(study, "run_one", fake_run)
+    serial = study.run_selection_part(2, tmp_path / "serial.json")
+    parallel = study.run_selection_part(2, tmp_path / "parallel.json", workers=3)
+    assert serial["runs"] == parallel["runs"] and parallel["complete"]
+    assert json.loads((tmp_path / "parallel.json").read_text())["runs"] == serial["runs"]

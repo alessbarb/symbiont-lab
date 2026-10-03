@@ -31,10 +31,15 @@ merge run that checks every part ran under the same support rate and every
 
 ```text
 python -m symbiont_lab.studies.learning.metabolic_retention_calibration support --output <work>/support.json
-python -m symbiont_lab.studies.learning.metabolic_retention_calibration selection-part --support support.json --part <0..7> --output <work>/selection-part-<n>.json
+python -m symbiont_lab.studies.learning.metabolic_retention_calibration selection-part --workers 4 --support support.json --part <0..7> --output <work>/selection-part-<n>.json
 python -m symbiont_lab.studies.learning.metabolic_retention_calibration select --support support.json --parts selection-part-0.json ... selection-part-7.json --output <work>/selection.json
 python -m symbiont_lab.studies.learning.metabolic_retention_calibration confirmation --selection selection.json --output <work>/results.json
 ```
+
+With `--workers 4` (the policy's `max_cpu_threads`), a part runs its pairs in
+four processes; runs are independent and deterministic, so the result is
+identical to a serial part, and the launcher is started with `--cpu 4`. All parts
+then fit in one governed run.
 
 ## Limits
 

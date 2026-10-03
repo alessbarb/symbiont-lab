@@ -31,7 +31,7 @@ rule. Each part rewrites its output after every run, so a stopped part keeps
 what it finished.
 
 ```text
-python -m symbiont_lab.studies.learning.competence_establishment selection-part --part <0..5> --output <work>/selection-part-<n>.json
+python -m symbiont_lab.studies.learning.competence_establishment selection-part --workers 4 --part <0..5> --output <work>/selection-part-<n>.json
 python -m symbiont_lab.studies.learning.competence_establishment select --parts selection-part-0.json ... selection-part-5.json --output <work>/selection.json
 python -m symbiont_lab.studies.learning.competence_establishment confirmation --selection selection.json --output <work>/results.json
 ```
@@ -40,6 +40,11 @@ A first attempt as one run (`cee-v1-selection-20261003`) was stopped by the
 operator after two hours: a measured 106-111 s per run put the whole stage at
 about 6.5 hours, beyond the 360-minute wall limit, and that version wrote its
 output only at the end. It produced no result.
+
+With `--workers 4` (the policy's `max_cpu_threads`), a part runs its pairs in
+four processes; runs are independent and deterministic, so the result is
+identical to a serial part, and the launcher is started with `--cpu 4`. All parts
+then fit in one governed run.
 
 ## Limits
 
