@@ -5,65 +5,94 @@ Classification follows `INSTRUCTIONS.md` §23. Nothing here was fixed silently.
 ## Requested by the owner during the migration
 
 | Item | State |
-|---|---|
+| --- | --- |
 | Remove import aliases and forwarders | DONE |
 | Remove the legacy agent simulation and everything that ran on it | DONE |
 | Remove old persisted formats | DONE: checkpoint schemas 1–10, genome schema 1 and `HeritableGenome`, telemetry v3/v4 |
 | Remove the desktop workbench | DONE. `lab.app.physics3d` stays: the server uses its run store and session, and the Physics3D engine uses its Qt viewer. |
 | Remove the lab demo and the Observatory front-end | DONE |
 | Domain packages named after the domain, not after the organism | DONE |
-| Move into `modality/` and `embodiment/` what belongs there | PARTLY: see OI-3 |
-| The four domain libraries are peers with no first-party dependency on each other or on the Lab; the Lab is the only composition root | DONE for the packages as they stand (Import Linter, hard test gate, per-library isolated tests). Not yet true of code still inside the organism: OI-3 |
+| Move into `modality/` and `embodiment/` what belongs there | DONE for concrete coupling (bodies, vision array, host channels). Intrinsic organism state stays in the organism by decision |
+| The four domain libraries are peers with no first-party dependency on each other or on the Lab; the Lab is the only composition root | DONE (Import Linter, hard test gate, per-library isolated tests); the organism builds no concrete source |
 | Enforce the boundaries with Import Linter | DONE: three contracts in `pyproject.toml`; runs in CI, pre-commit and the test suite |
 
-## State after the second audit round
+## State after the third round
 
 Done and validated (six suites green, Import Linter 3 contracts, each library
-installed alone outside the repository, organism identity 12/12):
+installed alone outside the repository, organism identity 13/13):
 
 - every domain owns its tests (`<domain>/tests`) and the organism its
   documentation (`symbiont/docs`); `tests/` holds repository-wide checks only;
 - governance covers every path of the five domains; domain `pyproject.toml`
   files and the boundary checks are CONSTITUTIONAL;
 - real backends are declared as extras (`embodiment[physics3d]`,
-  `modality[vision]`, `environment[physics3d]`); the backend ban applies to the
-  organism only;
+  `modality[vision]`, `environment[physics3d]`) and imported by the package
+  that declares them: nothing receives the PyBullet module as a parameter any
+  more. The backend ban applies to the organism only;
 - returned from the Lab to their owner: the deferred-damage rule and the
   physical resource (Environment), the re-embodiment transition and its
   longitudinal memory (Symbiont);
-- OI-3 steps A and B: `host_sense_sources` seam in the organism and
-  `lab.integration.organism.create_canonical_organism`, with equivalence proven
-  against the constructor for eight configurations.
+- **OI-3, the organism and its sense sources, is closed (steps A–G):**
+  - the organism resolves which senses it requires in a pure function
+    (`symbiont.core.orchestration.sense_requirements`), for a fresh creation
+    and for a restore; the Lab does not interpret checkpoint controls;
+  - `lab.integration.organism` composes the concrete sources and creates,
+    restores and loads-or-creates the canonical organism. Every caller in
+    `lab/src`, `lab/tests` and `tests` goes through it;
+  - `OrganismRuntime()` builds no provider and inspects no platform: on its own
+    it is a minimal organism with no host source;
+  - the concrete host channels live in `modality.host` with their own record
+    types; `lab.integration.organism.host_sources.HostSource` converts them;
+  - `symbiont.host.providers` no longer exists, and a test asserts it;
+  - interoception is split by provenance: the organism's own channels stay in
+    `symbiont.sensory.interoception`; host process measurements are
+    `modality.host.process_telemetry` and are no longer called interoception;
+  - no test in `symbiont/tests` imports the Lab. A trial with the organism's
+    providers removed left 1797 of them passing unchanged; the two that asserted
+    what the canonical composition picks per platform moved to `lab/tests`.
 
-Not done, in the agreed order:
+Order actually followed: A, B, restore resolution, C, interoception split, D,
+F and G, E. F had to precede E: an organism that still built its own providers
+could not import them from `modality`.
 
-- **C. Migrate callers to the factory.** 45 constructions in `lab/src` (mostly
-  studies), 11 in `lab/tests`, 31 in `tests`. Blocked on one design point: the
-  restore path. `from_checkpoint` / `load_or_create` (327 uses) rebuild the
-  organism through `cls(**kwargs)` and resolve the sense options from controls
-  recorded in the checkpoint, inside the organism. A restore through the Lab
-  needs either those resolved options exposed by the organism, or the caller
-  passing the sources to the restore. Not decided.
-- **D. `symbiont/tests`.** 117 constructions to classify (minimal organism /
-  own test body / own fake providers / belongs in `lab/tests`).
-- **Interoception split.** `InteroceptionProvider` mixes two things. Organism
-  state: epistemic surprise, metabolic reserve, integrity, metabolic, repair and
-  waste pressure (already listed as `ORGANISM_CAPABILITY_IDS`). Host telemetry:
-  `internal.tick_latency` and `internal.memory_rss` (process timing and
-  resident memory). The capability ids and the provider id `interoception` are
-  written into checkpoints, so the classes can be renamed and separated but the
-  persisted identifiers cannot change in this block.
-- **E, F, G.** Move the concrete host providers to `modality.host`, remove
-  provider construction from `OrganismRuntime`, make
-  `symbiont.core -X-> symbiont.host.providers` a hard rule.
-- **Backend still injected.** `HumanoidPhysics`, the articulated bodies and
-  `VisualApparatus` still receive the PyBullet module as a parameter; eight Lab
-  test classes pass a fake through it.
+Equivalence with the organism that built its own sources is checked against
+the pre-migration tree, not against this one: `identity_check.py` builds nine
+option sets and 54 restores with overrides in both trees and compares state
+hash and checkpoint.
+
+### Decisions left to the owner (scientific, not structural)
+
+Both change energy trajectories or what the organism perceives, so neither was
+made during the migration. The recommended route for both is a new organism
+profile version, which keeps closed experiments reproducible.
+
+- **EXPOSED-BY-MIGRATION: host telemetry costs the organism energy.** Replacing
+  the host telemetry with any other values leaves body, metabolism, integrity,
+  the six organism readings and action pressure unchanged. Removing it does
+  not: the organism pays observation cost for every sampled channel, including
+  `internal.tick_latency` and `internal.memory_rss`, which it never perceives
+  (0.004 energy per tick). Pinned as a strict xfail in
+  `symbiont/tests/unit/sensory/test_interoception_independence.py`.
+- **Interoception is only offered where host senses are.** The organism's own
+  interoception is attached only when `discover_senses` is on and the Lab
+  reports the host available. Kept as it was; a minimal `OrganismRuntime()`
+  therefore has none.
+
+### Still open
+
+- **Persisted names.** Host telemetry is still published under the source id
+  `interoception` and the capability ids `internal.tick_latency` /
+  `internal.memory_rss`, because they are written into checkpoints. Same kind
+  of debt as `APPARATUS_FIELDS`; nothing in this work touched schema, hashing
+  or the envelope.
 - **Residue in the organism.** `symbiont.core.embodiment.transition` keeps a
   fallback descriptor naming a concrete body kind for checkpoints older than
   embodiment epochs.
-- **Persistence.** The organism checkpoint knows `APPARATUS_FIELDS`. Separate
-  work; nothing in this block touches schema, hashing or the envelope.
+- **Units inside the organism still mix state and coupling.**
+  `symbiont.core.embodiment`, `symbiont.actuation`, `symbiont.sensory` and the
+  generic machinery in `symbiont.host` were kept in the organism on purpose
+  (body schema, physiology, metabolism, homeostasis, sensory and motor
+  learning are intrinsic). Only concrete external coupling left.
 - **Design documents.** `docs/design/` stays at the root: preregistrations, a
   frozen artefact and a path protected by running work. `embodiment`,
   `modality`, `environment` and `lab` have no documentation of their own beyond
@@ -74,25 +103,7 @@ current.
 
 ## Architecture debt
 
-**OI-3 — The organism still owns embodiment and modality code.**
-The target is that Symbiont keeps only generic signal machinery, learning and
-sensory plasticity, and receives everything concrete through a boundary of its
-own, connected by the Lab. Today:
-
-- `OrganismRuntime.__init__` must not create concrete modality implementations,
-  and it does: from its own flags it chooses and constructs
-  `host.providers.{stdlib, stdlib_readings, interoception, linux_surfaces,
-  portable_surfaces}`. Those implementations should live outside the organism
-  (host modality) and be injected by the Lab. Doing it changes how every caller
-  creates an organism (`OrganismRuntime()` with no arguments is used throughout
-  the tests and studies), so it was not done mechanically. Pinned by a ratchet
-  test so it cannot grow.
-- `symbiont.core.embodiment`, `symbiont.actuation`, `symbiont.sensory` and
-  `symbiont.host` mix organism state with coupling and channel code, and the
-  core depends on them heavily (`core.orchestration` → `actuation` 46 imports,
-  → `host` 38; `core.domains` → `actuation` 48). Each has to be split by
-  knowledge boundary; nothing in them may move to `embodiment` or `modality`
-  while it still imports the organism.
+**OI-3 — CLOSED.** See "State after the third round".
 
 **OI-4 — What remains in `lab.physics3d` and `lab.world`.**
 Engine, runtime and persistence compose organism, body and environment; they
@@ -136,11 +147,7 @@ organism itself uses it in 25 places, tests in 85. Left as is.
 `characterize_kernel.py`, `aggregate_e8_*`, `run_e8_*`, `reprofile_performance.py`
 are Lab analysis; `scripts/agentctl.py` and `scripts/governance/` are governance.
 
-**OI-8 — Tests are not split per domain.** `tests/` spans all domains, keeps its
-old directory names and needs the whole workspace. Each library has only a
-small test of its own that runs with nothing else installed (`symbiont/tests`,
-`embodiment/tests`, `modality/tests`, `environment/tests`); the bulk of each
-library's unit tests has not been moved beside it.
+**OI-8 — CLOSED.** Each domain's tests live in `<domain>/tests`; `tests/` holds repository-wide checks.
 
 **OI-9 — Runner scripts of completed experiments use the old package names.**
 `lab/experiments/world/genesis-v1/{run_w01_w02,run_w02_retry,run_w03,view_world}.py`

@@ -22,7 +22,16 @@ back-end tests. The baseline command is the `canonical-full` CI job.
 | World terrain/genesis → environment; Lab web view removed | 3834 passed, 0 failed |
 | **Final**: four peer libraries, cross-domain code in `lab.integration`, Import Linter | **3846 passed, 0 failed, 10 skipped, 2 xfailed** |
 
-Skips and xfails are the same ten and two as in the baseline.
+| Tests split per domain; one pytest session per suite | 3875 passed, 0 failed |
+| **OI-3 closed**: organism builds no sense source, host channels in `modality.host`, interoception split, backends imported by the package that declares them | **4023 passed, 0 failed**: symbiont 1777, embodiment 9, modality 14, environment 116, lab 1676, repository 431 |
+
+Run as `python scripts/run_tests.py -- -o addopts= -n 8`, one session per suite.
+The count rose in the last stage from new tests of the Lab's composition and
+of the interoception split. Skips: the nine and one of the baseline, plus one
+per library for a self-containment test that is only meaningful installed
+alone. Expected failures: the baseline two, plus two strict xfails that pin an
+EXPOSED-BY-MIGRATION finding (host telemetry costs the organism observation
+energy; `open-issues.md`).
 
 The fall from 4456 to 3846 passing tests is deletion of tests for code that was
 removed at the owner's request. Tests of surviving code that were lost are
@@ -44,7 +53,7 @@ clean, 1146 files.
 
 `python migration/tools/identity_check.py --old <src of 593c2a02>`, old code
 extracted with `git archive` and run in a separate interpreter. Run on the
-final tree: 12/12 PASS.
+final tree: 13/13 PASS.
 
 | Check | Result |
 |---|---|
@@ -54,30 +63,29 @@ final tree: 12/12 PASS.
 | new save → new load | same state hash |
 | new save → old load | same state hash |
 | checkpoint schema | 11, unchanged; serialized field set unchanged |
+| composed by the Lab vs self-built by the old organism | 63 cases (9 option sets born, 54 restored with overrides): same state hash and checkpoint |
 
 The four inline genome payloads converted from schema 1 to schema 2 were
 checked before the old loader was removed: equal `Genome` object, equal genome
 hash, equal genotype hash.
 
-Re-embodiment tests pass from their new location in `embodiment`.
+Re-embodiment tests pass from their new location in the organism.
 
 Not run: a full Physics3D equivalence campaign through `agentctl` (OI-10).
 
 ## Self-containment of the four libraries (§18)
 
-Each library was built as a wheel on its own and installed in an empty
-environment containing no other first-party package. Its own tests assert that
-none of the others is installed or loaded.
+`python scripts/check_isolation.py` (also a CI step): for each library, a
+temporary environment outside the repository, the library installed alone from
+a copy with its declared extra, its tests copied to an empty directory, a probe
+that no other first-party package is importable, then its full test suite.
 
-| Library | Installed with it | Own tests |
+| Library | Installed with it | Own suite, alone |
 |---|---|---|
-| `symbiont` | `cryptography`, `cffi`, `pycparser` | 2 passed: create, run, save, load, state hash preserved |
-| `embodiment` | nothing | 3 passed: body contracts complete; vision body leaves the array to the caller |
-| `modality` | nothing | 2 passed: receptor adjacency over opaque ids |
-| `environment` | nothing | 3 passed: fixture recipes resolve; seeded randomness |
-
-These own-tests are small. The bulk of the unit tests still lives in `tests/`
-and runs against the whole workspace (OI-8).
+| `symbiont` | `cryptography` | 1778 passed, 4 xfailed |
+| `embodiment` | `pybullet` (extra) | 10 passed |
+| `modality` | `pybullet` (extra) | 15 passed, 1 skipped |
+| `environment` | `pybullet` (extra) | 117 passed |
 
 ## Architecture gates (§19)
 
@@ -85,7 +93,7 @@ Import Linter, `lint-imports`: 3 contracts kept, 0 broken (618 files analysed).
 
 1. The four domain libraries are mutually independent.
 2. Domain libraries do not depend on the Lab.
-3. pybullet, torch, numpy and PIL are imported only by the Lab.
+3. The organism imports no physics, tensor or imaging backend.
 
 A deliberate `from modality.vision import …` inside `embodiment` made contract 1
 fail with exit code 1, and reverting it restored the pass.
@@ -93,8 +101,7 @@ fail with exit code 1, and reverting it restored the pass.
 `tests/experimental_integrity/test_five_domain_architecture.py` runs the linter,
 repeats the matrix as a hard gate, checks that the four `pyproject.toml` declare
 no first-party dependency and that each source root holds exactly its package,
-and keeps one ratchet on debt inside the organism (core → concrete host
-providers).
+and asserts that the organism holds no concrete host provider.
 
 The pre-existing boundary tests in `tests/experimental_integrity` pass against
 the new paths.

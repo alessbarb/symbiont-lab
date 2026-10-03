@@ -33,7 +33,7 @@ ownership is clear but the unit is entangled; **low** = mixed responsibilities.
 | `modeling` | 18 / 9426 | private models, episodic, culture, symbols | agency, cognition, core.orchestration | lab.studies, lab.modeling, lab.physics3d | private-model state | `tests/unit/modeling` | high | SYMBIONT | medium |
 | `actuation` | 26 / 8500 | sensorimotor: binding, effects, surface, acquisition | host | core.domains, core.orchestration, agency | checkpoint | `tests/unit/actuation` | very high | SYMBIONT + EMBODIMENT | low |
 | `sensory` | 11 / 1739 | organism-owned transduction, `SensoryModality` substrate families | host | core.domains, lab.integration | checkpoint | `tests/unit/sensory` | high | SYMBIONT + MODALITY | low |
-| `host` | 23 / 5704 | boundary with a consenting local host: readings, acclimation, drift, checkpoint file I/O, `providers/` | core.foundation | core.orchestration, lab.cli, lab.integration | checkpoint file format | `tests/unit/host` | high | MODALITY (host) + persistence | low |
+| `host` | generic boundary with a host: contracts, discovery, sampling, readings, acclimation, drift, rhythms, checkpoint file I/O. No concrete channel | core.foundation | core.orchestration, lab.cli, lab.integration | checkpoint file format | `symbiont/tests/unit/host` | high | SYMBIONT (signal machinery) + persistence | medium |
 | `api` | 1 / 63 | public surface, re-exports only | core, host.checkpoint | none yet | — | architecture + independence tests | none | SYMBIONT | high |
 | `capacity`, `provenance` | 2 / 285 | capacity accounting, causal provenance | — | actuation, agency, modeling | — | `tests/unit` | medium | SYMBIONT | high |
 
@@ -50,6 +50,7 @@ ownership is clear but the unit is entangled; **low** = mixed responsibilities.
 | Unit | Responsibility | First-party dependencies | Composed by | Tests | Domain | Confidence |
 |---|---|---|---|---|---|---|
 | `vision` | square receptor array: bounded luminance per opaque receptor, receptor adjacency. Carrying link, mount pose and receptor ids are supplied by the caller | none | `lab.integration.physics3d.bodies` | `modality/tests`, `lab/tests/unit/lab/physics3d/test_vision_apparatus.py` | MODALITY | high |
+| `host` | read-only aggregate channels of the machine: standard-library, Linux and portable surfaces, process telemetry; own record types | none | `lab.integration.organism` | `modality/tests/host` | MODALITY | high |
 
 ## Embodiment — `embodiment/src/embodiment`
 
@@ -58,7 +59,6 @@ ownership is clear but the unit is entangled; **low** = mixed responsibilities.
 | `physics3d.humanoid`, `articulated`, `alternative_bodies` | Physics3D bodies and their receptor/effector contracts | none | `lab.physics3d`, `lab.integration` | `embodiment/tests`, `tests/unit/lab/physics3d` | EMBODIMENT | high |
 | `physics3d.bodies` | body descriptors, registry class, `vision_body_descriptor(factory)` | none | `lab.integration.physics3d.bodies` | same | EMBODIMENT | high |
 | `physics3d.vision` | vision body kind: head mount (link, pose, receptor slots and ids); the receptor array is injected | none | `lab.integration.physics3d.bodies` | same | EMBODIMENT | high |
-| `physics3d.longitudinal` | bounded epoch summaries across embodiments | none | `lab.integration.physics3d.reembodiment` | `tests/unit/lab/physics3d` | EMBODIMENT | medium |
 
 ## Lab — `lab/`
 
@@ -87,9 +87,9 @@ ownership is clear but the unit is entangled; **low** = mixed responsibilities.
 | `tests/` | SHARED-UNRESOLVED | spans every domain (OI-8) |
 | `docs/`, `assets/` | SHARED-UNRESOLVED | project-wide |
 
-## Units whose ownership is still mixed
+## Units kept in the organism by decision
 
 `symbiont.core.embodiment`, `symbiont.actuation`, `symbiont.sensory` and
-`symbiont.host` each combine organism state with coupling or channel code and
-were left inside the organism. `open-issues.md` OI-3 gives the import edges that
-block extraction.
+`symbiont.host` hold intrinsic organism state and generic signal machinery.
+Concrete external coupling has left them: bodies to `embodiment`, the vision
+array and host channels to `modality`, composition to `lab.integration`.

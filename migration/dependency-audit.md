@@ -21,11 +21,13 @@ The four domain libraries are peers. None imports another, none imports the Lab.
 | embodiment → symbiont / modality / environment / lab | 0 | VALID (enforced) |
 | modality → symbiont / embodiment / environment / lab | 0 | VALID (enforced) |
 | environment → symbiont / embodiment / modality / lab | 0 | VALID (enforced) |
-| any of the four → pybullet, torch, numpy, PIL | 0 | VALID (enforced) |
+| symbiont → pybullet, torch, numpy, PIL | 0 | VALID (enforced) |
+| embodiment, modality, environment → pybullet | declared extra | VALID: each imports the backend it declares |
 | lab → symbiont, embodiment, modality, environment | many | VALID: the Lab is the composition root |
 
 Declared dependencies match: `symbiont` needs only `cryptography`; `embodiment`,
-`modality` and `environment` declare none; `lab` declares the four.
+`modality` and `environment` declare no first-party dependency and PyBullet as
+an extra; `lab` declares the four.
 
 ## Pairs required by the instructions (§7)
 
@@ -43,7 +45,7 @@ Declared dependencies match: `symbiont` needs only `cryptography`; `embodiment`,
 
 | # | Where | Evidence | Class |
 |---|---|---|---|
-| V1 | organism builds concrete host modality implementations | `core.orchestration.runtime` → `host.providers.{stdlib, stdlib_readings}` (top), `{interoception, linux_surfaces, portable_surfaces}` (lazy); `core.domains.perception` → `host.providers.interoception` (lazy) | ARCHITECTURAL VIOLATION inside the organism, pinned by ratchet (OI-3) |
+| V1 | organism builds concrete host modality implementations | RESOLVED: `symbiont.host.providers` no longer exists; the channels are in `modality.host`, composed by `lab.integration.organism` | — |
 | V2 | organism core ↔ host boundary is circular | `core.*` → `symbiont.host` 78; `symbiont.host` → `symbiont.core` 7 | ARCHITECTURAL VIOLATION inside the organism |
 | V3 | Lab integration code uses organism internals | `lab.integration.physics3d.apparatus` and `lab.integration.world.adapter` → `symbiont.cognition.{birth, limits}`, `symbiont.host`, `symbiont.actuation`, …; `lab.physics3d.runtime` → `symbiont.cognition.{generative, limits, types}` | TRANSITIONAL: allowed for the Lab, but should go through `symbiont.api` (OI-5) |
 | V4 | physics runtime ↔ other Lab units | `lab.physics3d` → `lab.app` 4, `lab.modeling` 9, `lab.observation` 3, `lab.experiments` 1 | internal to the Lab |
@@ -56,6 +58,9 @@ Declared dependencies match: `symbiont` needs only `cryptography`; `embodiment`,
 - Physics3D bodies are an independent library; the vision receptor array is
   separated from the body that carries it, and the mount pose belongs to the
   body, not to the channel.
+- The organism builds no sense source: `lab.integration.organism` composes the
+  host channels of `modality.host` and hands them over; interoception is split
+  from host process telemetry.
 - Code that knew two domains was moved to `lab.integration`: the Physics3D
   apparatus adapters, re-embodiment, the composed vision body and body
   catalogue, and the hex-world adapter.
@@ -67,11 +72,11 @@ Import Linter (`[tool.importlinter]` in `pyproject.toml`, run with
 
 1. the four domain libraries are mutually independent;
 2. domain libraries do not depend on the Lab;
-3. pybullet, torch, numpy and PIL are imported only by the Lab.
+3. the organism imports no physics, tensor or imaging backend.
 
 `tests/experimental_integrity/test_five_domain_architecture.py` repeats the
 matrix as a hard gate, checks that the four `pyproject.toml` declare no
 first-party dependency, that each source root holds exactly its package, and
-keeps one ratchet (V1). Each library also has a test that runs with nothing
+that the organism holds no concrete host provider. Each library also has a test that runs with nothing
 else installed (`symbiont/tests`, `embodiment/tests`, `modality/tests`,
 `environment/tests`).

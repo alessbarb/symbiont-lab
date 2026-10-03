@@ -25,11 +25,11 @@ two domains went to `lab/src/lab/integration/`.
 |---|---|---|
 | `physics3d/vision.py`: `PerceptualTopology`, `VisualApparatus` | `modality/src/modality/vision.py` | MODALITY |
 | `physics3d/vision.py`: body kind, receptor ids, head mount, `VisionHumanoidPhysics` (array now injected) | `embodiment/src/embodiment/physics3d/vision.py` | EMBODIMENT |
-| `physics3d/humanoid.py`, `articulated.py`, `alternative_bodies.py`, `longitudinal.py` | `embodiment/src/embodiment/physics3d/` | EMBODIMENT |
+| `physics3d/humanoid.py`, `articulated.py`, `alternative_bodies.py` | `embodiment/src/embodiment/physics3d/` | EMBODIMENT |
 | `physics3d/bodies.py`: descriptors, `BodyRegistry` | `embodiment/src/embodiment/physics3d/bodies.py` | EMBODIMENT |
 | `physics3d/bodies.py`: `ANTHROPOMORPHIC_V6_VISION`, `DEFAULT_BODY_REGISTRY` | `lab/src/lab/integration/physics3d/bodies.py` | LAB (embodiment + modality) |
 | `physics3d/apparatus.py` | `lab/src/lab/integration/physics3d/apparatus.py` | LAB (embodiment + symbiont) |
-| `physics3d/reembodiment.py` | `lab/src/lab/integration/physics3d/reembodiment.py` | LAB (embodiment + symbiont) |
+| `physics3d/reembodiment.py`, `physics3d/longitudinal.py` | `symbiont/src/symbiont/core/embodiment/{transition, longitudinal}.py` | SYMBIONT |
 | `world/adapter.py`, `world/deferred.py` | `lab/src/lab/integration/world/` | LAB (environment + symbiont) |
 | `physics3d/environments.py` | `environment/src/environment/physics3d/environments.py` | ENVIRONMENT |
 | `world/terrain.py`, `genesis_v1.py`, `genesis_v2.py` | `environment/src/environment/` | ENVIRONMENT |
@@ -41,6 +41,16 @@ boundary. One behaviour-neutral change: the head mount pose moved from the
 receptor array class to the body and is passed in at composition. Every importer
 was rewritten; nothing forwards an old path. Validation for all rows: full
 suite, Import Linter contracts, architecture gates.
+
+Extracted from the organism (old paths under `src/symbiont/`):
+
+| Old path | New path | Domain |
+|---|---|---|
+| `host/providers/{stdlib, stdlib_readings, linux_surfaces, portable_surfaces}.py` | `modality/src/modality/host/` (own record types in `records.py`) | MODALITY |
+| `host/providers/interoception.py`: tick latency, resident memory | `modality/src/modality/host/process_telemetry.py` | MODALITY |
+| `host/providers/interoception.py`: the organism's own channels | `symbiont/src/symbiont/sensory/interoception.py` | SYMBIONT |
+| `host/bootstrap.py` (`discover_local_host`, …) | `lab/src/lab/integration/organism/local_host.py` | LAB (modality + symbiont) |
+| provider selection in `OrganismRuntime.__init__` | `lab/src/lab/integration/organism/canonical.py`; what is required is resolved in `symbiont/src/symbiont/core/orchestration/sense_requirements.py` | LAB / SYMBIONT |
 
 New in the organism: `symbiont/src/symbiont/api.py` (public surface, re-exports only).
 
@@ -80,8 +90,7 @@ history at `593c2a02`.
 
 | Path | Target | Status |
 |---|---|---|
-| `symbiont.core.embodiment`, `symbiont.actuation` | EMBODIMENT (partly) | PENDING — `open-issues.md` OI-3 |
-| `symbiont.sensory`, `symbiont.host` (incl. `host.providers`) | MODALITY (partly) | PENDING — OI-3 |
+| `symbiont.core.embodiment`, `symbiont.actuation`, `symbiont.sensory`, generic `symbiont.host` | SYMBIONT | STAYS by decision: intrinsic organism state and generic signal machinery |
 | `lab.physics3d.{engine, runtime, persistence}` | LAB composition | STAYS — it composes organism, body and environment; OI-4 lists the Lab edges that keep it there |
 | `lab.physics3d.resource` | ENVIRONMENT | PENDING — imports `SurfaceMaterial` from the humanoid body, and environment must not depend on embodiment (OI-4) |
 | `scripts/` benchmarks, `tests/` | LAB / per domain | PENDING — OI-7, OI-8 |
