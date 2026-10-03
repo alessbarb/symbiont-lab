@@ -7,7 +7,7 @@ status: proposed
 canonical: false
 implementation_status: not_started
 migrated_on: 2026-10-03
-last_reviewed: null
+last_reviewed: 2026-10-03
 language: en
 ---
 # Physics3D A7 Stability Gate v1
@@ -114,21 +114,21 @@ Missing artifacts, unavailable optional dependencies, or an undefined metric
 must not be counted as a pass. Do not replace a failing seed. Do not infer a
 biological capability from a mechanical pass.
 
-## 6. Proposed acceptance criteria and remaining review
+## 6. Owner-accepted candidate acceptance criteria and remaining review
 
-The following candidate thresholds are proposed for owner review. They are
+The owner accepted the following candidate thresholds on 2026-10-03. They are
 operational screening limits, not existing constitutional or biological
-contracts. No result may be reported as a pass until the owner accepts the
-values and they are recorded in a frozen revision:
+contracts. They become the protocol's pass/fail criteria only when recorded in
+an explicitly frozen revision; acceptance here does not authorize execution:
 
 | Metric | Candidate criterion | Status / rationale |
 |---|---|---|
-| Rigid transform | All coordinates and quaternion components finite; quaternion norm within `1e-6` of 1.0. | Proposed numerical validity tolerance; confirm against the runtime's emitted representation. |
-| Contact count | No more than 100 simultaneous body-ground/fixture contact points for any one body. | Provisional explosion screen; source does not declare a normative maximum. |
-| Penetration | No contact penetration deeper than `0.02 m`. | Provisional geometry-tolerance screen; source does not declare a normative maximum. |
-| Normal force | No individual normal contact force above `10,000 N`. | Provisional explosion screen; source does not declare a normative maximum. |
-| Replay | Maximum absolute difference `<=1e-9` for numeric physical-state fields at matched ticks; identities and discrete fields exactly equal. | Proposed same-host repeat tolerance; no cross-platform bit-exact claim. |
-| Energy/work | Every recorded energy/work value finite. | No conservation or monotonicity requirement. |
+| Rigid transform | All coordinates and quaternion components finite; quaternion norm within `1e-6` of 1.0. | Owner-accepted candidate numerical-validity tolerance; confirm the emitted representation is measured correctly. |
+| Contact count | No more than 100 simultaneous body-ground/fixture contact points for any one body. | Owner-accepted candidate explosion screen; not a universal physical or constitutional maximum. |
+| Penetration | No contact penetration deeper than `0.02 m`. | Owner-accepted candidate geometry-tolerance screen; not a universal physical or constitutional maximum. |
+| Normal force | No individual normal contact force above `10,000 N`. | Owner-accepted candidate explosion screen; not a universal physical or constitutional maximum. |
+| Replay | Maximum absolute difference `<=1e-9` for numeric physical-state fields at matched ticks; identities and discrete fields exactly equal. | Owner-accepted same-host repeat tolerance; no cross-platform bit-exact claim. |
+| Energy/work | Every recorded energy/work value finite. | Owner-accepted finiteness requirement; no conservation or monotonicity requirement. |
 
 The following items still require exact confirmation before freeze:
 
@@ -137,7 +137,6 @@ The following items still require exact confirmation before freeze:
 | Collision comparability | Confirm that the fixed pose/velocity produces a collision in each body; otherwise specify a preregistered body-specific geometry/pose rule before freeze. |
 | Friction validity | Verify simulator behavior for lateral friction `1.045`; do not accept silent clamping. |
 | Mass implementation | Verify mass/inertia scaling is available without changing geometry or other model parameters. If not, stop for a design/code decision. |
-| Numeric candidates | Owner review and acceptance of the proposed transform/contact/replay criteria above; source does not establish contact explosion/penetration/force ceilings. |
 | Replay procedure | Freeze artifact capture, same-host repeat environment, and exactly which physical fields participate in the `1e-9` comparison. |
 | Run feasibility | Confirm the runner can instantiate all settings and preserve per-run manifests/artifacts without an unapproved code change. |
 
@@ -148,14 +147,15 @@ by itself define acceptance thresholds for the other canonical morphologies.
 
 ## 7. Authorization and lifecycle
 
-The user approved the high-level campaign basis on 2026-10-03: three fixed
+The owner approved the high-level campaign basis on 2026-10-03: three fixed
 seeds with an identical replay, nominal and `+/-10%` friction/mass arms,
 360-tick horizon, fixed deterministic actuation, prescribed impact, six
 directed re-embodiment pairs, and the broad perturbation scopes. Exact schedule,
-impact and replay-split details in section 3 remain draft proposals. Numeric candidate acceptance thresholds in section 6 are
-presented for explicit owner review; they are not yet accepted or frozen. The
-design remains **Proposed**. No confirmatory campaign, held-out run, code
-change, or organism change is authorized by this document.
+impact and replay-split details in section 3 remain draft proposals. Numeric
+candidate acceptance thresholds in section 6 were accepted by the owner on
+2026-10-03; they are not yet frozen. The design remains **Proposed**. No
+confirmatory campaign, held-out run, code change, or organism change is
+authorized by this document.
 
 Once the owner resolves the freeze blockers, record the exact settings here,
 update the design register, and obtain explicit approval to freeze before
