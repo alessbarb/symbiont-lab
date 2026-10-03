@@ -3,7 +3,7 @@ id: design.embodiment.physics3d-a7-stability-gate-v1
 title: "Physics3D A7 Stability Gate V1"
 document_type: design
 domain: embodiment
-status: proposed
+status: approved
 canonical: false
 implementation_status: not_started
 migrated_on: 2026-10-03
@@ -35,7 +35,7 @@ The campaign must keep three claims separate:
 The current source registry names four canonical bodies: `anthropomorphic-v6`,
 `anthropomorphic-v6-vision`, `crawler-v1`, and `asymmetric-v1`.
 
-## 2. Proposed campaign matrix
+## 2. Campaign matrix
 
 Exercise every canonical body in each of these seven A7 condition categories:
 
@@ -53,20 +53,15 @@ declared baseline. This yields 28 body/category cells and 44 parameter arms
 before seed replication. Perturbations must affect only the named parameter;
 other settings remain fixed.
 
-For each parameter arm, the proposed seed set is `[42, 43, 44]`. Repeat each
+For each parameter arm, the seed set is `[42, 43, 44]`. Repeat each
 seed once with the same initial state and conditions to check deterministic
 replay. The seed set is a mechanical reproducibility sample, not a population
 sample and not evidence that all seeds behave alike.
 
-## 3. Candidate condition settings
+## 3. Approved condition settings
 
-The owner accepted the high-level design choices on 2026-10-03: the 360-tick
-horizon, fixed deterministic actuation, a prescribed collision input using
-the fixed fixture, all six directed re-embodiment pairs, and the friction/mass
-perturbation scopes. The more specific schedule, pose and velocity values
-below are concrete draft settings for review; only their high-level form has
-been accepted. No setting authorizes execution until all criteria are reviewed
-and the protocol is explicitly frozen.
+The owner accepted the exact conditions and settings below on 2026-10-03.
+These require a separately frozen revision before campaign execution.
 
 | Condition | Proposed fixed setting | Provenance / limitation |
 |---|---|---|
@@ -114,7 +109,7 @@ Missing artifacts, unavailable optional dependencies, or an undefined metric
 must not be counted as a pass. Do not replace a failing seed. Do not infer a
 biological capability from a mechanical pass.
 
-## 6. Owner-accepted candidate acceptance criteria and remaining review
+## 6. Owner-accepted candidate acceptance criteria
 
 The owner accepted the following candidate thresholds on 2026-10-03. They are
 operational screening limits, not existing constitutional or biological
@@ -130,34 +125,74 @@ an explicitly frozen revision; acceptance here does not authorize execution:
 | Replay | Maximum absolute difference `<=1e-9` for numeric physical-state fields at matched ticks; identities and discrete fields exactly equal. | Owner-accepted same-host repeat tolerance; no cross-platform bit-exact claim. |
 | Energy/work | Every recorded energy/work value finite. | Owner-accepted finiteness requirement; no conservation or monotonicity requirement. |
 
-The following items still require exact confirmation before freeze:
+The owner accepted the exact proposed settings and the bounded probes below on
+2026-10-03. The protocol remains un-frozen pending runner validation.
+
+## 7. Feasibility review and execution artifacts
+
+A bounded source/probe review on 2026-10-03 established the following:
+
+- `PyBulletEmbodimentRuntime.step()` returns per-tick metrics. With
+  `capture_physics_trace=True`, raw substeps include base pose/orientation,
+  linear/angular velocity, joint position/velocity/commanded torque, and
+  contacts. Tick records include work/energy, contact maxima/counts, and
+  termination-related state.
+- `checkpoint(advance_lineage=False)` and `physical_checkpoint()` expose
+  organism and physical-body checkpoint payloads. These are building blocks,
+  but A7 checkpoint/replay pair semantics still need runner-level tests.
+- Telemetry v4 already emits per-run manifests with seed, timing, effective
+  configuration, software identity, end tick and a SHA-256 integrity chain.
+  It does not capture A7 arm/outcome, replay-comparison results, nor a campaign
+  index.
+- No A7 runner exists in `scripts/`. Existing APIs make a headless runner
+  feasible without changing organism code, but new orchestration code and
+  tests are required. Runner feasibility is therefore **conditional**, not
+  validated, and blocks protocol freeze.
+
+The runner must produce one immutable directory per execution, keyed by
+`body/condition/arm/seed/repeat`. Each directory must contain a manifest
+(repository commit, Python/PyBullet/package versions, condition and arm,
+configuration, seed, initial state, horizon, repeat and outcome), raw per-tick
+records and physics substeps, checkpoint/body-state artifacts where relevant,
+a validation summary with observed extrema and criterion results, and SHA-256
+hashes for every artifact. A campaign index must enumerate all 264 planned
+executions and reference each manifest. Missing artifacts are `inconclusive`,
+never `pass`.
+
+Replay is same-host and uses the same revision, software/runtime versions,
+seed, initial state and settings. At matched cognition ticks compare base
+position/orientation and velocities; ordered joint position/velocity/commanded
+torque; contacts (body/link IDs, positions, normal, distance, normal force,
+lateral friction); actuator work/energy; contact counts/maxima. Maximum
+absolute numeric difference is `<=1e-9`; identities and discrete fields must
+match exactly. Canonicalize contact order by IDs and numeric coordinates.
+Non-finite values fail before tolerance comparison. Record host and the exact
+field list; make no cross-platform determinism claim.
+
+The DIRECT-mode feasibility probe used PyBullet 3.2.7 and the current generated
+apparatus/fixture. It observed friction `1.045` read back exactly after
+`changeDynamics`, and first fixture contact at step 78 for both humanoid
+variants, 65 for crawler and 73 for asymmetric. It did not run organism ticks,
+campaign arms, seeds, or the 360-tick horizon; contact occurrence does not
+establish comparable impact severity.
+
+Remaining prerequisite before freeze:
 
 | Item | Required before freeze |
 |---|---|
-| Collision comparability | Confirm that the fixed pose/velocity produces a collision in each body; otherwise specify a preregistered body-specific geometry/pose rule before freeze. |
-| Friction validity | Verify simulator behavior for lateral friction `1.045`; do not accept silent clamping. |
-| Mass implementation | Verify mass/inertia scaling is available without changing geometry or other model parameters. If not, stop for a design/code decision. |
-| Replay procedure | Freeze artifact capture, same-host repeat environment, and exactly which physical fields participate in the `1e-9` comparison. |
-| Run feasibility | Confirm the runner can instantiate all settings and preserve per-run manifests/artifacts without an unapproved code change. |
+| Runner implementation and validation | Implement the external runner, artifact contract, mass/inertia verification and replay/checkpoint tests; verify complete manifests/artifacts before campaign launch. No organism change is permitted. |
 
 Use existing normative limits where they directly apply. A limit from one body
 or test must not be generalized to other bodies without source evidence and
 owner approval. In particular, the existing humanoid actuation test does not
 by itself define acceptance thresholds for the other canonical morphologies.
 
-## 7. Authorization and lifecycle
+## 8. Authorization and lifecycle
 
-The owner approved the high-level campaign basis on 2026-10-03: three fixed
-seeds with an identical replay, nominal and `+/-10%` friction/mass arms,
-360-tick horizon, fixed deterministic actuation, prescribed impact, six
-directed re-embodiment pairs, and the broad perturbation scopes. Exact schedule,
-impact and replay-split details in section 3 remain draft proposals. Numeric
-candidate acceptance thresholds in section 6 were accepted by the owner on
-2026-10-03; they are not yet frozen. The design remains **Proposed**. No
-confirmatory campaign, held-out run, code change, or organism change is
-authorized by this document.
-
-Once the owner resolves the freeze blockers, record the exact settings here,
-update the design register, and obtain explicit approval to freeze before
-execution. Publish results and deviations separately; revise this design only
-through an explicit owner decision.
+The owner approved the concrete protocol and acceptance criteria on 2026-10-03.
+The design is **Approved**, not **Frozen**; runner implementation/validation is
+the remaining prerequisite. No campaign, held-out run, or organism change is
+authorized. After runner tests and artifact validation pass, obtain explicit
+owner freeze confirmation before launching the campaign. Publish results and
+deviations separately; revise this design only through an explicit owner
+decision.
