@@ -116,3 +116,15 @@ def load_or_create_canonical_organism(
     if payload is None:
         return create_canonical_organism(runtime_type, **options)
     return restore_canonical_organism(payload, runtime_type, **options)
+
+
+def load_required_canonical_organism(
+    path: str | Path,
+    runtime_type: type[OrganismRuntime] = OrganismRuntime,
+    **options: Any,
+) -> OrganismRuntime:
+    """Restore a required continuation; a missing checkpoint is an error."""
+    payload = load_checkpoint_file(path)
+    if payload is None:
+        raise FileNotFoundError(f"required organism checkpoint does not exist: {path}")
+    return restore_canonical_organism(payload, runtime_type, **options)

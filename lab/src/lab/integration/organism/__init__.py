@@ -9,6 +9,7 @@ from lab.integration.organism.canonical import (
     canonical_restore_sources,
     create_canonical_organism,
     load_or_create_canonical_organism,
+    load_required_canonical_organism,
     restore_canonical_organism,
     restore_canonical_resident,
 )
@@ -18,6 +19,7 @@ __all__ = [
     "canonical_restore_sources",
     "create_canonical_organism",
     "load_or_create_canonical_organism",
+    "load_required_canonical_organism",
     "restore_canonical_organism",
     "restore_canonical_resident",
 ]

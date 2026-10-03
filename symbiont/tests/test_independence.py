@@ -36,7 +36,7 @@ def test_create_run_save_load_preserves_identity(tmp_path) -> None:
 
     payload = api.load_checkpoint_file(path)
     api.verify_checkpoint_identity(payload)
-    restored = api.OrganismRuntime.load_or_create(path, min_samples=1, investigate_ticks=0)
+    restored = api.OrganismRuntime.load_required(path, min_samples=1, investigate_ticks=0)
 
     assert restored.state_hash() == organism.state_hash()
     assert api.checkpoint_state_hash(payload) == organism.state_hash()

@@ -48,15 +48,6 @@ def test_replacing_host_telemetry_leaves_intrinsic_state_unchanged(mode: str) ->
     assert _intrinsic(FakeTelemetry(**EXTREME), mode) == present
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "EXPOSED-BY-MIGRATION: the organism pays observation cost for each sampled "
-        "channel, including the two host telemetry channels it never perceives, so "
-        "removing them leaves more energy reserve. Owner decision, "
-        "migration/open-issues.md."
-    ),
-)
 @pytest.mark.parametrize("mode", ["enabled", "sham"])
 def test_removing_host_telemetry_leaves_intrinsic_state_unchanged(mode: str) -> None:
     assert _intrinsic(None, mode) == _intrinsic(FakeTelemetry(), mode)
@@ -67,7 +58,7 @@ def test_removing_host_telemetry_changes_only_the_energy_spent_observing(mode: s
     present, absent = _intrinsic(FakeTelemetry(), mode), _intrinsic(None, mode)
     assert absent["integrity"] == present["integrity"]
     assert absent["body"].structural_integrity == present["body"].structural_integrity
-    assert absent["body"].energy_reserve > present["body"].energy_reserve
+    assert absent["body"].energy_reserve == present["body"].energy_reserve
 
 
 def test_without_host_telemetry_the_organism_publishes_only_its_own_channels() -> None:

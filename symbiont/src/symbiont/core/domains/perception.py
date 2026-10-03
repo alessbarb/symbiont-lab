@@ -219,10 +219,14 @@ class PerceptionDomain:
         )
         knowledge_view = services.signal_knowledge.view()
 
+        # Charge the subject only for readings admitted to its perceptual
+        # boundary. Host-process telemetry is sampled by the apparatus and is
+        # deliberately removed from ``organism_readings`` above; charging it
+        # here made instrumentation alter the subject's energy trajectory.
         interoceptive_reading_count = sum(
-            reading.source == "interoception" for reading in snapshot.readings
+            reading.source == "interoception" for reading in organism_readings
         )
-        external_reading_count = max(0, len(snapshot.readings) - interoceptive_reading_count)
+        external_reading_count = max(0, len(organism_readings) - interoceptive_reading_count)
         services.charge_metabolism(
             "observation",
             min(0.02, external_reading_count * 0.01) + interoceptive_reading_count * 0.002,

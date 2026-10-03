@@ -28,6 +28,8 @@ FORBIDDEN_IMPORTS = (
 FORBIDDEN_CALLS = {
     "from_checkpoint",
     "load_or_create",
+    "load_required",
+    "load_or_create_for_first_boot",
     "restore_resident_with_canonical_cognition",
     "attach_private_model_bridge",
     "tick",

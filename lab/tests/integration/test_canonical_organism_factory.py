@@ -17,6 +17,7 @@ from lab.integration.organism import (
     canonical_host_sense_sources,
     create_canonical_organism,
     load_or_create_canonical_organism,
+    load_required_canonical_organism,
     restore_canonical_organism,
     restore_canonical_resident,
 )
@@ -144,7 +145,13 @@ def test_load_or_create_creates_then_restores(tmp_path) -> None:
     created = load_or_create_canonical_organism(path, organism_id="organism-under-test")
     _same(created, create_canonical_organism(organism_id="organism-under-test"))
     created.save(path)
-    assert _shape(load_or_create_canonical_organism(path)) == _shape(created)
+    assert _shape(load_required_canonical_organism(path)) == _shape(created)
+
+
+def test_required_load_fails_closed_when_checkpoint_is_missing(tmp_path) -> None:
+    path = tmp_path / "expected-checkpoint.json"
+    with pytest.raises(FileNotFoundError, match="required organism checkpoint"):
+        load_required_canonical_organism(path)
 
 
 @pytest.mark.parametrize("system", ["Linux", "Darwin", "Windows", "Plan9"])

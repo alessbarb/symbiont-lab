@@ -60,19 +60,20 @@ the pre-migration tree, not against this one: `identity_check.py` builds nine
 option sets and 54 restores with overrides in both trees and compares state
 hash and checkpoint.
 
-### Decisions left to the owner (scientific, not structural)
+### Decisions and remaining owner work (scientific, not structural)
 
-Both change energy trajectories or what the organism perceives, so neither was
-made during the migration. The recommended route for both is a new organism
-profile version, which keeps closed experiments reproducible.
+The migration deferred changes that affect energy trajectories or perception.
+The owner subsequently requested resolution of the consolidated audit issues;
+the telemetry-cost defect below is fixed in the current worktree. Its effect on
+canonical profile versioning must still be reconciled before publication.
 
-- **EXPOSED-BY-MIGRATION: host telemetry costs the organism energy.** Replacing
-  the host telemetry with any other values leaves body, metabolism, integrity,
-  the six organism readings and action pressure unchanged. Removing it does
-  not: the organism pays observation cost for every sampled channel, including
-  `internal.tick_latency` and `internal.memory_rss`, which it never perceives
-  (0.004 energy per tick). Pinned as a strict xfail in
-  `symbiont/tests/unit/sensory/test_interoception_independence.py`.
+- **Host telemetry costs the organism energy — FIXED locally (2026-10-04).**
+  Perception metabolism is now charged only for organism-facing readings;
+  apparatus process telemetry no longer changes energy. The former strict xfail
+  is now a passing invariance test in
+  `symbiont/tests/unit/sensory/test_interoception_independence.py` (7 passed).
+  Canonical profile/version consequences still require checking against the
+  approved profile governance before publishing this correction.
 - **Interoception is only offered where host senses are.** The organism's own
   interoception is attached only when `discover_senses` is on and the Lab
   reports the host available. Kept as it was; a minimal `OrganismRuntime()`

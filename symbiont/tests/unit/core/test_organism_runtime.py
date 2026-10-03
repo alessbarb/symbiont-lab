@@ -211,11 +211,11 @@ def test_full_runtime_checkpoint_contains_bounded_signal_knowledge(tmp_path):
         == 256
     )
     assert path.stat().st_size < 2 * 1024 * 1024
-    restored = OrganismRuntime.load_or_create(path, min_samples=1, investigate_ticks=0)
+    restored = OrganismRuntime.load_required(path, min_samples=1, investigate_ticks=0)
     assert restored.signal_knowledge.view() == runtime.signal_knowledge.view()
 
 
-# --- v0.46: durable state (save/from_checkpoint/load_or_create) ---
+# --- Durable state: save, strict restore, and explicit first boot ---
 
 
 def test_save_and_load_or_create_resumes_tick_count(tmp_path):
@@ -224,15 +224,22 @@ def test_save_and_load_or_create_resumes_tick_count(tmp_path):
     runtime.run(3)
     runtime.save(path)
 
-    restored = OrganismRuntime.load_or_create(path, min_samples=1, investigate_ticks=0)
+    restored = OrganismRuntime.load_required(path, min_samples=1, investigate_ticks=0)
 
     assert restored.tick_count == 3
     assert restored.acclimation.acclimated_capabilities
 
 
 def test_load_or_create_starts_fresh_when_no_file_exists(tmp_path):
-    restored = OrganismRuntime.load_or_create(tmp_path / "missing.json", min_samples=1)
+    restored = OrganismRuntime.load_or_create_for_first_boot(
+        tmp_path / "missing.json", min_samples=1
+    )
     assert restored.tick_count == 0
+
+
+def test_load_required_fails_when_expected_checkpoint_is_missing(tmp_path):
+    with pytest.raises(FileNotFoundError, match="required organism checkpoint"):
+        OrganismRuntime.load_required(tmp_path / "expected.json", min_samples=1)
 
 
 def test_restored_runtime_continues_ticking_normally(tmp_path):
@@ -241,7 +248,7 @@ def test_restored_runtime_continues_ticking_normally(tmp_path):
     runtime.run(2)
     runtime.save(path)
 
-    restored = OrganismRuntime.load_or_create(path, min_samples=1, investigate_ticks=0)
+    restored = OrganismRuntime.load_required(path, min_samples=1, investigate_ticks=0)
     result = restored.tick()
 
     assert result.tick == 3
