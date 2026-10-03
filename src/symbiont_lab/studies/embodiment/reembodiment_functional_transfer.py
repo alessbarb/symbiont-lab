@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import itertools
 import json
 import statistics
 from dataclasses import asdict, dataclass
@@ -46,7 +47,8 @@ PROTOCOL = "embodiment.reembodiment-functional-transfer"
 ACTUATORS = 4
 ARMS = ("transfer", "sham_experience", "naive")
 RELATIONS = ("same_structure", "partial", "unrelated")
-DEVELOPMENT_SEEDS = (101, 131, 149)
+# r7: nine development seeds, none in the confirmation list and not 127.
+DEVELOPMENT_SEEDS = (101, 103, 107, 109, 113, 131, 137, 139, 149)
 CONFIRMATION_SEEDS = (173, 211, 257, 307, 353, 401, 457, 503, 557, 601, 653, 701)
 
 # Frozen decision parameters (protocol §5-§7).
@@ -66,6 +68,22 @@ TARGET_MAPPING = (0, 1, 2, 3)
 _PARTIAL = (0, 1, 3, 2)  # two of four pairs shared with B
 _UNRELATED_1 = (1, 0, 3, 2)  # no pair shared with B
 _UNRELATED_2 = (2, 3, 0, 1)  # no pair shared with B
+# r6 family; r7 fixes the family by rule on the development seeds
+# (``choose_family``) and the confirmation stage reads it from horizons.json.
+DEFAULT_FAMILY: dict[str, tuple[int, ...]] = {
+    "target": TARGET_MAPPING,
+    "partial": _PARTIAL,
+    "unrelated_1": _UNRELATED_1,
+    "unrelated_2": _UNRELATED_2,
+}
+_ALL_MAPPINGS = tuple(itertools.permutations(range(ACTUATORS)))
+# Every mapping sharing exactly two pairs with B, and every mapping sharing none.
+PARTIAL_CANDIDATES = tuple(
+    m for m in _ALL_MAPPINGS if sum(a == b for a, b in zip(m, TARGET_MAPPING)) == 2
+)
+UNRELATED_CANDIDATES = tuple(
+    m for m in _ALL_MAPPINGS if sum(a == b for a, b in zip(m, TARGET_MAPPING)) == 0
+)
 _SAVE_METADATA = {"checkpoint_lineage", "runtime_provenance"}
 
 
@@ -73,24 +91,30 @@ def shared_pairs(mapping: Sequence[int], other: Sequence[int] = TARGET_MAPPING) 
     return sum(left == right for left, right in zip(mapping, other))
 
 
-def body_family(relation: str, *, seed_index: int) -> dict[str, tuple[int, ...]]:
+def body_family(
+    relation: str,
+    *,
+    seed_index: int,
+    family: dict[str, tuple[int, ...]] = DEFAULT_FAMILY,
+) -> dict[str, tuple[int, ...]]:
     """Source, sham and target mappings for one relation level.
 
     At the unrelated level the source and the sham are exchangeable by
     construction, and which mapping plays which role alternates with the
     position of the seed in its list.
     """
+    unrelated_1, unrelated_2 = family["unrelated_1"], family["unrelated_2"]
     if relation == "same_structure":
-        source, sham = TARGET_MAPPING, _UNRELATED_2
+        source, sham = family["target"], unrelated_2
     elif relation == "partial":
-        source, sham = _PARTIAL, _UNRELATED_2
+        source, sham = family["partial"], unrelated_2
     elif relation == "unrelated":
         source, sham = (
-            (_UNRELATED_1, _UNRELATED_2) if seed_index % 2 == 0 else (_UNRELATED_2, _UNRELATED_1)
+            (unrelated_1, unrelated_2) if seed_index % 2 == 0 else (unrelated_2, unrelated_1)
         )
     else:
         raise ValueError(f"unknown relation: {relation}")
-    return {"source": source, "sham": sham, "target": TARGET_MAPPING}
+    return {"source": source, "sham": sham, "target": family["target"]}
 
 
 def _body(seed: int, mapping: Sequence[int]) -> CausalBody:
@@ -248,11 +272,12 @@ def run_arm(
     seed_index: int,
     development_ticks: int,
     horizon: int,
+    family: dict[str, tuple[int, ...]] = DEFAULT_FAMILY,
 ) -> ArmRun:
     """One arm of one seed at one relation level, measured in target Body B."""
     if arm not in ARMS:
         raise ValueError(f"unknown arm: {arm}")
-    family = body_family(relation, seed_index=seed_index)
+    family = body_family(relation, seed_index=seed_index, family=family)
     entry, _previous, failures = _entry_checkpoint(seed, arm, family, development_ticks)
     body = _body(seed, family["target"])
     runtime = _restore(entry, body)
@@ -423,10 +448,13 @@ def confirmatory_claim(levels: dict[str, dict[str, Any]]) -> dict[str, Any]:
     return {"claim": claim, "established": bool(established), "ordered_reductions": ordered}
 
 
-def fix_development_ticks(seeds: Sequence[int] = DEVELOPMENT_SEEDS) -> int | None:
+def fix_development_ticks(
+    seeds: Sequence[int] = DEVELOPMENT_SEEDS,
+    family: dict[str, tuple[int, ...]] = DEFAULT_FAMILY,
+) -> int | None:
     """Rule for D (protocol §4.5): smallest multiple of 100 up to D_MAX at which
     every development organism holds a VALID binding in every source Body."""
-    mappings = sorted({TARGET_MAPPING, _PARTIAL, _UNRELATED_1, _UNRELATED_2})
+    mappings = sorted(set(family.values()))
     subjects = []
     for seed in seeds:
         for mapping in mappings:
@@ -442,49 +470,99 @@ def fix_development_ticks(seeds: Sequence[int] = DEVELOPMENT_SEEDS) -> int | Non
     return None
 
 
-def body_difficulty(seeds: Sequence[int] = DEVELOPMENT_SEEDS) -> dict[str, Any]:
-    """Median naive ticks to a first VALID binding per mapping, and their spread."""
-    mappings = {
-        "target": TARGET_MAPPING,
-        "partial": _PARTIAL,
-        "unrelated_1": _UNRELATED_1,
-        "unrelated_2": _UNRELATED_2,
-    }
-    medians: dict[str, float | None] = {}
-    for name, mapping in mappings.items():
-        ticks = [first_valid_binding_tick(seed, mapping, max_ticks=D_MAX) for seed in seeds]
-        medians[name] = None if None in ticks else float(statistics.median(ticks))  # type: ignore[type-var]
-    reached = [value for value in medians.values() if value is not None]
-    spread = (
-        None
-        if len(reached) != len(medians)
-        else (max(reached) - min(reached)) / statistics.median(reached)
-    )
+def median_ticks_to_first_binding(
+    mapping: Sequence[int], seeds: Sequence[int] = DEVELOPMENT_SEEDS
+) -> float | None:
+    """Median naive ticks to a first VALID binding; None if any seed never binds."""
+    ticks = [first_valid_binding_tick(seed, mapping, max_ticks=D_MAX) for seed in seeds]
+    return None if None in ticks else float(statistics.median(ticks))  # type: ignore[type-var]
+
+
+def _spread(values: Sequence[float]) -> float:
+    return (max(values) - min(values)) / statistics.median(values)
+
+
+def choose_family(medians: dict[tuple[int, ...], float | None]) -> dict[str, Any]:
+    """Rule for the Body family (protocol §4.2.1, r7).
+
+    Among every partial candidate and every pair of distinct unrelated
+    candidates whose development medians exist, choose the family with the
+    smallest difficulty spread including the target; ties go to the
+    lexicographically smallest (partial, unrelated_1, unrelated_2). Pure: the
+    medians are measured on development seeds only.
+    """
+    target = medians.get(TARGET_MAPPING)
+    best: tuple[float, tuple[tuple[int, ...], ...]] | None = None
+    if target is not None:
+        partials = [m for m in PARTIAL_CANDIDATES if medians.get(m) is not None]
+        unrelated = [m for m in UNRELATED_CANDIDATES if medians.get(m) is not None]
+        for partial in partials:
+            for first, second in itertools.combinations(unrelated, 2):
+                values = [target, medians[partial], medians[first], medians[second]]
+                key = (_spread(values), (partial, first, second))  # type: ignore[arg-type]
+                if best is None or key < best:
+                    best = key
+    if best is None:
+        return {"family": None, "spread": None, "within_limit": False}
+    spread, (partial, first, second) = best
     return {
-        "median_ticks_to_first_valid_binding": medians,
+        "family": {
+            "target": TARGET_MAPPING,
+            "partial": partial,
+            "unrelated_1": first,
+            "unrelated_2": second,
+        },
         "spread": spread,
-        "within_limit": spread is not None and spread <= MAX_BODY_DIFFICULTY_SPREAD,
+        "within_limit": spread <= MAX_BODY_DIFFICULTY_SPREAD,
+    }
+
+
+def select_family(seeds: Sequence[int] = DEVELOPMENT_SEEDS) -> dict[str, Any]:
+    """Measure every candidate mapping on the development seeds and apply the rule."""
+    candidates = (TARGET_MAPPING, *PARTIAL_CANDIDATES, *UNRELATED_CANDIDATES)
+    medians = {mapping: median_ticks_to_first_binding(mapping, seeds) for mapping in candidates}
+    choice = choose_family(medians)
+    return {
+        **choice,
+        "candidate_medians": {
+            "".join(map(str, mapping)): value for mapping, value in medians.items()
+        },
     }
 
 
 def run_development_stage() -> dict[str, Any]:
-    """Fix D and H by rule on the development seeds. Looks at no treatment arm."""
-    difficulty = body_difficulty()
-    development_ticks = fix_development_ticks()
+    """Fix the Body family, D and H by rule on the development seeds (r7).
+
+    Looks at no treatment arm and no confirmation seed.
+    """
+    selection = select_family()
+    family = selection["family"]
+    development_ticks = fix_development_ticks(family=family) if family is not None else None
     return {
         "protocol": PROTOCOL,
         "stage": "development",
         "development_seeds": list(DEVELOPMENT_SEEDS),
-        "body_difficulty": difficulty,
+        "body_family": (
+            {name: list(mapping) for name, mapping in family.items()} if family else None
+        ),
+        "body_difficulty": {
+            "candidate_medians": selection["candidate_medians"],
+            "spread": selection["spread"],
+            "within_limit": selection["within_limit"],
+        },
         "development_ticks": development_ticks,
         # r5: the measurement horizon equals the development horizon.
         "measurement_ticks": development_ticks,
-        "runnable": development_ticks is not None and difficulty["within_limit"],
+        "runnable": development_ticks is not None and selection["within_limit"],
     }
 
 
 def run_confirmation_stage(
-    *, development_ticks: int, measurement_ticks: int, seeds: Sequence[int] = CONFIRMATION_SEEDS
+    *,
+    development_ticks: int,
+    measurement_ticks: int,
+    family: dict[str, tuple[int, ...]] = DEFAULT_FAMILY,
+    seeds: Sequence[int] = CONFIRMATION_SEEDS,
 ) -> dict[str, Any]:
     runs: list[ArmRun] = []
     levels: dict[str, dict[str, Any]] = {}
@@ -499,6 +577,7 @@ def run_confirmation_stage(
                     seed_index=index,
                     development_ticks=development_ticks,
                     horizon=measurement_ticks,
+                    family=family,
                 )
                 for arm in ARMS
             }
@@ -510,6 +589,7 @@ def run_confirmation_stage(
         "seeds": list(seeds),
         "development_ticks": development_ticks,
         "measurement_ticks": measurement_ticks,
+        "body_family": {name: list(mapping) for name, mapping in family.items()},
         "longitudinal_contract": LONGITUDINAL_CONTRACT.value,
         "levels": levels,
         "confirmatory": confirmatory_claim(levels),
@@ -536,6 +616,10 @@ def main(argv: list[str] | None = None) -> int:
         result = run_confirmation_stage(
             development_ticks=int(horizons["development_ticks"]),
             measurement_ticks=int(horizons["measurement_ticks"]),
+            family={
+                name: tuple(int(item) for item in mapping)
+                for name, mapping in horizons["body_family"].items()
+            },
         )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")

@@ -35,11 +35,16 @@ The result is bounded to the synthetic causal Body, four actuators, the listed
 seeds and the horizons fixed by rule. The protocol is
 `docs/design/experimentation/reembodiment-functional-transfer-v1.md`.
 
-## Development stage under r6 (2026-10-03): not runnable
+## Development stage under r7
+
+Not run yet. It fixes the Body family, `D` and `H` by rule on the nine
+development seeds and writes them to `horizons.json` here.
+
+## Superseded: development stage under r6 (2026-10-03), not runnable
 
 Governed run `rft-v1-r6-development-20261003` at commit `cb2cda67`, scope
-`development`, protocol-generated input. Its output is `horizons.json`; its
-launcher receipt, without host-specific paths, is `development-receipt.json`.
+`development`, protocol-generated input. Its output and launcher receipt are
+kept in `development-r6/`.
 
 | Quantity | Value | Rule |
 | --- | --- | --- |
@@ -51,8 +56,8 @@ launcher receipt, without host-specific paths, is `development-receipt.json`.
 
 By the frozen rule (§4.2.1, §11 step 1) the Body family is outside the 15 %
 difficulty spread, so **the study is not runnable and that is the recorded
-result**. No confirmation seed is run. The protocol's remedy is to reject the
-family and rebuild it, which is a new revision decided by the owner.
+result**. No confirmation seed is run. Protocol r7 rebuilt the family by rule
+(§4.2.1) on nine development seeds.
 
 Under r5 the four mappings were equally hard (91 ticks each) because, before an
 organism held any binding, nothing it did depended on which receptor an actuator

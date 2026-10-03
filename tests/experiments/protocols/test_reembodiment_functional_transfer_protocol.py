@@ -111,8 +111,49 @@ def test_source_and_sham_are_swapped_on_alternate_seeds_at_the_unrelated_level()
     assert even["source"] != even["sham"]
 
 
+def test_family_candidates_cover_every_mapping_of_each_dose() -> None:
+    assert len(study.PARTIAL_CANDIDATES) == 6 and len(study.UNRELATED_CANDIDATES) == 9
+    assert all(shared_pairs(mapping) == 2 for mapping in study.PARTIAL_CANDIDATES)
+    assert all(shared_pairs(mapping) == 0 for mapping in study.UNRELATED_CANDIDATES)
+
+
+def test_family_rule_picks_the_smallest_spread_and_breaks_ties_lexicographically() -> None:
+    medians = {mapping: 200.0 for mapping in study.PARTIAL_CANDIDATES + study.UNRELATED_CANDIDATES}
+    medians[TARGET_MAPPING] = 100.0
+    medians[(0, 1, 3, 2)] = 104.0
+    # Three unrelated candidates tie; the lexicographically smallest pair wins.
+    for mapping in ((1, 2, 3, 0), (1, 3, 0, 2), (3, 2, 1, 0)):
+        medians[mapping] = 101.0
+    choice = study.choose_family(medians)
+    assert choice["family"] == {
+        "target": TARGET_MAPPING,
+        "partial": (0, 1, 3, 2),
+        "unrelated_1": (1, 2, 3, 0),
+        "unrelated_2": (1, 3, 0, 2),
+    }
+    assert choice["within_limit"] and choice["spread"] == pytest.approx(4 / 101)
+
+
+def test_family_rule_reports_not_runnable_when_no_family_fits() -> None:
+    far = {mapping: 300.0 for mapping in study.PARTIAL_CANDIDATES + study.UNRELATED_CANDIDATES}
+    far[TARGET_MAPPING] = 100.0
+    assert study.choose_family(far)["within_limit"] is False
+    assert study.choose_family({TARGET_MAPPING: None})["family"] is None
+
+
+def test_the_r6_family_was_outside_the_spread() -> None:
+    # The recorded r6 development medians (87/73/73/93) give 0.25 under the rule.
+    medians = {
+        TARGET_MAPPING: 87.0,
+        (0, 1, 3, 2): 73.0,
+        (1, 0, 3, 2): 73.0,
+        (2, 3, 0, 1): 93.0,
+    }
+    assert study.choose_family(medians)["spread"] == pytest.approx(0.25)
+
+
 def test_seed_lists_are_the_frozen_ones_and_disjoint() -> None:
-    assert DEVELOPMENT_SEEDS == (101, 131, 149)
+    assert DEVELOPMENT_SEEDS == (101, 103, 107, 109, 113, 131, 137, 139, 149)
     assert len(CONFIRMATION_SEEDS) == 12
     assert not set(DEVELOPMENT_SEEDS) & set(CONFIRMATION_SEEDS)
     # 127 was used for an exploratory look and is excluded from both lists.

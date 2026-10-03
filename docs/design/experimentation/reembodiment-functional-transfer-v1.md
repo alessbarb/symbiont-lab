@@ -15,11 +15,11 @@ language: en
 
 # Re-embodiment Functional Transfer v1 — Frozen Preregistration
 
-**Status:** **approved and frozen (r6, 2026-10-03)**. The owner approved the
-synthetic causal Body, the proposed numbers and the seed lists (r5), and the
-subject configuration of r6 (§4.3, §10.2). Regime: **confirmatory**. The
-apparatus, protocol record and contract tests exist; the r5 development stage is
-superseded and **no r6 development or confirmation seed has been run**.
+**Status:** **approved and frozen (r7, 2026-10-03)**. The owner approved the
+synthetic causal Body, the proposed numbers and the confirmation seeds (r5), the
+subject configuration (r6), and the family rule and development seeds of r7
+(§4.2.1, §4.4, §10.2). Regime: **confirmatory**. The r5 and r6 development
+stages are superseded; **no r7 development or confirmation seed has been run**.
 
 **Acceptance test.** The owner requires that an organism re-embodied in a new
 Body manages it sooner than a newborn (canonical organism profile register,
@@ -126,6 +126,18 @@ organism is run in A, A′ and B as stand-alone Bodies; if the median ticks to
 the first `VALID` binding differ by more than 15% between any two of them, the
 family is rejected and rebuilt before any confirmation seed is run.
 
+**Family rule (r7).** The family is not chosen by hand. On the development
+seeds, the median naive ticks to a first `VALID` binding is measured for the
+target and for every candidate: the six mappings sharing exactly two pairs with
+B (partial) and the nine sharing none (unrelated). The family is the partial
+candidate and the pair of distinct unrelated candidates whose four medians,
+with the target's, have the smallest spread (max − min over the median of the
+four); ties go to the lexicographically smallest (partial, unrelated 1,
+unrelated 2). If that smallest spread exceeds 15%, or a candidate set is empty
+because no development organism binds by `D_max`, the study is not runnable.
+The chosen family is written to `horizons.json` and the confirmation stage
+reads it from there.
+
 The synthetic Body currently offers a normal and a fully permuted mapping; a
 mapping with a chosen number of shared pairs must be added to it.
 
@@ -166,8 +178,10 @@ by a regression test: ten recorded agency-acquisition experiments use this Body.
 
 Seeds are fixed in this document and are not chosen after any run.
 
-- Development: `101, 131, 149`. Seed 127 was used for the exploratory
-  observation of §10.1.1 and is excluded from both lists (r5).
+- Development: `101, 103, 107, 109, 113, 131, 137, 139, 149` (r7; nine seeds so
+  that the difficulty medians of §4.2.1 are not decided by three values). Seed
+  127 was used for the exploratory observation of §10.1.1 and is excluded from
+  both lists (r5).
 - Confirmation: `173, 211, 257, 307, 353, 401, 457, 503, 557, 601, 653, 701`.
 
 Each confirmation seed is run for all three arms at all three relation levels
@@ -429,6 +443,16 @@ identical to the source, could be built):
   outcome, and that `H = 2 × median naive M1` capped at `D` may censor arm T.
 
 ## 10.2 Revision history
+
+- **r7, 2026-10-03 — approved and frozen.** The r6 development stage found the
+  hand-built family outside the 15% spread (medians 87/73/73/93, spread 0.25):
+  with the canonical organism, which adapts its receptors from the first tick,
+  the mapping changes how fast a newborn first binds. By §4.2.1 the family is
+  rejected and rebuilt. Owner decisions: the family is fixed by rule over every
+  candidate mapping on the development seeds (§4.2.1), and the development seeds
+  grow from three to nine (§4.4). No threshold, confirmation seed, arm,
+  relation or decision rule changes; the 15% limit is unchanged. The r6
+  development outputs are kept under `development-r6/`.
 
 - **r6, 2026-10-03 — approved and frozen.** Protocol deviation found in r5 and
   corrected before any confirmation seed: the r5 apparatus built every subject
