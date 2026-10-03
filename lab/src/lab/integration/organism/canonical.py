@@ -106,12 +106,12 @@ def restore_canonical_resident(
     )
 
 
-def load_or_create_canonical_organism(
+def load_or_create_canonical_organism_for_first_boot(
     path: str | Path,
     runtime_type: type[OrganismRuntime] = OrganismRuntime,
     **options: Any,
 ) -> OrganismRuntime:
-    """Restore from ``path`` if a checkpoint is there, otherwise create."""
+    """Explicitly use first-boot semantics; use required-load for continuity."""
     payload = load_checkpoint_file(path)
     if payload is None:
         return create_canonical_organism(runtime_type, **options)

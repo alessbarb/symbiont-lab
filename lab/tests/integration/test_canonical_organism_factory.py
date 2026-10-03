@@ -16,7 +16,7 @@ from lab.integration.organism import canonical as factory_module
 from lab.integration.organism import (
     canonical_host_sense_sources,
     create_canonical_organism,
-    load_or_create_canonical_organism,
+    load_or_create_canonical_organism_for_first_boot,
     load_required_canonical_organism,
     restore_canonical_organism,
     restore_canonical_resident,
@@ -140,9 +140,11 @@ def test_restore_keeps_the_sources_the_organism_was_created_with(options) -> Non
     assert restored.state_hash() == created.state_hash()
 
 
-def test_load_or_create_creates_then_restores(tmp_path) -> None:
+def test_first_boot_load_or_create_creates_then_restores(tmp_path) -> None:
     path = tmp_path / "organism.json"
-    created = load_or_create_canonical_organism(path, organism_id="organism-under-test")
+    created = load_or_create_canonical_organism_for_first_boot(
+        path, organism_id="organism-under-test"
+    )
     _same(created, create_canonical_organism(organism_id="organism-under-test"))
     created.save(path)
     assert _shape(load_required_canonical_organism(path)) == _shape(created)
