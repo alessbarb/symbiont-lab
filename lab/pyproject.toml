@@ -27,7 +27,6 @@ symbiont-body-3d = "lab.physics3d.cli:main"
 symbiont-physics-audit = "lab.studies.physics3d.constitution_audit:main"
 symbiont-reembodiment-study = "lab.studies.embodiment.reembodiment_cli:main"
 symbiont-telemetry-benchmark = "lab.physics3d.telemetry.cli:benchmark_main"
-symbiont-telemetry-convert = "lab.physics3d.telemetry.cli:convert_main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

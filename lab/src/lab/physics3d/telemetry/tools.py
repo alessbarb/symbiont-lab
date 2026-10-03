@@ -4,22 +4,12 @@ from __future__ import annotations
 
 import json
 import time
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
 
 from lab.physics3d.telemetry.compaction import canonical_json_bytes
 from lab.physics3d.telemetry.reader import detect_telemetry_run, open_telemetry
-from lab.physics3d.telemetry.v41 import TelemetryV41Writer, verify_v41_run
-
-
-@dataclass(frozen=True, slots=True)
-class ConversionReport:
-    source_version: str
-    source_run: str
-    destination_run: str
-    ticks: int
-    verified: bool
+from lab.physics3d.telemetry.v41 import verify_v41_run
 
 
 def _read_manifest(root: Path) -> dict[str, Any]:
@@ -28,95 +18,6 @@ def _read_manifest(root: Path) -> dict[str, Any]:
         return {}
     payload = json.loads(path.read_text(encoding="utf-8"))
     return payload if isinstance(payload, dict) else {}
-
-
-def convert_run(
-    source: str | Path,
-    destination_root: str | Path,
-    *,
-    run_id: str | None = None,
-) -> ConversionReport:
-    version, source_root = detect_telemetry_run(source)
-    if version == "legacy":
-        raise ValueError("legacy summary-only telemetry cannot be converted losslessly")
-    reader = open_telemetry(source_root)
-    manifest = _read_manifest(source_root)
-    target_run_id = run_id or f"{source_root.name}-v41"
-    writer = TelemetryV41Writer(
-        destination_root,
-        organism_id=str(manifest.get("organism_id", "unknown")),
-        start_tick=int(manifest.get("start_tick", 0) or 0),
-        seed=int(manifest.get("seed", 0) or 0),
-        physics_hz=int(manifest.get("physics_hz", 240) or 240),
-        cognition_hz=int(manifest.get("cognition_hz", 24) or 24),
-        embodiment_mode=str(manifest.get("embodiment_mode", "converted")),
-        effective_configuration=manifest.get("effective_configuration", {}),
-        software_identity={
-            **(
-                manifest.get("software_identity", {})
-                if isinstance(manifest.get("software_identity"), dict)
-                else {}
-            ),
-            "telemetry_conversion_source": version,
-        },
-        snapshot_interval=int(
-            manifest.get(
-                "checkpoint_interval",
-                manifest.get(
-                    "snapshot_interval",
-                    manifest.get("anchor_interval", 1024),
-                ),
-            )
-            or 1024
-        ),
-        anchor_interval=256,
-        run_id=target_run_id,
-    )
-    ticks = 0
-    try:
-        for state, summary in reader.iter_records():
-            if int(state.get("tick", -1)) != int(summary.get("tick", -2)):
-                raise ValueError("source telemetry state/summary tick mismatch")
-            writer.append(summary, rich_state=state)
-            ticks += 1
-    finally:
-        writer.close()
-
-    destination = writer.root
-    verification = verify_v41_run(destination)
-    if not verification["complete"]:
-        raise ValueError("converted v4.1 run failed integrity verification")
-
-    # Prove exact logical equivalence against the immutable source.
-    source_reader = open_telemetry(source_root)
-    target_reader = open_telemetry(destination)
-    checked = 0
-    for (
-        left_state,
-        left_summary,
-    ), (
-        right_state,
-        right_summary,
-    ) in zip(
-        source_reader.iter_records(),
-        target_reader.iter_records(),
-        strict=True,
-    ):
-        if canonical_json_bytes(left_state) != canonical_json_bytes(right_state):
-            raise ValueError(f"converted state differs at tick {left_state.get('tick')}")
-        if canonical_json_bytes(left_summary) != canonical_json_bytes(right_summary):
-            raise ValueError(f"converted summary differs at tick {left_summary.get('tick')}")
-        checked += 1
-
-    if checked != ticks:
-        raise ValueError("conversion verification count mismatch")
-    return ConversionReport(
-        source_version=version,
-        source_run=str(source_root),
-        destination_run=str(destination),
-        ticks=ticks,
-        verified=True,
-    )
 
 
 def _tree_bytes(root: Path) -> int:
@@ -305,9 +206,7 @@ def compare_runs(left: str | Path, right: str | Path) -> dict[str, Any]:
 
 
 __all__ = [
-    "ConversionReport",
     "benchmark_run",
     "compare_runs",
     "evaluate_acceptance_gates",
-    "convert_run",
 ]

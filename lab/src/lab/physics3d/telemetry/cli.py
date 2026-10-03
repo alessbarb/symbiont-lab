@@ -4,13 +4,11 @@ from __future__ import annotations
 
 import argparse
 import json
-from dataclasses import asdict
 from pathlib import Path
 
 from lab.physics3d.telemetry.tools import (
     benchmark_run,
     compare_runs,
-    convert_run,
     evaluate_acceptance_gates,
 )
 
@@ -57,19 +55,4 @@ def benchmark_main(argv: list[str] | None = None) -> int:
     return exit_code
 
 
-def convert_main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Convert Physics3D telemetry to lossless v4.1")
-    parser.add_argument("source", type=Path)
-    parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--run-id", default=None)
-    args = parser.parse_args(argv)
-    report = convert_run(
-        args.source,
-        args.output,
-        run_id=args.run_id,
-    )
-    print(json.dumps(asdict(report), indent=2, sort_keys=True))
-    return 0
-
-
-__all__ = ["benchmark_main", "convert_main"]
+__all__ = ["benchmark_main"]
