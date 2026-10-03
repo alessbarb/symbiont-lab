@@ -1,19 +1,11 @@
 """Public surface of the Symbiont organism.
 
-Everything outside the organism (Lab, Environment, Embodiment, Modality,
-Observatory) should be able to hold, run, persist and identify an organism
-through this module without importing organism internals. It only re-exports
-existing objects; it adds no behaviour and no persisted format.
-
-It deliberately carries no modality-, body- or physics-specific types.
+External callers can hold, run, persist and identify an organism through this
+module. It re-exports organism-level contracts only; embodiment composition,
+body transitions and physical descriptors are not part of this API.
 """
 
 from symbiont import __version__
-from symbiont.core.embodiment.reembodiment import begin_reembodiment, replace_body
-from symbiont.core.embodiment.transition import (
-    EmbodimentDescriptor,
-    prepare_fresh_embodiment_checkpoint,
-)
 from symbiont.core.lineage.heritage import HeritagePattern, SpeciesHeritage
 from symbiont.core.orchestration.canonical_birth import restore_resident_with_canonical_cognition
 from symbiont.core.orchestration.governor import (
@@ -60,10 +52,5 @@ __all__ = [
     "lineage_history",
     "SpeciesHeritage",
     "HeritagePattern",
-    # re-embodiment
-    "begin_reembodiment",
-    "replace_body",
-    "EmbodimentDescriptor",
-    "prepare_fresh_embodiment_checkpoint",
     "__version__",
 ]
