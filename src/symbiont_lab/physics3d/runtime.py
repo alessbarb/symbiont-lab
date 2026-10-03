@@ -1450,7 +1450,25 @@ class PyBulletEmbodimentRuntime:
             "contacts": self._contact_payload(),
         }
 
-    def _apply_runtime_actuation(self) -> int:
+    def _apply_runtime_actuation(
+        self, override: Mapping[str, float] | None = None
+    ) -> int:
+        if override is not None:
+            allowed = set(self.apparatus.effector_ids)
+            unknown = set(override) - allowed
+            if unknown:
+                raise ValueError(f"unknown physical effector ids: {sorted(unknown)}")
+            physical = {effector_id: 0.0 for effector_id in allowed}
+            for effector_id, raw_value in override.items():
+                value = float(raw_value)
+                if not math.isfinite(value) or not 0.0 <= value <= 1.0:
+                    raise ValueError(
+                        f"physical actuation for {effector_id} must be finite in [0, 1]"
+                    )
+                physical[effector_id] = value
+            self.apparatus.apply_effectors(physical)
+            return sum(value > 0.05 for value in physical.values())
+
         physical: dict[str, float] = {}
         active = 0
         for actuation in self.organism.last_actuations:
@@ -1521,7 +1539,12 @@ class PyBulletEmbodimentRuntime:
             )
         )
 
-    def step(self, *, include_observability: bool = True) -> Tick3D:
+    def step(
+        self,
+        *,
+        include_observability: bool = True,
+        physical_actuation_override: Mapping[str, float] | None = None,
+    ) -> Tick3D:
         if not self.physics_connected():
             raise PhysicsServerDisconnected("PyBullet physics server was closed")
 
@@ -1562,7 +1585,7 @@ class PyBulletEmbodimentRuntime:
 
         physics_started = time.perf_counter()
         try:
-            active_effectors = self._apply_runtime_actuation()
+            active_effectors = self._apply_runtime_actuation(physical_actuation_override)
         except Exception as exc:
             if not self.physics_connected():
                 raise PhysicsServerDisconnected(
