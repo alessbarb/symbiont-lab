@@ -3,11 +3,16 @@ from __future__ import annotations
 import hashlib
 import math
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Mapping, Sequence
 
 from ..capacity import CapacityPressure
-from .competence import CompetenceEvidence, CompetenceMaturity
+from .competence import (
+    DEFAULT_COMPETENCE_GATE,
+    CompetenceEvidence,
+    CompetenceGate,
+    CompetenceMaturity,
+)
 from .types import MotorIntent
 
 _HORIZONS = (1, 4, 16, 64)
@@ -201,6 +206,8 @@ class MotorPrimitive:
     effect_variance: float
     controllability: float
     directional_consistency: float
+    # Organism configuration, not evidence: never checkpointed with the primitive.
+    gate: CompetenceGate = DEFAULT_COMPETENCE_GATE
 
     def __post_init__(self) -> None:
         if not self.embodiment_fingerprint:
@@ -220,6 +227,7 @@ class MotorPrimitive:
             reproducibility=reproducibility,
             controllability=self.controllability,
             directional_consistency=self.directional_consistency,
+            gate=self.gate,
         )
 
     @property
@@ -387,6 +395,7 @@ class CompetenceDevelopmentEngine:
         ids = tuple(str(value) for value in actuator_ids)
         if not ids or len(ids) != len(set(ids)):
             raise ValueError("sensorimotor learner requires unique actuator ids")
+        self.gate = DEFAULT_COMPETENCE_GATE
         if embodiment_fingerprint is None:
             embodiment_fingerprint = (
                 "legacy-surface:" + hashlib.sha256("|".join(ids).encode("utf-8")).hexdigest()
@@ -481,6 +490,15 @@ class CompetenceDevelopmentEngine:
         self._last_output_source = "exploration"
         self._last_natural_competence_ids: tuple[str, ...] = ()
         self._last_primitive_episodes: tuple[PrimitiveEpisode, ...] = ()
+
+    def set_gate(self, gate: CompetenceGate) -> None:
+        """Apply the organism's establishment gate to every primitive."""
+        self.gate = gate
+        self._primitives = {
+            primitive_id: replace(primitive, gate=gate)
+            for primitive_id, primitive in self._primitives.items()
+        }
+        self._invalidate_primitive_caches()
 
     def _invalidate_primitive_caches(self) -> None:
         self._primitives_cache = None
@@ -1180,6 +1198,7 @@ class CompetenceDevelopmentEngine:
             effect_variance=stat.variance,
             controllability=controllability,
             directional_consistency=directional_consistency,
+            gate=self.gate,
         )
         self._primitive_materialized_tick.setdefault(sequence, int(end_tick))
         self._historical_primitive_candidates.pop(primitive_id, None)

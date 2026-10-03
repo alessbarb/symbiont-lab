@@ -17,7 +17,7 @@ from ...actuation.binding import CompetenceExecutionBindingRegistry
 from ...actuation.candidate import ActuatorCandidateState
 from ...actuation.checkpoint import restore_actuation_state
 from ...actuation.commitment import ActionCommitment, CommitmentStatus
-from ...actuation.competence import CompetenceLibrary, MotorCompetence
+from ...actuation.competence import CompetenceGate, CompetenceLibrary, MotorCompetence
 from ...actuation.constitution import ActuatorConstitution
 from ...actuation.evidence import CausalEvidenceLedger, SensorimotorTransition
 from ...actuation.model import AgencyModel, CompetenceEffectModel, ControllabilityModel
@@ -342,6 +342,8 @@ class OrganismRuntime:
         factorized_effects: bool | None = None,
         persist_replay_state: bool | None = None,
         profile: OrganismProfile | None = None,
+        competence_min_support: int | None = None,
+        competence_min_consistency: float | None = None,
     ) -> None:
         # Governed options left unset come from the organism profile (ADR-0062).
         profile = profile if profile is not None else CANONICAL
@@ -358,6 +360,18 @@ class OrganismRuntime:
             factorized_effects = profile.factorized_effects
         if intention_policy is None:
             intention_policy = profile.intention_policy()
+        self._competence_gate = CompetenceGate(
+            min_support=(
+                profile.competence_min_support
+                if competence_min_support is None
+                else int(competence_min_support)
+            ),
+            min_consistency=(
+                profile.competence_min_consistency
+                if competence_min_consistency is None
+                else float(competence_min_consistency)
+            ),
+        )
         if interoception_mode is None:
             interoception_mode = (
                 profile.interoception_mode
@@ -841,6 +855,7 @@ class OrganismRuntime:
             acquisition=agency_acquisition,
             executive_mode=executive_mode,
             intention_policy=intention_policy,
+            competence_gate=self._competence_gate,
         )
         if factorized_effects:
             self.enable_factorized_effects()
@@ -1418,6 +1433,8 @@ class OrganismRuntime:
             "interoception_enabled": self._interoception_enabled,
             "interoception_mode": self._interoception_mode,
             "host_sense_source": self._host_sense_source,
+            "competence_min_support": self._competence_gate.min_support,
+            "competence_min_consistency": self._competence_gate.min_consistency,
             "mutation_seed": self._mutation_seed,
             "epigenetic_decay": self._epigenetic_decay,
             "actuation_enabled": self._actuation_enabled,
@@ -3121,6 +3138,8 @@ class OrganismRuntime:
             "bootstrap_semantic_senses",
             "interoception_enabled",
             "interoception_mode",
+            "competence_min_support",
+            "competence_min_consistency",
             "conflict_z",
             "min_samples",
         ):

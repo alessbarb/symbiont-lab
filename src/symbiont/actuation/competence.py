@@ -13,6 +13,27 @@ class CompetenceMaturity(StrEnum):
     ROBUST = "robust"
 
 
+@dataclass(frozen=True, slots=True)
+class CompetenceGate:
+    """Evidence an organism requires before a competence counts as established.
+
+    Organism configuration, carried by the canonical organism profile
+    (ADR-0062); never part of a competence's evidence or checkpoint.
+    """
+
+    min_support: int = 2
+    min_consistency: float = 0.60
+
+    def __post_init__(self) -> None:
+        if isinstance(self.min_support, bool) or not 2 <= int(self.min_support) <= 64:
+            raise ValueError("competence min_support must be within [2, 64]")
+        if not 0.0 < float(self.min_consistency) <= 1.0:
+            raise ValueError("competence min_consistency must be within (0, 1]")
+
+
+DEFAULT_COMPETENCE_GATE = CompetenceGate()
+
+
 @dataclass(slots=True)
 class CompetenceEvidence:
     controller_seed_ref: str
@@ -24,15 +45,16 @@ class CompetenceEvidence:
     reproducibility: float = 0.0
     controllability: float = 0.0
     directional_consistency: float = 0.0
+    gate: CompetenceGate = DEFAULT_COMPETENCE_GATE
 
     @property
     def maturity(self) -> CompetenceMaturity:
         """Evidence projection only; no separately mutable maturity truth."""
         if (
-            self.support < 2
+            self.support < self.gate.min_support
             or self.controllability <= 0.002
             or self.reproducibility < (2.0 / 3.0)
-            or self.directional_consistency < 0.60
+            or self.directional_consistency < self.gate.min_consistency
         ):
             if self.support >= 2 and self.controllability > 0.0:
                 return CompetenceMaturity.EMERGING

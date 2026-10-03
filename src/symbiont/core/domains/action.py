@@ -27,7 +27,13 @@ from ...actuation.binding import (
 )
 from ...actuation.checkpoint import export_actuation_state
 from ...actuation.commitment import ActionCommitment, CommitmentStatus
-from ...actuation.competence import CompetenceEvidence, CompetenceLibrary, MotorCompetence
+from ...actuation.competence import (
+    DEFAULT_COMPETENCE_GATE,
+    CompetenceEvidence,
+    CompetenceGate,
+    CompetenceLibrary,
+    MotorCompetence,
+)
 from ...actuation.composition import CompositionEngine
 from ...actuation.controller import ControllerFrame
 from ...actuation.dimension import ActionDimensionDiscoveryPolicy, ActionDimensionRegistry
@@ -214,9 +220,12 @@ class ActionDomain:
         dimension_policy: ActionDimensionDiscoveryPolicy | None = None,
         executive_mode: ExecutiveMode = ExecutiveMode.FULL,
         intention_policy: IntentionPolicy | None = None,
+        competence_gate: CompetenceGate = DEFAULT_COMPETENCE_GATE,
     ) -> None:
         if not organism_id:
             raise ValueError("organism_id must not be empty")
+        # The organism's establishment gate (ADR-0062 profile option).
+        self.competence_gate = competence_gate
         if not 0.0 <= float(selection_threshold) <= 1.0:
             raise ValueError("selection_threshold must be within [0,1]")
         if enabled and surface is None:
@@ -241,6 +250,8 @@ class ActionDomain:
             if self.enabled and surface is not None
             else None
         )
+        if self._competence_development is not None:
+            self._competence_development.set_gate(competence_gate)
         self._actuator_system = actuator_system or ActuatorSystem()
 
         self.arbitrator = ActionArbitrator()
@@ -1056,6 +1067,7 @@ class ActionDomain:
             reproducibility=evidence.reproducibility,
             controllability=evidence.reproducibility,
             directional_consistency=1.0,
+            gate=self.competence_gate,
         )
         if existing is not None:
             existing.evidence = derived
@@ -2489,6 +2501,7 @@ class ActionDomain:
                         reproducibility=float(item.get("reproducibility", 0.0)),
                         controllability=float(item.get("controllability", 0.0)),
                         directional_consistency=float(item.get("directional_consistency", 0.0)),
+                        gate=self.competence_gate,
                     ),
                     controller_strategy_ref=(
                         str(item["controller_strategy_ref"])

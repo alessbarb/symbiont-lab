@@ -1,0 +1,44 @@
+schema_version = 1
+
+[experiment]
+id = "learning.competence-establishment-evidence-v1"
+title = "Competence Establishment Evidence v1"
+protocol = "learning.competence-establishment-evidence"
+protocol_version = 1
+hypothesis = """
+H1: an establishment gate selected on its own seeds gives the canonical organism
+an earlier stable execution binding than the current gate (minimum support 2,
+minimum directional consistency 0.60).
+"""
+success_criteria = """
+SUPPORTED when, on the twelve confirmation seeds paired with the current gate,
+the selected gate has a smaller T_stable on at least 9 seeds, the median paired
+reduction of T_stable is at least 0.20, and the median holding fraction is not
+lower. If selection picks the current gate the result is NO CHANGE. Any other
+outcome is NOT SUPPORTED and is recorded without changing a threshold.
+"""
+notes = """
+Preregistration: docs/design/experimentation/competence-establishment-evidence-v1.md
+(approved 2026-10-03). Stage 1 (exploratory selection) writes selection.json
+before any confirmation seed runs. Scientific runs go through agentctl run start.
+"""
+
+[design]
+seeds = [2003, 2011, 2017, 2027, 2029, 2039, 2053, 2063, 2069, 2081, 2083, 2087]
+
+[establishment]
+selection_seeds = [1009, 1013, 1019, 1021, 1031, 1033, 1039, 1049]
+supports = [2, 3, 4, 5, 6, 8, 10, 12, 16]
+consistencies = [0.60, 0.70, 0.80]
+current_gate = [2, 0.60]
+actuators = 4
+horizon = 2000
+stable_window = 200
+primary_metric = "t_stable: first tick from which a VALID binding is held for stable_window consecutive ticks; censored at horizon"
+selection_rule = "smallest median t_stable; ties to smaller support, then smaller consistency"
+min_seeds_improved = 9
+min_median_paired_reduction = 0.20
+
+[output]
+save_trace = false
+save_summary = true
