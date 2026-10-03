@@ -255,6 +255,7 @@ def build_subject(
     *,
     organism_id: str,
     runtime_class: type[OrganismRuntime] = OrganismRuntime,
+    living_body_state: LivingBodyState | None = None,
     **runtime_options: Any,
 ) -> OrganismRuntime:
     """A newborn canonical runtime embodied in ``body`` (no semantic senses)."""
@@ -270,7 +271,11 @@ def build_subject(
         genome=genome,
         cognitive_graph=graph,
         kernel_limits=limits,
-        living_body_state=LivingBodyState(energy_reserve=1e6, max_energy=1e6),
+        living_body_state=(
+            living_body_state
+            if living_body_state is not None
+            else LivingBodyState(energy_reserve=1e6, max_energy=1e6)
+        ),
         actuation_enabled=True,
         actuator_constitution=body.surface,
         competence_development=CompetenceDevelopmentEngine(

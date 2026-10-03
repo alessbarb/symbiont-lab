@@ -1,0 +1,52 @@
+schema_version = 1
+
+[experiment]
+id = "learning.metabolic-retention-price-calibration-v1"
+title = "Metabolic Retention Price Calibration v1"
+protocol = "learning.metabolic-retention-price-calibration"
+protocol_version = 1
+hypothesis = """
+H1: retention prices and a dormancy discount selected on their own seeds let the
+canonical organism survive at least as long under bounded energy support as the
+current prices (0.001 per drift baseline, 0.0005 per cognitive node, full price
+while dormant), and longer or with an earlier stable binding.
+"""
+success_criteria = """
+SUPPORTED when, on the twelve confirmation seeds paired with the current prices,
+the selected prices survive at least as long on at least 9 seeds, median
+survival is strictly longer (or equal at the horizon with a median T_stable
+reduction of at least 0.10), and median retained structure is at most twice the
+current one. If selection picks the current prices or no arm qualifies the
+result is NO CHANGE. Any other outcome is NOT SUPPORTED, recorded without
+changing a threshold.
+"""
+notes = """
+Preregistration: docs/design/experimentation/metabolic-retention-price-calibration-v1.md
+(r2). Runs after Competence Establishment Evidence v1. The selection stage
+measures the support rate on the pilot seeds first and writes it with the
+selection to selection.json. Scientific runs go through agentctl run start.
+"""
+
+[design]
+seeds = [4001, 4003, 4007, 4013, 4019, 4021, 4027, 4049, 4051, 4057, 4073, 4079]
+
+[retention]
+pilot_seeds = [3083, 3089, 3109]
+selection_seeds = [3001, 3011, 3019, 3023, 3037, 3041, 3049, 3061]
+baseline_prices = [0.001, 0.0005, 0.00025, 0.000125]
+node_prices = [0.0005, 0.00025, 0.000125]
+dormancy_factors = [1.0, 0.5, 0.25]
+current_prices = [0.001, 0.0005, 1.0]
+horizon = 2000
+body_energy = 4.0
+support_rule = "median over pilot seeds of a newborn's mean energy spend per tick over ticks 1-200 under current prices"
+coherence_rule = "256 drift baselines at the baseline price cost no more than the support rate"
+selection_rule = "eligible arms alive at the horizon on >= min_alive_seeds seeds; smallest median t_stable; ties to higher baseline, node price, dormancy factor"
+min_alive_seeds = 6
+min_seeds_not_worse = 9
+min_t_stable_reduction = 0.10
+max_retained_growth = 2.0
+
+[output]
+save_trace = false
+save_summary = true

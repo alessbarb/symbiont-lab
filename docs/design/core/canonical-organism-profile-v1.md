@@ -74,6 +74,9 @@ conflict.
 | `ancestry_training` | off | off | P5.1 owner decision 2026-09-29: ancestry from DEGRADED models | `pending` behind Promotion Stability |
 | `competence_min_support` | 2 | 2 | **Unsupported**: never tested; established competences on two samples are often demoted later | Under test: Competence Establishment Evidence v1 |
 | `competence_min_consistency` | 0.60 | 0.60 | **Unsupported**: never tested | Under test: Competence Establishment Evidence v1 |
+| `retention_price_baseline` | 0.001 | 0.001 | **Unsupported**: never tested; at full capacity retention exceeds the basal budget | Under test: Metabolic Retention Price Calibration v1 |
+| `retention_price_node` | 0.0005 | 0.0005 | **Unsupported**: never tested | Under test: Metabolic Retention Price Calibration v1 |
+| `dormancy_retention_factor` | 1.0 | 1.0 | **Unsupported**: never tested | Under test: Metabolic Retention Price Calibration v1 |
 
 Not governed by the profile: `actuation_enabled` depends on whether the Body has
 actuators, not on a result. The autonomous training budget

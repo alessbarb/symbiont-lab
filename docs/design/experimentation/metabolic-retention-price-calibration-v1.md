@@ -8,9 +8,10 @@ status: proposed
 
 # Metabolic Retention Price Calibration v1 — Preregistration
 
-**Status:** proposed, awaiting owner approval. Regime: an exploratory selection
-on its own seeds, then a **confirmatory** comparison against the current prices
-on fresh seeds. Nothing has been run.
+**Status:** approved (r1, 2026-10-03); **r2 awaiting owner approval**, revised
+before any run (§13). Regime: an exploratory selection on its own seeds, then a
+**confirmatory** comparison against the current prices on fresh seeds. Nothing
+has been run.
 
 **Origin.** Canonical organism profile register §7 (owner decision 2026-10-02):
 the retention prices are not backed by any result, and at full sensory capacity
@@ -60,15 +61,18 @@ control.
   or `v2` if Competence Establishment Evidence v1 has been adopted by then),
   newborn, private-model runtime, base genome; the profile version is recorded
   in every result.
-- Body: `CausalBody`, four actuators, identity mapping, the run's seed, with the
-  body's default finite energy reserve (not the unlimited reserve the agency
-  studies use).
-- **Energy support.** A fixed, action-independent input per tick through the
-  body's ordinary intake path, as in the protected Physics3D nursery. Its rate is
-  fixed by rule before any arm runs: 75 % of the median basal drain per tick,
-  over ticks 1–500, of a newborn under the current prices on the pilot seeds
-  `3083, 3089, 3109`. The rule and the measured value are written to
-  `support.json`.
+- Body: `CausalBody`, four actuators, identity mapping, the run's seed, with a
+  finite energy reserve of 4 units, the runtime's default metabolic capacity
+  (not the unlimited reserve the agency studies use).
+- **Energy support (r2).** A fixed, action-independent input per tick through
+  the body's ordinary intake path, bounded so the reserve never exceeds 90 % of
+  capacity, as in the protected Physics3D nursery. Its rate is fixed by rule
+  before any arm runs: the median, over the pilot seeds `3083, 3089, 3109`, of a
+  newborn's mean energy spend per tick over ticks 1–200 under the current
+  prices, measured by refilling the body to full after every tick. A newborn is
+  therefore in balance, and only the growth of retained structure, the thing
+  under test, creates a deficit. The measured value is written to
+  `selection.json` before any arm runs.
 - Horizon `H = 2000` ticks; no observer.
 
 ## 5. Measures
@@ -84,9 +88,9 @@ Per run:
 ## 6. Coherence constraint
 
 An arm is **eligible** only if retention at full sensory capacity (256 drift
-baselines, no nodes, not dormant) costs at most half of the support rate. This is
-the consistency the strict expected failure states, made a precondition instead
-of an outcome.
+baselines, no nodes, not dormant) costs no more than the support rate (r2). This
+is the consistency the strict expected failure states (retention at capacity
+within the basal budget), made a precondition instead of an outcome.
 
 ## 7. Stage 1 — selection (exploratory)
 
@@ -150,3 +154,17 @@ horizon. Physics3D has its own energy scale (basal drain about 0.8 per tick in
 the nursery); transferring prices there would need its own check. Only retention
 prices and the dormancy discount are calibrated; every other charge stays as it
 is.
+
+## 13. Revision history
+
+- **r2, 2026-10-03, before any run.** A single pilot-style check during the
+  apparatus build (seed 3083, current prices, unlimited reserve) showed retention
+  growing from 0.021 to 0.188 per tick between ticks 100 and 2000, 77 % of all
+  spend by then. Under r1, a support of 75 % of the early drain would starve
+  every arm at about tick 200, before retention grows, so survival could not
+  discriminate between prices. In the same way, the r1 coherence limit (half the
+  support) would have left almost only the lowest baseline price eligible,
+  deciding the answer in advance. r2 sets the support to 100 % of a newborn's
+  spend over ticks 1–200, and the coherence limit to the support rate itself. No
+  arm, seed, horizon or decision threshold changes.
+

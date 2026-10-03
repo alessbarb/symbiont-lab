@@ -91,7 +91,18 @@ class MemoryDomain:
         *,
         drift_baseline_count: int,
         cognitive_node_count: int,
+        baseline_price: float = 0.001,
+        node_price: float = 0.0005,
+        dormant: bool = False,
+        dormancy_factor: float = 1.0,
     ) -> float:
-        return (
-            max(0, int(drift_baseline_count)) * 0.001 + max(0, int(cognitive_node_count)) * 0.0005
+        """Maintenance owed per tick for retained structure.
+
+        Prices and the dormancy factor are organism profile options (ADR-0062);
+        the defaults are the historical prices.
+        """
+        units = (
+            max(0, int(drift_baseline_count)) * baseline_price
+            + max(0, int(cognitive_node_count)) * node_price
         )
+        return units * dormancy_factor if dormant else units
