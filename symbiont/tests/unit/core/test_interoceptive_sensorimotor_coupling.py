@@ -17,7 +17,7 @@ from symbiont.cognition.limits import KernelLimits
 from symbiont.core.orchestration.runtime import OrganismDeadError, OrganismRuntime
 from symbiont.host.discovery import HostDiscovery
 from symbiont.host.lifecycle import HostLifecycle
-from symbiont.host.providers.interoception import InteroceptionProvider
+from symbiont.sensory.interoception import InteroceptionProvider
 
 from ...bodies import TestBody, TestBodyDiscovery, test_body_kwargs
 

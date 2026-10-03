@@ -30,7 +30,8 @@ _CLOCK_NAMES = {
 # Exact counts, not whole-file exemptions: a new read anywhere in an
 # allowlisted file (e.g. perception, where the leak lived) fails the test.
 DECLARED_EXCEPTIONS = {
-    "host/providers/interoception.py": (1, "apparatus reading timestamp"),
+    "sensory/interoception.py": (1, "apparatus reading timestamp"),
+    "host/providers/process_telemetry.py": (1, "apparatus reading timestamp"),
     "host/providers/linux_surfaces.py": (1, "apparatus reading timestamp"),
     "host/providers/portable_surfaces.py": (1, "apparatus reading timestamp"),
     "host/providers/stdlib_readings.py": (1, "apparatus reading timestamp"),

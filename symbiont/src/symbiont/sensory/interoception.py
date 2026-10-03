@@ -2,28 +2,37 @@ from __future__ import annotations
 
 import math
 import time
+from dataclasses import replace
+from typing import Protocol
 
-try:
-    import resource
-except ImportError:  # Windows has no stdlib resource module.
-    resource = None
+from ..host.contracts import Capability, CapabilityKind
+from ..host.readings import ReadingPrivacyClass, ReadingQuality, SensorReading, Unit
 
-from ..contracts import Capability, CapabilityKind
-from ..readings import ReadingPrivacyClass, ReadingQuality, SensorReading, Unit
+
+class HostTelemetry(Protocol):
+    """Host measurements carried alongside interoception; supplied from outside."""
+
+    def observe_tick(self, latency: float) -> None: ...
+
+    def discover(self) -> tuple[Capability, ...]: ...
+
+    def sample(self, capabilities: tuple[Capability, ...]) -> tuple[SensorReading, ...]: ...
 
 
 class InteroceptionProvider:
-    """Provides bounded, aggregate read-only interoceptive sensory surfaces.
+    """The organism's sense of its own physiological and cognitive state.
 
-    Reflects the organism's own internal physiological and computational state:
-    - internal.tick_latency: execution time of the previous processing cycle
-    - internal.memory_rss: resident memory footprint of the organism process
     - internal.epistemic_surprise: prediction error / bayesian surprise
     - internal.metabolic_reserve: fraction of physiological energy reserve remaining
     - internal.integrity: bounded structural integrity
     - internal.metabolic_pressure: coarse pressure state projected to a ratio
     - internal.repair_pressure: current integrity deficit
     - internal.waste_pressure: bounded retained-degradation pressure
+
+    These are intrinsic: they are computed from the organism's own state and
+    need no host. Measurements of the host process (``host_telemetry``) are a
+    separate, optional source. They are published under this provider's
+    persisted id but stay apparatus evidence and never reach organism learning.
     """
 
     provider_id = "interoception"
@@ -44,8 +53,8 @@ class InteroceptionProvider:
     def organism_facing(cls, capability_id: str) -> bool:
         return capability_id in cls.ORGANISM_CAPABILITY_IDS
 
-    def __init__(self) -> None:
-        self._tick_latency: float = 0.0
+    def __init__(self, host_telemetry: HostTelemetry | None = None) -> None:
+        self._host_telemetry = host_telemetry
         self._epistemic_surprise: float = 0.0
         self._metabolic_reserve: float = 1.0
         self._integrity: float = 1.0
@@ -64,7 +73,8 @@ class InteroceptionProvider:
         repair_pressure: float = 0.0,
         waste_pressure: float = 0.0,
     ) -> None:
-        self._tick_latency = max(0.0, float(tick_latency))
+        if self._host_telemetry is not None:
+            self._host_telemetry.observe_tick(tick_latency)
         self._epistemic_surprise = max(0.0, min(1.0, float(epistemic_surprise)))
         self._metabolic_reserve = max(0.0, min(1.0, float(metabolic_reserve)))
         self._integrity = max(0.0, min(1.0, float(integrity)))
@@ -95,19 +105,9 @@ class InteroceptionProvider:
         self._waste_pressure = max(0.0, min(1.0, float(waste_pressure)))
 
     def discover(self) -> tuple[Capability, ...]:
+        host = self._host_telemetry.discover() if self._host_telemetry is not None else ()
         return (
-            Capability(
-                capability_id="internal.tick_latency",
-                kind=CapabilityKind.SIGNAL,
-                source=self.provider_id,
-                detail=(("unit", "second"),),
-            ),
-            Capability(
-                capability_id="internal.memory_rss",
-                kind=CapabilityKind.SIGNAL,
-                source=self.provider_id,
-                detail=(("unit", "byte"),),
-            ),
+            *(replace(capability, source=self.provider_id) for capability in host),
             Capability(
                 capability_id="internal.epistemic_surprise",
                 kind=CapabilityKind.SIGNAL,
@@ -151,43 +151,15 @@ class InteroceptionProvider:
         available_ids = {
             cap.capability_id for cap in capabilities if cap.source == self.provider_id
         }
-        readings: list[SensorReading] = []
-
-        if "internal.tick_latency" in available_ids:
-            readings.append(
-                SensorReading(
-                    capability_id="internal.tick_latency",
-                    source=self.provider_id,
-                    value=self._tick_latency,
-                    unit=Unit.SECOND,
-                    monotonic_timestamp_ns=now_ns,
-                    quality=ReadingQuality.NOMINAL,
-                    privacy_class=ReadingPrivacyClass.AGGREGATE,
-                )
-            )
-
-        if "internal.memory_rss" in available_ids:
-            try:
-                rss_bytes = (
-                    float(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024)
-                    if resource is not None
-                    else None
-                )
-            except (OSError, ValueError):
-                rss_bytes = None
-            readings.append(
-                SensorReading(
-                    capability_id="internal.memory_rss",
-                    source=self.provider_id,
-                    value=rss_bytes,
-                    unit=Unit.BYTE,
-                    monotonic_timestamp_ns=now_ns,
-                    quality=ReadingQuality.NOMINAL
-                    if rss_bytes is not None
-                    else ReadingQuality.UNAVAILABLE,
-                    privacy_class=ReadingPrivacyClass.AGGREGATE,
-                )
-            )
+        own = tuple(cap for cap in capabilities if cap.source == self.provider_id)
+        readings: list[SensorReading] = (
+            [
+                replace(reading, source=self.provider_id)
+                for reading in self._host_telemetry.sample(own)
+            ]
+            if self._host_telemetry is not None
+            else []
+        )
 
         if "internal.epistemic_surprise" in available_ids:
             readings.append(
@@ -239,7 +211,7 @@ class InteroceptionProvider:
     def normalize_for_organism(self, reading: SensorReading) -> SensorReading:
         """Project only admitted organism-facing internal readings.
 
-        Administrative host measurements remain apparatus-only evidence and
+        Host telemetry remains apparatus-only evidence and
         pass through unchanged. Only capabilities admitted by organism_facing()
         are normalized for adaptive sensing and cognition.
         """

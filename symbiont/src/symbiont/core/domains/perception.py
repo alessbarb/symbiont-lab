@@ -115,7 +115,7 @@ class PerceptionDomain:
         )
         raw_organism_readings = (*snapshot.readings, *resource_readings)
         if services.interoception_provider is not None:
-            from ...host.providers.interoception import InteroceptionProvider
+            from ...sensory.interoception import InteroceptionProvider
 
             raw_organism_readings = tuple(
                 reading

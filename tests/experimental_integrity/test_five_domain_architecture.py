@@ -97,10 +97,9 @@ def _importers(target_prefixes: tuple[str, ...], *, source: str, exclude: tuple[
 def test_organism_core_reaches_concrete_host_modality_only_where_it_already_did() -> None:
     """Ratchet for symbiont -X-> concrete modality implementations (OI-3)."""
     assert _importers(("symbiont.host.providers",), source="symbiont.core") == [
-        ("symbiont.core.domains.perception", "symbiont.host.providers.interoception"),
-        ("symbiont.core.orchestration.runtime", "symbiont.host.providers.interoception"),
         ("symbiont.core.orchestration.runtime", "symbiont.host.providers.linux_surfaces"),
         ("symbiont.core.orchestration.runtime", "symbiont.host.providers.portable_surfaces"),
+        ("symbiont.core.orchestration.runtime", "symbiont.host.providers.process_telemetry"),
         ("symbiont.core.orchestration.runtime", "symbiont.host.providers.stdlib"),
         ("symbiont.core.orchestration.runtime", "symbiont.host.providers.stdlib_readings"),
     ]

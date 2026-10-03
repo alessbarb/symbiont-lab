@@ -1,15 +1,18 @@
 from __future__ import annotations
 
-import symbiont.host.providers.interoception as interoception_module
-from symbiont.host.providers.interoception import (
-    InteroceptionProvider,
-    ShamInteroceptionProvider,
-)
+import symbiont.host.providers.process_telemetry as telemetry_module
+from symbiont.host.providers.process_telemetry import HostProcessTelemetry
 from symbiont.host.readings import ReadingQuality, Unit
+from symbiont.sensory.interoception import InteroceptionProvider, ShamInteroceptionProvider
+
+
+def _provider(provider_type=InteroceptionProvider):
+    """Interoception with the host telemetry published alongside it."""
+    return provider_type(host_telemetry=HostProcessTelemetry())
 
 
 def test_interoception_provider_discovery():
-    provider = InteroceptionProvider()
+    provider = _provider()
     caps = provider.discover()
     cap_ids = {c.capability_id for c in caps}
 
@@ -27,7 +30,7 @@ def test_interoception_provider_discovery():
 
 
 def test_interoception_provider_sampling_and_update():
-    provider = InteroceptionProvider()
+    provider = _provider()
     caps = provider.discover()
 
     provider.update_metrics(
@@ -64,7 +67,7 @@ def test_interoception_provider_sampling_and_update():
 
 
 def test_interoception_organism_projection_is_bounded_and_uses_ratio_units():
-    provider = InteroceptionProvider()
+    provider = _provider()
     provider.update_metrics(
         tick_latency=4.0,
         epistemic_surprise=1.5,
@@ -89,7 +92,7 @@ def test_interoception_organism_projection_is_bounded_and_uses_ratio_units():
 
 
 def test_sham_interoception_preserves_manifest_but_projects_neutral_values():
-    provider = ShamInteroceptionProvider()
+    provider = _provider(ShamInteroceptionProvider)
     provider.update_metrics(
         tick_latency=0.2,
         epistemic_surprise=0.9,
@@ -126,7 +129,7 @@ def test_sham_interoception_preserves_manifest_but_projects_neutral_values():
 
 
 def test_interoception_action_pressure_includes_integrity_and_repair_channels():
-    provider = InteroceptionProvider()
+    provider = _provider()
     provider.update_metrics(
         tick_latency=0.0,
         epistemic_surprise=0.0,
@@ -140,7 +143,7 @@ def test_interoception_action_pressure_includes_integrity_and_repair_channels():
 
 
 def test_interoception_physiological_refresh_does_not_reset_computational_channels():
-    provider = InteroceptionProvider()
+    provider = _provider()
     provider.update_metrics(
         tick_latency=0.25,
         epistemic_surprise=0.75,
@@ -165,9 +168,28 @@ def test_interoception_physiological_refresh_does_not_reset_computational_channe
 
 
 def test_interoception_sampling_without_resource_module(monkeypatch):
-    monkeypatch.setattr(interoception_module, "resource", None)
-    provider = InteroceptionProvider()
+    monkeypatch.setattr(telemetry_module, "resource", None)
+    provider = _provider()
     readings = {item.capability_id: item for item in provider.sample(provider.discover())}
 
     assert readings["internal.memory_rss"].unit == Unit.BYTE
     assert readings["internal.memory_rss"].value is None
+
+
+def test_without_host_telemetry_only_the_organism_channels_exist():
+    provider = InteroceptionProvider()
+    provider.update_metrics(tick_latency=9.0, epistemic_surprise=0.4, metabolic_reserve=0.6)
+    capabilities = provider.discover()
+    assert {capability.capability_id for capability in capabilities} == set(
+        InteroceptionProvider.ORGANISM_CAPABILITY_IDS
+    )
+    readings = {item.capability_id: item.value for item in provider.sample(capabilities)}
+    assert set(readings) == set(InteroceptionProvider.ORGANISM_CAPABILITY_IDS)
+    assert readings["internal.epistemic_surprise"] == 0.4
+
+
+def test_host_telemetry_is_published_under_the_persisted_interoception_source():
+    provider = _provider()
+    capabilities = provider.discover()
+    assert {capability.source for capability in capabilities} == {"interoception"}
+    assert {reading.source for reading in provider.sample(capabilities)} == {"interoception"}

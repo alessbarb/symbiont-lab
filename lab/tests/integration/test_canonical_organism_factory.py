@@ -117,16 +117,12 @@ def test_platform_and_interoception_selection(system: str, mode: str) -> None:
     )
     names = [type(provider).__name__ for provider in sources.discovery_providers]
     host = {"Linux": "LinuxSurfaceProvider", "Plan9": None}.get(system, "PortableSurfaceProvider")
-    interoception = {"enabled": "InteroceptionProvider", "sham": "ShamInteroceptionProvider"}.get(
-        mode
-    )
-    expected = ["StandardLibraryProvider"]
-    if host is not None:
-        expected += [host] + ([interoception] if interoception else [])
-    assert names == expected
+    # interoception is the organism's own: the Lab supplies no provider for it,
+    # only the host telemetry published alongside it
+    assert names == ["StandardLibraryProvider"] + ([host] if host is not None else [])
     assert sources.availability == ("unavailable" if host is None else "available")
-    assert type(sources.interoception_provider).__name__ == (
-        interoception if host is not None and interoception else "NoneType"
+    assert type(sources.process_telemetry).__name__ == (
+        "NoneType" if host is None else "HostProcessTelemetry"
     )
 
 

@@ -13,27 +13,21 @@ from symbiont.core.orchestration.sense_requirements import (
     resolve_sense_requirements,
 )
 from symbiont.host.checkpoint import load_checkpoint_file
-from symbiont.host.providers.interoception import (
-    InteroceptionProvider,
-    ShamInteroceptionProvider,
-)
 from symbiont.host.providers.linux_surfaces import LinuxSurfaceProvider
 from symbiont.host.providers.portable_surfaces import PortableSurfaceProvider
+from symbiont.host.providers.process_telemetry import HostProcessTelemetry
 from symbiont.host.providers.stdlib import StandardLibraryProvider
 from symbiont.host.providers.stdlib_readings import StandardLibraryReadingProvider
 from symbiont.host.sources import HostSenseSources
 
 # Platforms on which host senses can be offered.
 HOST_SENSE_SYSTEMS = frozenset({"Linux", "Darwin", "Windows"})
-INTEROCEPTION_MODES = frozenset({"enabled", "sham", "absent"})
 
 
 def canonical_host_sense_sources(
     requirements: SenseRequirements, *, system: str | None = None
 ) -> HostSenseSources:
     """The concrete sources that satisfy ``requirements`` on this platform."""
-    if requirements.interoception_mode not in INTEROCEPTION_MODES:
-        raise ValueError("interoception_mode must be enabled, sham or absent")
     system = platform.system() if system is None else system
     discovery: list[Any] = []
     readings: list[Any] = []
@@ -41,9 +35,9 @@ def canonical_host_sense_sources(
         discovery.append(StandardLibraryProvider())
         readings.append(StandardLibraryReadingProvider())
 
-    # The interoceptive surface is only offered alongside host-sense discovery.
     # Linux exposes procfs/sysfs; macOS and Windows the portable aggregate surfaces.
-    interoception = None
+    # Interoception is the organism's own; the Lab only supplies host telemetry.
+    telemetry = None
     available = system in HOST_SENSE_SYSTEMS
     if requirements.discover_senses and available:
         host = (
@@ -51,19 +45,11 @@ def canonical_host_sense_sources(
         )
         discovery.append(host)
         readings.append(host)
-        if requirements.interoception_mode != "absent":
-            provider_type = (
-                ShamInteroceptionProvider
-                if requirements.interoception_mode == "sham"
-                else InteroceptionProvider
-            )
-            interoception = provider_type()
-            discovery.append(interoception)
-            readings.append(interoception)
+        telemetry = HostProcessTelemetry()
     return HostSenseSources(
         discovery_providers=tuple(discovery),
         reading_providers=tuple(readings),
-        interoception_provider=interoception,
+        process_telemetry=telemetry,
         availability="available" if available else "unavailable",
     )
 

@@ -19,7 +19,8 @@ class HostSenseSources:
     discovery_providers: tuple[DiscoveryProvider, ...] = ()
     reading_providers: tuple[ReadingProvider, ...] = ()
     # The provider through which the organism's interoceptive channels are offered, if any.
-    interoception_provider: Any | None = None
+    # host process measurements, published alongside the organism's interoception
+    process_telemetry: Any | None = None
     # "available" | "unavailable": whether host senses could be offered at all.
     availability: str = "unavailable"
 

@@ -76,6 +76,7 @@ from ...host.rhythms import RhythmModel
 from ...host.sources import HostSenseSources
 from ...provenance import ProvenanceLog
 from ...sensory import SensorySystem
+from ...sensory.interoception import InteroceptionProvider, ShamInteroceptionProvider
 from ..cognition.attention import AttentionAllocation
 from ..cognition.bridge import CognitiveBridge, CognitiveBridgeResult
 from ..cognition.consolidation import MemoryConsolidator
@@ -436,8 +437,11 @@ class OrganismRuntime:
             # Sources composed outside the organism. It attaches what it is given.
             discovery_providers.extend(host_sense_sources.discovery_providers)
             reading_providers.extend(host_sense_sources.reading_providers)
-            self._interoception_provider = host_sense_sources.interoception_provider
+            host_available = host_sense_sources.availability == "available"
+            host_telemetry = host_sense_sources.process_telemetry
         else:
+            host_available = host_system in _HOST_SENSE_SYSTEMS
+            host_telemetry = None
             if bootstrap_semantic_senses:
                 discovery_providers.append(StandardLibraryProvider())
                 reading_providers.append(StandardLibraryReadingProvider())
@@ -446,11 +450,8 @@ class OrganismRuntime:
             # discovery, so gaining it never gives the research subject platform
             # topology on its own. Linux exposes procfs/sysfs; macOS and Windows
             # expose the portable aggregate surfaces.
-            if discover_senses and host_system in _HOST_SENSE_SYSTEMS:
-                from ...host.providers.interoception import (
-                    InteroceptionProvider,
-                    ShamInteroceptionProvider,
-                )
+            if discover_senses and host_available:
+                from ...host.providers.process_telemetry import HostProcessTelemetry
 
                 if host_system == "Linux":
                     from ...host.providers.linux_surfaces import LinuxSurfaceProvider
@@ -462,20 +463,18 @@ class OrganismRuntime:
                     host_provider = PortableSurfaceProvider(system=host_system)
                 discovery_providers.append(host_provider)
                 reading_providers.append(host_provider)
+                host_telemetry = HostProcessTelemetry()
 
-                provider_type = (
-                    ShamInteroceptionProvider
-                    if interoception_mode == "sham"
-                    else InteroceptionProvider
-                )
-                self._interoception_provider = (
-                    provider_type() if self._interoception_enabled else None
-                )
-                if self._interoception_provider is not None:
-                    discovery_providers.append(self._interoception_provider)
-                    reading_providers.append(self._interoception_provider)
-            else:
-                self._interoception_provider = None
+        # Interoception is the organism's own. It is still only offered where
+        # host senses are (recorded in migration/open-issues.md).
+        self._interoception_provider = None
+        if discover_senses and host_available and self._interoception_enabled:
+            provider_type = (
+                ShamInteroceptionProvider if interoception_mode == "sham" else InteroceptionProvider
+            )
+            self._interoception_provider = provider_type(host_telemetry=host_telemetry)
+            discovery_providers.append(self._interoception_provider)
+            reading_providers.append(self._interoception_provider)
         self._reading_providers = tuple(reading_providers)
         # The host is one sense source among others (Body, vision, ...). Where
         # it cannot be read the organism is still born, and says so (ADR-0062).
