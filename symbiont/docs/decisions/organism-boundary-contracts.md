@@ -46,13 +46,11 @@ claims owner (`SocialEvidenceLedger` with `CulturalPolicy`). Their inputs and
 decisions are different, so they MUST NOT be merged into a universal social
 trust ledger.
 
-`EvidenceTrust` and `SourceEvidenceState` are dormant prototypes, not live
-authorities. New runtime behavior MUST NOT depend on them. They are removed
-from the aggregate `symbiont.core` exports; their module definitions remain
-available only as non-canonical implementation artifacts pending eventual
-deletion. If source reputation is later required, it needs an explicit owner,
-evidence lifecycle, decision consumer, and persistence contract before
-implementation.
+`EvidenceTrust` and `SourceEvidenceState` were dormant prototypes, not live
+authorities; their unused implementations have been deleted. New runtime
+behavior MUST NOT recreate or depend on them without an explicit owner,
+evidence lifecycle, decision consumer, and persistence contract. If source
+reputation is later required, define those contracts before implementation.
 
 ## D-4 — Capsule transport and claims
 
@@ -112,7 +110,7 @@ channel it uses and must not silently bridge them.
 | Item | Disposition | Required work / boundary |
 |---|---|---|
 | C-1 public Embodiment exports | Implemented | Removed from `symbiont.api`; external consumers are not migrated here. |
-| C-2 dormant social trust prototypes | Implemented as demotion | Removed from aggregate `symbiont.core` exports; module files remain pending deletion policy. |
+| C-2 dormant social trust prototypes | Implemented | Deleted unused prototype modules and removed aggregate exports. |
 | C-3 resident budding | Contract fixed by D-5 | Preserve clonal behavior for now; richer inheritance is a separately authorized feature. |
 | C-4 biological parentage | Deferred | Do not infer biological genealogy from `generation` or child ID formatting. Add structured parent IDs only with a defined lineage/checkpoint contract. |
 | C-5 epigenetic channels | Contract fixed by D-6 | Keep prior and Genome v2 germline channels distinct; no implicit migration or bridge. |

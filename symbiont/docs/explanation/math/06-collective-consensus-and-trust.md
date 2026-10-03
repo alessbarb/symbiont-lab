@@ -22,11 +22,9 @@ with `CulturalPolicy` in `symbiont.modeling`. The base runtime separately owns
 resource availability. These systems have different inputs and decisions; no
 single reputation score connects them.
 
-`EvidenceTrust` and `SourceEvidenceState` are dormant prototypes. They are not
-exported by the aggregate `symbiont.core` package and have no active runtime
-writer, decision consumer, or checkpoint owner. Their existence does not
-establish source reputation, consensus, capsule ingestion, or epistemic trust
-in the organism.
+The unused `EvidenceTrust` and `SourceEvidenceState` prototype implementations
+have been deleted. Their former existence did not establish source reputation,
+consensus, capsule ingestion, or epistemic trust in the organism.
 
 Signed knowledge capsules are transport envelopes only. Signature
 verification establishes integrity relative to the key carried by the
