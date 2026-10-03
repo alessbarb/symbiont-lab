@@ -16,6 +16,62 @@ Classification follows `INSTRUCTIONS.md` §23. Nothing here was fixed silently.
 | The four domain libraries are peers with no first-party dependency on each other or on the Lab; the Lab is the only composition root | DONE for the packages as they stand (Import Linter, hard test gate, per-library isolated tests). Not yet true of code still inside the organism: OI-3 |
 | Enforce the boundaries with Import Linter | DONE: three contracts in `pyproject.toml`; runs in CI, pre-commit and the test suite |
 
+## State after the second audit round
+
+Done and validated (six suites green, Import Linter 3 contracts, each library
+installed alone outside the repository, organism identity 12/12):
+
+- every domain owns its tests (`<domain>/tests`) and the organism its
+  documentation (`symbiont/docs`); `tests/` holds repository-wide checks only;
+- governance covers every path of the five domains; domain `pyproject.toml`
+  files and the boundary checks are CONSTITUTIONAL;
+- real backends are declared as extras (`embodiment[physics3d]`,
+  `modality[vision]`, `environment[physics3d]`); the backend ban applies to the
+  organism only;
+- returned from the Lab to their owner: the deferred-damage rule and the
+  physical resource (Environment), the re-embodiment transition and its
+  longitudinal memory (Symbiont);
+- OI-3 steps A and B: `host_sense_sources` seam in the organism and
+  `lab.integration.organism.create_canonical_organism`, with equivalence proven
+  against the constructor for eight configurations.
+
+Not done, in the agreed order:
+
+- **C. Migrate callers to the factory.** 45 constructions in `lab/src` (mostly
+  studies), 11 in `lab/tests`, 31 in `tests`. Blocked on one design point: the
+  restore path. `from_checkpoint` / `load_or_create` (327 uses) rebuild the
+  organism through `cls(**kwargs)` and resolve the sense options from controls
+  recorded in the checkpoint, inside the organism. A restore through the Lab
+  needs either those resolved options exposed by the organism, or the caller
+  passing the sources to the restore. Not decided.
+- **D. `symbiont/tests`.** 117 constructions to classify (minimal organism /
+  own test body / own fake providers / belongs in `lab/tests`).
+- **Interoception split.** `InteroceptionProvider` mixes two things. Organism
+  state: epistemic surprise, metabolic reserve, integrity, metabolic, repair and
+  waste pressure (already listed as `ORGANISM_CAPABILITY_IDS`). Host telemetry:
+  `internal.tick_latency` and `internal.memory_rss` (process timing and
+  resident memory). The capability ids and the provider id `interoception` are
+  written into checkpoints, so the classes can be renamed and separated but the
+  persisted identifiers cannot change in this block.
+- **E, F, G.** Move the concrete host providers to `modality.host`, remove
+  provider construction from `OrganismRuntime`, make
+  `symbiont.core -X-> symbiont.host.providers` a hard rule.
+- **Backend still injected.** `HumanoidPhysics`, the articulated bodies and
+  `VisualApparatus` still receive the PyBullet module as a parameter; eight Lab
+  test classes pass a fake through it.
+- **Residue in the organism.** `symbiont.core.embodiment.transition` keeps a
+  fallback descriptor naming a concrete body kind for checkpoints older than
+  embodiment epochs.
+- **Persistence.** The organism checkpoint knows `APPARATUS_FIELDS`. Separate
+  work; nothing in this block touches schema, hashing or the envelope.
+- **Design documents.** `docs/design/` stays at the root: preregistrations, a
+  frozen artefact and a path protected by running work. `embodiment`,
+  `modality`, `environment` and `lab` have no documentation of their own beyond
+  a README.
+
+The sections below predate this round; where they disagree, this section is
+current.
+
 ## Architecture debt
 
 **OI-3 — The organism still owns embodiment and modality code.**
