@@ -16,6 +16,7 @@ import argparse
 import itertools
 import json
 import statistics
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -174,8 +175,19 @@ def selection_part_pairs(part: int, parts: int = SELECTION_PARTS) -> tuple:
     return SELECTION_PAIRS[part::parts]
 
 
-def run_selection_part(part: int, output: Path, parts: int = SELECTION_PARTS) -> dict[str, Any]:
-    """Run one part, rewriting ``output`` after every run so a stop keeps what ran."""
+def _run_pair(pair: tuple) -> dict[str, Any]:
+    (support, consistency), seed = pair
+    return run_one(seed, support, consistency)
+
+
+def run_selection_part(
+    part: int, output: Path, parts: int = SELECTION_PARTS, *, workers: int = 1
+) -> dict[str, Any]:
+    """Run one part, rewriting ``output`` after every run so a stop keeps what ran.
+
+    ``workers`` > 1 runs pairs in separate processes; every run is independent
+    and deterministic, so the result does not depend on it.
+    """
     pairs = selection_part_pairs(part, parts)
     result: dict[str, Any] = {
         "protocol": PROTOCOL,
@@ -187,10 +199,24 @@ def run_selection_part(part: int, output: Path, parts: int = SELECTION_PARTS) ->
         "runs": [],
     }
     output.parent.mkdir(parents=True, exist_ok=True)
-    for (support, consistency), seed in pairs:
-        result["runs"].append(run_one(seed, support, consistency))
+
+    def record(run: dict[str, Any]) -> None:
+        result["runs"].append(run)
+        result["runs"].sort(
+            key=lambda run: SELECTION_PAIRS.index(
+                ((run["min_support"], run["min_consistency"]), run["seed"])
+            )
+        )
         result["complete"] = len(result["runs"]) == len(pairs)
         output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    if workers <= 1:
+        for item in pairs:
+            record(_run_pair(item))
+    else:
+        with ProcessPoolExecutor(max_workers=workers) as pool:
+            for run in pool.map(_run_pair, pairs):
+                record(run)
     return result
 
 
@@ -243,12 +269,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--part", type=int, help="selection part, 0 to SELECTION_PARTS - 1")
     parser.add_argument("--parts", type=Path, nargs="+", help="every selection part file")
     parser.add_argument("--selection", type=Path, help="selection.json from the select stage")
+    parser.add_argument("--workers", type=int, default=1, help="processes for selection parts")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
     if args.stage == "selection-part":
         if args.part is None:
             parser.error("selection-part needs --part")
-        result = run_selection_part(args.part, args.output)
+        result = run_selection_part(args.part, args.output, workers=args.workers)
         print(json.dumps({key: result[key] for key in result if key != "runs"}, indent=2))
         return 0
     if args.stage == "select":
