@@ -37,6 +37,7 @@ def load_experiment_dict(data: dict[str, Any]) -> ExperimentSpec:
         "corpora",
         "vision",
         "transfer",
+        "establishment",
         "output",
     }
     unknown = set(data) - allowed
@@ -186,6 +187,21 @@ def load_experiment_dict(data: dict[str, Any]) -> ExperimentSpec:
             "max_activity_rate_ratio",
             "max_contaminated_seeds",
         },
+        # Competence Establishment Evidence v1: frozen design and decision
+        # constants, checked against the study module by a contract test.
+        "establishment": {
+            "selection_seeds",
+            "supports",
+            "consistencies",
+            "current_gate",
+            "actuators",
+            "horizon",
+            "stable_window",
+            "primary_metric",
+            "selection_rule",
+            "min_seeds_improved",
+            "min_median_paired_reduction",
+        },
         "output": {"save_trace", "save_summary"},
     }
     for block_name in (
@@ -200,6 +216,7 @@ def load_experiment_dict(data: dict[str, Any]) -> ExperimentSpec:
         "corpora",
         "vision",
         "transfer",
+        "establishment",
         "output",
     ):
         if block_name in data:

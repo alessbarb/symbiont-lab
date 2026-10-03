@@ -72,6 +72,8 @@ conflict.
 | `footprint_satisfaction_rule` | `recall` | `recall` | E8 v3: rule AB rejected | — |
 | `symbol_seed_policy` | `shared` | `per_organism` | Independent-Seed Symbol Grounding, negative: convergence was a shared-seed artifact | Seed derived from the organism's own identity, offspring included |
 | `ancestry_training` | off | off | P5.1 owner decision 2026-09-29: ancestry from DEGRADED models | `pending` behind Promotion Stability |
+| `competence_min_support` | 2 | 2 | **Unsupported**: never tested; established competences on two samples are often demoted later | Under test: Competence Establishment Evidence v1 |
+| `competence_min_consistency` | 0.60 | 0.60 | **Unsupported**: never tested | Under test: Competence Establishment Evidence v1 |
 
 Not governed by the profile: `actuation_enabled` depends on whether the Body has
 actuators, not on a result. The autonomous training budget
@@ -96,6 +98,7 @@ actuators, not on a result. The autonomous training budget
 | P5.1 ancestry from DEGRADED | pending behind Promotion Stability | Not applied |
 | P5.1 promotion churn | pending — Promotion Stability paused | Not applied |
 | E1, E3, E5 | pending — `AgencyModel` repair is Phase B | Not applied |
+| Competence Establishment Evidence v1 | pending — preregistered, apparatus built, not run | `v1` keeps `(2, 0.60)` |
 
 ## 5. Declared deviations
 

@@ -445,6 +445,7 @@ class CleanEmbodimentSeed:
                     reproducibility=control.reliability,
                     controllability=control.confidence,
                     directional_consistency=control.reliability,
+                    gate=self.action_domain.competence_gate,
                 ),
                 controller_strategy_ref=signature_id,
             )
