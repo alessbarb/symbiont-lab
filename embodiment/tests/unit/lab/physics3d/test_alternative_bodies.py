@@ -43,7 +43,7 @@ def test_alternative_body_loads_headless_when_pybullet_available(body_cls, spec)
     pybullet = pytest.importorskip("pybullet")
     client = pybullet.connect(pybullet.DIRECT)
     try:
-        body = body_cls(pybullet, client)
+        body = body_cls(client)
         assert len(body.motor_joint_indices) == spec.motor_dof
         assert len(body.effector_ids) == spec.effector_count
         assert len(body.receptor_ids) == spec.physical_receptor_count

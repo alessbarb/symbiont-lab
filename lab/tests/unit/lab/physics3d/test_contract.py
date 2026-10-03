@@ -1,4 +1,5 @@
 import inspect
+import sys
 
 import pytest
 
@@ -304,7 +305,7 @@ def test_humanoid_configures_joint_velocity_ceilings_in_bullet():
         )
 
 
-def test_surface_material_propagates_contact_physics_explicitly():
+def test_surface_material_propagates_contact_physics_explicitly(monkeypatch):
     class FakeBullet:
         def __init__(self):
             self.kwargs = None
@@ -322,8 +323,8 @@ def test_surface_material_propagates_contact_physics_explicitly():
         angular_damping=0.06,
     )
 
+    monkeypatch.setitem(sys.modules, "pybullet", fake)
     apply_surface_material(
-        fake,
         11,
         3,
         material,

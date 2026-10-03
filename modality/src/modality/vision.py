@@ -50,7 +50,6 @@ class VisualApparatus:
 
     def __init__(
         self,
-        pybullet_module,
         client_id: int,
         *,
         body_id: int,
@@ -62,7 +61,9 @@ class VisualApparatus:
     ) -> None:
         if len(receptor_ids) != side * side:
             raise ValueError("visual receptor ids must cover the complete array")
-        self.p = pybullet_module
+        import pybullet
+
+        self.p = pybullet
         self.client_id = client_id
         self.body_id = body_id
         self.link_index = link_index
@@ -72,7 +73,7 @@ class VisualApparatus:
         self.gaze_offset = gaze_offset
         self.receptor_ids = receptor_ids
         self.topology = PerceptualTopology.grid(receptor_ids, side)
-        self._projection = pybullet_module.computeProjectionMatrixFOV(
+        self._projection = pybullet.computeProjectionMatrixFOV(
             self.FIELD_OF_VIEW_DEG, 1.0, self.NEAR, self.FAR
         )
         # Observer correlation key (gap §25); never an organism signal.

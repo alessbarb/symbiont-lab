@@ -19,8 +19,8 @@ def test_world_observer_reads_real_shapes_for_each_body_without_mutating_physics
         plane = p.createCollisionShape(p.GEOM_PLANE, physicsClientId=client)
         p.createMultiBody(baseMass=0, baseCollisionShapeIndex=plane, physicsClientId=client)
         descriptor = DEFAULT_BODY_REGISTRY.get(body_kind)
-        apparatus = descriptor.apparatus_factory(p, client)
-        resource = PhysicalResource(p, client, radius=0.27, position=(2.0, 1.0, 0.27))
+        apparatus = descriptor.apparatus_factory(client)
+        resource = PhysicalResource(client, radius=0.27, position=(2.0, 1.0, 0.27))
         runtime = SimpleNamespace(
             p=p,
             client_id=client,

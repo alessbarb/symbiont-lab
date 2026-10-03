@@ -38,7 +38,6 @@ class PhysicalResource:
     contact.
     """
 
-    p: object
     client_id: int
     position: tuple[float, float, float] = (3.0, 0.0, 0.18)
     radius: float = 0.18
@@ -46,8 +45,12 @@ class PhysicalResource:
     remaining: float = 200.0
     transfer_per_tick: float = 2.0
     body_id: int = field(init=False)
+    p: Any = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
+        import pybullet
+
+        self.p = pybullet
         if self.radius <= 0.0 or self.field_radius <= self.radius:
             raise ValueError("invalid physical resource geometry")
         if self.remaining < 0.0 or self.transfer_per_tick <= 0.0:
@@ -142,16 +145,15 @@ class PhysicalResource:
         }
 
     @classmethod
-    def from_state(cls, p, client_id: int, payload: Mapping[str, Any] | None) -> "PhysicalResource":
+    def from_state(cls, client_id: int, payload: Mapping[str, Any] | None) -> "PhysicalResource":
         if payload is None:
-            return cls(p, client_id)
+            return cls(client_id)
         if int(payload.get("schema_version", -1)) != 1:
             raise ValueError("unsupported Physics3D resource state")
         position = tuple(float(value) for value in payload["position"])
         if len(position) != 3:
             raise ValueError("resource position must have three coordinates")
         return cls(
-            p,
             client_id,
             position=position,
             radius=float(payload["radius"]),

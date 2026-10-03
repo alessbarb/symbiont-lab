@@ -283,7 +283,7 @@ class PyBulletEmbodimentRuntime:
 
         p.setGravity(0.0, 0.0, -9.81, physicsClientId=self.client_id)
         p.setTimeStep(self.time_step, physicsClientId=self.client_id)
-        configure_physics_solver(p, self.client_id, self.time_step)
+        configure_physics_solver(self.client_id, self.time_step)
 
         plane_shape = p.createCollisionShape(
             p.GEOM_PLANE,
@@ -296,20 +296,19 @@ class PyBulletEmbodimentRuntime:
             physicsClientId=self.client_id,
         )
         apply_surface_material(
-            p,
             self.plane_id,
             -1,
             self.body_descriptor.ground_material,
             client_id=self.client_id,
         )
 
-        self.environment_bodies = build_environment(p, self.client_id, self.environment_recipe)
+        self.environment_bodies = build_environment(self.client_id, self.environment_recipe)
         self.last_organism_result = None
         # Lab provenance: cumulative protected-nursery energy supplied.
         self.nursery_support_total = 0.0
         # Seeds world-side stimulus parameters (e.g. nursery source motion).
         self.environment_seed = int(seed)
-        self.apparatus = self.body_descriptor.apparatus_factory(p, self.client_id)
+        self.apparatus = self.body_descriptor.apparatus_factory(self.client_id)
         if physical_state is not None:
             # Resume may contain finite solver penetration beyond the declared
             # anatomical envelope. Project it back onto the current mechanical
@@ -371,7 +370,6 @@ class PyBulletEmbodimentRuntime:
             if isinstance(raw_resource, Mapping):
                 resource_state = raw_resource
         self.resource = PhysicalResource.from_state(
-            p,
             self.client_id,
             resource_state,
         )
@@ -1558,7 +1556,6 @@ class PyBulletEmbodimentRuntime:
         # Kinematic nursery sources take their pose for the tick about to be
         # sensed; a pure function of the causal tick (ADR-0042).
         update_environment(
-            self.p,
             self.client_id,
             self.environment_recipe,
             self.environment_bodies,

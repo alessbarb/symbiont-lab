@@ -671,8 +671,8 @@ def _viewer_main(
         baseCollisionShapeIndex=plane_shape,
         physicsClientId=render_client,
     )
-    render_body = HumanoidPhysics(p, render_client)
-    render_resource = PhysicalResource(p, render_client)
+    render_body = HumanoidPhysics(render_client)
+    render_resource = PhysicalResource(render_client)
 
     # Grid setup for root: Header, Workspace, Bottom Panel
     root.grid_rowconfigure(0, weight=0)

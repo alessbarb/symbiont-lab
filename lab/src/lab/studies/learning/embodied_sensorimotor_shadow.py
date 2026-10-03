@@ -81,8 +81,8 @@ def _new_apparatus(pybullet, *, seed: int, time_step: float):
         baseCollisionShapeIndex=plane_shape,
         physicsClientId=client_id,
     )
-    apply_surface_material(pybullet, plane_id, -1, GROUND_MATERIAL, client_id=client_id)
-    apparatus = HumanoidPhysics(pybullet, client_id)
+    apply_surface_material(plane_id, -1, GROUND_MATERIAL, client_id=client_id)
+    apparatus = HumanoidPhysics(client_id)
     # Match the embodiment runtime's passive settling before observations.
     apparatus.apply_effectors({})
     for _ in range(720):

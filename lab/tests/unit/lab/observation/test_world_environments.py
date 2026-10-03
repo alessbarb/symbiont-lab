@@ -33,14 +33,14 @@ def test_uncontacted_objects_are_invisible_but_contact_changes_opaque_receptors(
     client = p.connect(p.DIRECT)
     try:
         descriptor = DEFAULT_BODY_REGISTRY.get(kind)
-        apparatus = descriptor.apparatus_factory(p, client)
+        apparatus = descriptor.apparatus_factory(client)
         p.resetBasePositionAndOrientation(
             apparatus.body_id, [0, 0, 3], [0, 0, 0, 1], physicsClientId=client
         )
         p.performCollisionDetection(physicsClientId=client)
         before = apparatus.sample_receptors()
         recipe = environment_recipe("contact-garden-v1")
-        fixtures = build_environment(p, client, recipe)
+        fixtures = build_environment(client, recipe)
         p.performCollisionDetection(physicsClientId=client)
         assert apparatus.sample_receptors() == before  # No vision or object IDs.
         p.resetBasePositionAndOrientation(
@@ -54,7 +54,7 @@ def test_uncontacted_objects_are_invisible_but_contact_changes_opaque_receptors(
         ]
         assert any(before[r] != after[r] for r in contact_ids)
         assert set(before) == set(after)
-        resource = PhysicalResource(p, client)
+        resource = PhysicalResource(client)
         runtime = SimpleNamespace(
             p=p,
             client_id=client,

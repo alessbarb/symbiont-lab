@@ -26,7 +26,7 @@ from embodiment.physics3d.humanoid import (
     MotorBinding,
     SegmentSpec,
     SurfaceMaterial,
-    apply_surface_material,
+    _apply_surface_material,
 )
 
 GLOBAL_KINEMATIC_RECEPTORS = 10
@@ -216,9 +216,11 @@ class ArticulatedPhysics:
 
     SPEC: ArticulatedBodySpec
 
-    def __init__(self, pybullet_module, client_id: int) -> None:
+    def __init__(self, client_id: int) -> None:
+        import pybullet
+
         spec = self.SPEC
-        self.p = pybullet_module
+        self.p = pybullet
         self.client_id = client_id
         self._sensor_values: dict[str, float] = {}
         self._applied_torque_by_joint: dict[int, float] = {}
@@ -351,7 +353,7 @@ class ArticulatedPhysics:
 
     def _configure_surface_materials(self) -> None:
         for link_index in range(-1, self.SPEC.motor_dof):
-            apply_surface_material(
+            _apply_surface_material(
                 self.p,
                 self.body_id,
                 link_index,

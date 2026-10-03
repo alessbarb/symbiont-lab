@@ -57,22 +57,20 @@ def vision_receptor_contract_ids() -> tuple[str, ...]:
 class VisionHumanoidPhysics(HumanoidPhysics):
     """anthropomorphic-v6 plus one head-mounted receptor array.
 
-    ``receptor_array_factory(pybullet_module, client_id, *, body_id, link_index,
+    ``receptor_array_factory(client_id, *, body_id, link_index,
     receptor_ids, mount_offset, gaze_offset, side)`` must return an object with
     ``receptor_ids`` and ``sample() -> Mapping[str, float]``.
     """
 
     def __init__(
         self,
-        pybullet_module,
         client_id: int,
         *,
         receptor_array_factory: Callable[..., Any],
         **kwargs,
     ) -> None:
-        super().__init__(pybullet_module, client_id, **kwargs)
+        super().__init__(client_id, **kwargs)
         self.visual_apparatus = receptor_array_factory(
-            pybullet_module,
             client_id,
             body_id=self.body_id,
             link_index=self._link_index_by_name[HEAD_MOUNT_LINK],

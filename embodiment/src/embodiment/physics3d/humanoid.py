@@ -424,9 +424,11 @@ def build_anthropomorphic_urdf() -> str:
     )
 
 
-def configure_physics_solver(pybullet_module, client_id: int, time_step: float) -> None:
+def configure_physics_solver(client_id: int, time_step: float) -> None:
     """Canonical constraint solver settings for the anthropomorphic body."""
-    pybullet_module.setPhysicsEngineParameter(
+    import pybullet
+
+    pybullet.setPhysicsEngineParameter(
         numSolverIterations=PHYSICS_SOLVER_ITERATIONS,
         solverResidualThreshold=PHYSICS_SOLVER_RESIDUAL_THRESHOLD,
         erp=PHYSICS_CONSTRAINT_ERP,
@@ -511,14 +513,26 @@ def _restore_vector(
 
 
 def apply_surface_material(
-    pybullet_module,
     body_id: int,
     link_index: int,
     material: SurfaceMaterial,
     *,
     client_id: int,
 ) -> None:
-    pybullet_module.changeDynamics(
+    import pybullet
+
+    _apply_surface_material(pybullet, body_id, link_index, material, client_id=client_id)
+
+
+def _apply_surface_material(
+    backend,
+    body_id: int,
+    link_index: int,
+    material: SurfaceMaterial,
+    *,
+    client_id: int,
+) -> None:
+    backend.changeDynamics(
         body_id,
         link_index,
         lateralFriction=material.lateral_friction,
@@ -537,8 +551,10 @@ class HumanoidPhysics:
     # The body's own receptor surface; subclasses may append apparatus.
     physical_receptor_ids = physical_receptor_contract_ids()
 
-    def __init__(self, pybullet_module, client_id: int, *, spawn_height: float = 1.08) -> None:
-        self.p = pybullet_module
+    def __init__(self, client_id: int, *, spawn_height: float = 1.08) -> None:
+        import pybullet
+
+        self.p = pybullet
         self.client_id = client_id
         self._sensor_values: dict[str, float] = {}
         self._applied_torque_by_joint: dict[int, float] = {}
@@ -701,7 +717,7 @@ class HumanoidPhysics:
 
     def _configure_surface_materials(self) -> None:
         for link_index in range(-1, MOTOR_DOF):
-            apply_surface_material(
+            _apply_surface_material(
                 self.p,
                 self.body_id,
                 link_index,

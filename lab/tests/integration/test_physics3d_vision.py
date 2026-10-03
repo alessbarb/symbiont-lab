@@ -22,8 +22,8 @@ def _eye() -> dict[str, float]:
     try:
         pybullet.setAdditionalSearchPath(pybullet_data.getDataPath(), physicsClientId=client)
         pybullet.loadURDF("plane.urdf", physicsClientId=client)
-        build_environment(pybullet, client, environment_recipe("vision-nursery-v1"))
-        return ANTHROPOMORPHIC_V6_VISION.apparatus_factory(pybullet, client).sample_receptors()
+        build_environment(client, environment_recipe("vision-nursery-v1"))
+        return ANTHROPOMORPHIC_V6_VISION.apparatus_factory(client).sample_receptors()
     finally:
         pybullet.disconnect(client)
 

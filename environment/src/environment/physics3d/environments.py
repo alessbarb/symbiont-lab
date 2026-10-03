@@ -192,9 +192,11 @@ def fixture_position(fixture: dict, tick: int, seed: int) -> list[float]:
 
 
 def update_environment(
-    p, client_id: int, recipe: dict, bodies: tuple[int, ...], tick: int, seed: int
+    client_id: int, recipe: dict, bodies: tuple[int, ...], tick: int, seed: int
 ) -> None:
     """Move kinematic fixtures to their pose for ``tick``; static ones are untouched."""
+    import pybullet as p
+
     for fixture, body in zip(recipe["fixtures"], bodies):
         if fixture.get("motion"):
             p.resetBasePositionAndOrientation(
@@ -205,8 +207,10 @@ def update_environment(
             )
 
 
-def build_environment(p, client_id: int, recipe: dict) -> tuple[int, ...]:
+def build_environment(client_id: int, recipe: dict) -> tuple[int, ...]:
     """Instantiate static colliders, kinematic visual sources and their visuals."""
+    import pybullet as p
+
     bodies = []
     for fixture in recipe["fixtures"]:
         half = [v / 2 for v in fixture["size"]]

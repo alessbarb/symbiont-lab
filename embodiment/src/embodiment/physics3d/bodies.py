@@ -48,7 +48,7 @@ class BodyDescriptor:
     receptor_ids: tuple[str, ...]
     interoceptive_receptor_ids: tuple[str, ...]
     effector_ids: tuple[str, ...]
-    apparatus_factory: Callable[[Any, int], Any]
+    apparatus_factory: Callable[[int], Any]
     ground_material: Any
     observer_joint_specs: tuple[Any, ...] = ()
     observer_contact_region_names: tuple[str, ...] = ()
@@ -175,7 +175,7 @@ ASYMMETRIC_V1 = BodyDescriptor(
 )
 
 
-def vision_body_descriptor(apparatus_factory: Callable[[Any, int], Any]) -> BodyDescriptor:
+def vision_body_descriptor(apparatus_factory: Callable[[int], Any]) -> BodyDescriptor:
     """ADR-0011: vision is a new body kind; the v6 contract stays byte-identical.
 
     ``apparatus_factory`` builds a ``VisionHumanoidPhysics`` with a receptor

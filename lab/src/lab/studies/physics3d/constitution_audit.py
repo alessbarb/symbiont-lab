@@ -33,7 +33,7 @@ def _connect_world(time_step: float = DEFAULT_TIME_STEP):
         raise RuntimeError("failed to connect to PyBullet")
     p.setGravity(0.0, 0.0, -GRAVITY, physicsClientId=client_id)
     p.setTimeStep(time_step, physicsClientId=client_id)
-    configure_physics_solver(p, client_id, time_step)
+    configure_physics_solver(client_id, time_step)
 
     plane_shape = p.createCollisionShape(
         p.GEOM_PLANE,
@@ -46,13 +46,12 @@ def _connect_world(time_step: float = DEFAULT_TIME_STEP):
         physicsClientId=client_id,
     )
     apply_surface_material(
-        p,
         plane_id,
         -1,
         GROUND_MATERIAL,
         client_id=client_id,
     )
-    body = HumanoidPhysics(p, client_id)
+    body = HumanoidPhysics(client_id)
     return p, client_id, plane_id, body
 
 

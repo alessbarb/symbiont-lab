@@ -17,7 +17,7 @@ def test_humanoid_v4_hard_limits_hold_under_deterministic_actuation():
         pybullet.setGravity(0.0, 0.0, -9.81, physicsClientId=client_id)
         time_step = 1.0 / 240.0
         pybullet.setTimeStep(time_step, physicsClientId=client_id)
-        configure_physics_solver(pybullet, client_id, time_step)
+        configure_physics_solver(client_id, time_step)
         plane_shape = pybullet.createCollisionShape(
             pybullet.GEOM_PLANE,
             planeNormal=(0.0, 0.0, 1.0),
@@ -29,7 +29,7 @@ def test_humanoid_v4_hard_limits_hold_under_deterministic_actuation():
             physicsClientId=client_id,
         )
 
-        body = HumanoidPhysics(pybullet, client_id)
+        body = HumanoidPhysics(client_id)
         start_position, _ = pybullet.getBasePositionAndOrientation(
             body.body_id, physicsClientId=client_id
         )

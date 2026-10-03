@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sys
+
 import pytest
 
 from embodiment.physics3d.humanoid import HumanoidPhysics
@@ -35,9 +37,16 @@ class FakeBullet:
         return tuple(self.contacts)
 
 
+@pytest.fixture(autouse=True)
+def bullet(monkeypatch):
+    """The resource reaches its declared backend by import; give it a fake one."""
+    fake = FakeBullet()
+    monkeypatch.setitem(sys.modules, "pybullet", fake)
+    return fake
+
+
 def test_resource_field_is_local_scalar_and_extinguishes_when_depleted():
     resource = PhysicalResource(
-        FakeBullet(),
         7,
         position=(2.0, 0.0, 0.0),
         radius=0.2,
@@ -56,7 +65,6 @@ def test_resource_field_is_local_scalar_and_extinguishes_when_depleted():
 
 def test_resource_debits_only_absorbed_material():
     resource = PhysicalResource(
-        FakeBullet(),
         7,
         remaining=10.0,
         transfer_per_tick=2.0,
@@ -67,9 +75,8 @@ def test_resource_debits_only_absorbed_material():
     assert resource.remaining == pytest.approx(9.6)
 
 
-def test_resource_contact_is_physical_not_semantic():
-    bullet = FakeBullet()
-    resource = PhysicalResource(bullet, 7)
+def test_resource_contact_is_physical_not_semantic(bullet):
+    resource = PhysicalResource(7)
 
     assert resource.touching(99) is False
     bullet.contacts.append(("opaque-contact",))
@@ -92,7 +99,6 @@ def test_world_loss_equals_body_gain_for_accepted_physical_transfer():
     from symbiont.core.embodiment.physiology import LivingBodyState
 
     resource = PhysicalResource(
-        FakeBullet(),
         7,
         remaining=10.0,
         transfer_per_tick=2.0,
