@@ -2,23 +2,37 @@ schema_version = 3
 
 [docs]
 ci_lanes = ["docs"]
-paths = ["README.md", "ORGANISM.md", "docs/**", "AGENTS.md", "CLAUDE.md"]
+paths = ["README.md", "docs/**", "migration/**", "*/README.md", "AGENTS.md", "CLAUDE.md"]
 
 [governance]
 ci_lanes = ["governance"]
-paths = ["docs/governance/**", "AGENTS.md", "CLAUDE.md", "scripts/agentctl.py", "scripts/governance/**", "tests/governance/**", ".github/**", ".pre-commit-config.yaml", ".gitignore", ".agents/**", ".claude/**", ".codex/**", "pyproject.toml", "pyrightconfig.json"]
+paths = ["docs/governance/**", "AGENTS.md", "CLAUDE.md", "scripts/agentctl.py", "scripts/governance/**", "tests/governance/**", ".github/**", ".pre-commit-config.yaml", ".gitignore", ".agents/**", ".claude/**", ".codex/**", "pyproject.toml", "pyrightconfig.json", "uv.lock", "conftest.py"]
+
+# A change to what a library declares, or to the checks that keep the domains
+# apart, runs everything.
+[domain_boundaries]
+ci_lanes = ["architecture_integrity", "canonical_full"]
+paths = ["symbiont/pyproject.toml", "embodiment/pyproject.toml", "modality/pyproject.toml", "environment/pyproject.toml", "lab/pyproject.toml", "scripts/check_isolation.py", "scripts/run_tests.py"]
 
 [subject]
 ci_lanes = ["software_core", "architecture_integrity"]
-paths = ["symbiont/src/symbiont/**"]
+paths = ["symbiont/src/symbiont/**", "symbiont/tests/**"]
+
+[embodiment]
+ci_lanes = ["software_core", "architecture_integrity"]
+paths = ["embodiment/src/embodiment/**", "embodiment/tests/**"]
+
+[modality]
+ci_lanes = ["software_core", "architecture_integrity"]
+paths = ["modality/src/modality/**", "modality/tests/**"]
 
 [lab]
 ci_lanes = ["software_core", "architecture_integrity"]
-paths = ["lab/src/lab/**"]
+paths = ["lab/src/lab/**", "lab/tests/**"]
 
 [world]
 ci_lanes = ["world", "architecture_integrity"]
-paths = ["environment/src/environment/**", "lab/src/lab/world/**"]
+paths = ["environment/src/environment/**", "environment/tests/**", "lab/src/lab/world/**", "lab/src/lab/integration/world/**"]
 
 [observatory]
 ci_lanes = ["observatory", "architecture_integrity"]

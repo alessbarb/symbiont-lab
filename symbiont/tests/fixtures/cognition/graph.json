@@ -1,0 +1,34 @@
+{
+  "nodes": [
+    {"node_id": "system_load", "kind": "sense"},
+    {"node_id": "storage_pressure", "kind": "sense"},
+    {"node_id": "concept_resource_pressure", "kind": "concept", "bias": 0.0, "tau": 1.0},
+    {"node_id": "readout_pressure", "kind": "readout", "bias": 0.0, "tau": 1.0}
+  ],
+  "edges": [
+    {
+      "source_id": "system_load",
+      "target_id": "concept_resource_pressure",
+      "kind": "excitatory",
+      "weight": 0.6,
+      "plasticity": 0.5,
+      "delay_ticks": 0
+    },
+    {
+      "source_id": "storage_pressure",
+      "target_id": "concept_resource_pressure",
+      "kind": "excitatory",
+      "weight": 0.6,
+      "plasticity": 0.5,
+      "delay_ticks": 0
+    },
+    {
+      "source_id": "concept_resource_pressure",
+      "target_id": "readout_pressure",
+      "kind": "excitatory",
+      "weight": 1.0,
+      "plasticity": 0.5,
+      "delay_ticks": 1
+    }
+  ]
+}

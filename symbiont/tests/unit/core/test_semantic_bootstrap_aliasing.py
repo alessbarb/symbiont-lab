@@ -16,7 +16,7 @@ from symbiont.cognition.graph import load_graph_definition
 from symbiont.cognition.limits import KernelLimits
 from symbiont.core.orchestration.runtime import OrganismRuntime
 
-_EXAMPLES = Path(__file__).resolve().parents[4] / "lab" / "examples" / "cognition"
+_EXAMPLES = Path(__file__).resolve().parents[2] / "fixtures" / "cognition"
 
 
 def _genome():

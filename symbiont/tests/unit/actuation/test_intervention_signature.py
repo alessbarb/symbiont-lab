@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+import symbiont
 from symbiont.actuation.action import MotorCommand
 from symbiont.actuation.intervention import (
     InterventionSignatureRegistry,
@@ -100,7 +101,9 @@ def test_signature_can_reference_temporal_pattern():
 
 
 def test_signature_does_not_require_action_dimension():
-    source = Path("symbiont/src/symbiont/actuation/intervention.py").read_text(encoding="utf-8")
+    source = (Path(symbiont.__file__).parent / "actuation/intervention.py").read_text(
+        encoding="utf-8"
+    )
     imported = {
         node.module
         for node in ast.walk(ast.parse(source))

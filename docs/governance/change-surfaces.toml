@@ -2,7 +2,41 @@ schema_version = 2
 
 [[surface]]
 id = "governance-control"
-paths = ["AGENTS.md", "CLAUDE.md", "docs/governance/**", "scripts/agentctl.py", "scripts/governance/**", ".github/**", ".agents/**", ".claude/**", ".codex/**", "pyproject.toml", "pyrightconfig.json"]
+paths = [
+  "AGENTS.md",
+  "CLAUDE.md",
+  "docs/governance/**",
+  "scripts/agentctl.py",
+  "scripts/governance/**",
+  ".github/**",
+  ".agents/**",
+  ".claude/**",
+  ".codex/**",
+  "pyproject.toml",
+  "pyrightconfig.json",
+  "uv.lock",
+  "conftest.py",
+]
+classification = "CONSTITUTIONAL"
+
+# What each library declares it depends on, and the checks that keep the five
+# domains apart, decide the architecture: never ORDINARY.
+[[surface]]
+id = "domain-boundaries"
+paths = [
+  "symbiont/pyproject.toml",
+  "embodiment/pyproject.toml",
+  "modality/pyproject.toml",
+  "environment/pyproject.toml",
+  "lab/pyproject.toml",
+  "scripts/check_isolation.py",
+  "scripts/run_tests.py",
+  "tests/experimental_integrity/test_five_domain_architecture.py",
+  "symbiont/tests/test_independence.py",
+  "embodiment/tests/test_self_contained.py",
+  "modality/tests/test_self_contained.py",
+  "environment/tests/test_self_contained.py",
+]
 classification = "CONSTITUTIONAL"
 
 [[surface]]
@@ -63,7 +97,7 @@ paths = [
   "lab/src/lab/experiments/resource_guard.py",
   "lab/src/lab/experiments/execution_workspace.py",
   "lab/experiments/equivalence/**",
-  "tests/integration/test_equivalence*.py",
+  "lab/tests/integration/test_equivalence*.py",
   "lab/tests/unit/lab/experiments/test_snapshot_archive.py",
   "lab/tests/unit/lab/experiments/test_resource_guard.py",
 ]
@@ -115,3 +149,23 @@ classification = "SCIENTIFIC"
 id = "scientific-study-code"
 paths = ["lab/src/lab/studies/**", "lab/src/lab/experiments/**"]
 classification = "SCIENTIFIC"
+
+# Every remaining Lab source path. More specific surfaces above still elevate.
+[[surface]]
+id = "lab-composition"
+paths = ["lab/src/lab/**"]
+classification = "ORDINARY"
+
+# The suites owned by each domain. The experimental-integrity and experiment
+# layers are elevated by `scientific-evidence-tests`.
+[[surface]]
+id = "domain-test-suites"
+paths = [
+  "symbiont/tests/**",
+  "embodiment/tests/**",
+  "modality/tests/**",
+  "environment/tests/**",
+  "lab/tests/**",
+  "tests/**",
+]
+classification = "ORDINARY"

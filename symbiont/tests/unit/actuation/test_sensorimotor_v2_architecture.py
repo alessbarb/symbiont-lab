@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+import symbiont
 from symbiont.actuation.action import (
     ActionEvaluation,
     ActionJustification,
@@ -210,7 +211,9 @@ def test_controllability_requires_advantage_over_alternative_actions():
 
 
 def test_runtime_has_no_motor_mode_or_posthoc_origin_classifier():
-    source = Path("symbiont/src/symbiont/core/orchestration/runtime.py").read_text(encoding="utf-8")
+    source = (Path(symbiont.__file__).parent / "core/orchestration/runtime.py").read_text(
+        encoding="utf-8"
+    )
     assert "motor_exploration_mode" not in source
     assert "_classify_executed_motor_origin" not in source
     assert '"mixed"' not in source

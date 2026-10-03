@@ -20,13 +20,11 @@ from symbiont.core.cognition.evidence import EvidenceRevisionLedger
 from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont.host.checkpoint import CheckpointError
 
-ROOT = Path(__file__).resolve().parents[3]
+FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 
 
 def _genome():
-    payload = json.loads(
-        (ROOT / "lab" / "examples" / "cognition" / "genome.json").read_text(encoding="utf-8")
-    )
+    payload = json.loads((FIXTURES / "cognition" / "genome.json").read_text(encoding="utf-8"))
     return GenomeCodec().load(payload)
 
 

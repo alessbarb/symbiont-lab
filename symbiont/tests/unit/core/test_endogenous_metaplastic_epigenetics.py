@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+import symbiont
 from symbiont.core.lineage.germline import (
     EpigeneticMark,
     GermlineState,
@@ -180,7 +181,7 @@ def test_m5_inherited_mark_is_birth_expression_not_new_acquisition():
 
 
 def test_m6_regulator_has_no_world_lab_reward_or_fitness_dependency():
-    source = Path("symbiont/src/symbiont/genetics/expression.py").read_text(encoding="utf-8")
+    source = (Path(symbiont.__file__).parent / "genetics/expression.py").read_text(encoding="utf-8")
     tree = ast.parse(source)
 
     forbidden_modules = ("lab", "environment")
