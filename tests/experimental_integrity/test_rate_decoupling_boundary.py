@@ -22,8 +22,9 @@ def test_physics_runtime_keeps_rich_projection_behind_observer_boundary() -> Non
     source = (root / "src" / "symbiont_lab" / "physics3d" / "runtime.py").read_text(
         encoding="utf-8"
     )
-    step = source[source.index("    def step(self, *, include_observability") :]
+    step = source[source.index("    def step(", source.index("class PyBulletEmbodimentRuntime")) :]
 
+    assert "physical_actuation_override" in step.split("): Tick3D:", 1)[0]
     assert "include_observability=include_observability" in step
     assert "if include_observability:" in step
     assert "self._last_telemetry_state = {" in step
