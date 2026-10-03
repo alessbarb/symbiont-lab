@@ -161,6 +161,18 @@ New concepts can index old families against:
 
 The family projection itself is not rewritten.
 
+**Status (2026-10-03): not active.** The runtime built each new concept's
+support from its parent ids in three forms (`x`, `sense.x`, `concept.x`), while
+episodes are indexed only by the bare form. With `k` parents at most `k` of the
+`3k` support tokens can match, an overlap of 1/3 against a threshold of 0.5, so
+no interpretation was ever recorded. Repairing the match alone would not change
+behaviour either: no decision reads the interpretation index; the path that does
+feed concept production is consolidated contingencies. The per-tick refresh was
+therefore removed (behaviour identical, measured from an age-5000 checkpoint),
+and `EpisodicExperienceMemory.reinterpret` is kept as the tested operation. Making
+retrospective reinterpretation real needs a new design that repairs the support
+match and gives the index a causal consumer.
+
 ## Checkpoints and restart
 
 `episodic_memory_schema = 2`.
@@ -201,7 +213,7 @@ The next run should show, relative to the v1 run:
 5. eviction rate materially lower;
 6. consolidated contingencies > 0 once independent evidence accumulates;
 7. direct CognitiveGraph SENSE ids present in episodic families;
-8. reinterpretations possible as concepts develop.
+8. reinterpretations possible as concepts develop (not met: see Retrospective reinterpretation).
 
 Autonomous cognitive replay and motor replay remain downstream gates. v2 first
 has to demonstrate useful memory structure.

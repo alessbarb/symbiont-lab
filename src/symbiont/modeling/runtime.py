@@ -738,7 +738,6 @@ class ModeledOrganismRuntime(OrganismRuntime):
                 record,
                 episodic_projection,
             )
-            self._refresh_episodic_interpretations()
             # Projection is idempotent inside CognitiveBridge. Retrying on
             # every lived transition lets old evidence become usable after a
             # previously unknown sense is admitted to the graph.
@@ -761,48 +760,6 @@ class ModeledOrganismRuntime(OrganismRuntime):
             self._private_learning_validation_window.append(
                 record.epistemic_status is EpistemicStatus.CONTRADICTED
             )
-
-    def _refresh_episodic_interpretations(self) -> int:
-        """Let newly learned graph representations reinterpret old experience.
-
-        Concept lineage is generic cognitive provenance, not semantic ground
-        truth. The factual episode core stays immutable; only a revisable
-        interpretation index is extended.
-        """
-        bridge = getattr(self, "_cognitive_bridge", None)
-        if bridge is None:
-            return 0
-        changed = 0
-        lineages = bridge.concept_lineage
-        # Reinterpretation only extends the interpretation index; the episodes
-        # themselves do not change during this refresh, so each episode's
-        # factual projection is built once rather than once per lineage (#279).
-        factual_index = self._episodic_memory.factual_index() if lineages else None
-        # Concept lineage may contain concepts built from older concepts.
-        # Iterate to a fixed point so retrospective indexing can propagate
-        # through the hierarchy without depending on lexical concept IDs.
-        for _pass in range(max(1, len(lineages))):
-            pass_changed = 0
-            for lineage in lineages:
-                support: list[str] = []
-                for parent_id in lineage.parent_ids:
-                    support.extend(
-                        (
-                            parent_id,
-                            f"sense.{parent_id}",
-                            f"concept.{parent_id}",
-                        )
-                    )
-                pass_changed += self._episodic_memory.reinterpret(
-                    lineage.concept_id,
-                    tuple(support),
-                    min_overlap=0.5,
-                    factual_index=factual_index,
-                )
-            changed += pass_changed
-            if pass_changed == 0:
-                break
-        return changed
 
     @staticmethod
     def _episodic_graph_sense_ids(sense_ids: tuple[str, ...]) -> tuple[str, ...]:
