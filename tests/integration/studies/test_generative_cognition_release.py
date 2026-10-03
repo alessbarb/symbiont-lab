@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from symbiont_lab.studies.learning.generative_cognition_release import (
+from lab.studies.learning.generative_cognition_release import (
     run_generative_cognition_release_gates,
 )
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import gzip
 import json
 
-from symbiont_lab.observation.observatory import (
+from lab.observation.observatory import (
     ObservatorySource,
     parse_journal_line,
     read_journal,

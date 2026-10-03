@@ -1,4 +1,4 @@
-from symbiont_lab.studies.social_reciprocity import run_social_reciprocity_study
+from lab.studies.social_reciprocity import run_social_reciprocity_study
 
 
 def test_reciprocity_study_keeps_directional_evidence_and_isolation() -> None:

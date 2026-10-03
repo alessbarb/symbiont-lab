@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import pytest
-from symbiont.core.body_schema import (
+
+from symbiont.core.cognition.host_self_model import RecencyClass
+from symbiont.core.embodiment.body_schema import (
     BODY_SCHEMA_VERSION,
     LEGACY_BODY_SCHEMA_VERSION,
     MAX_SENSORY_PARTS,
     BodySchemaEngine,
 )
-from symbiont.core.selfmodel import RecencyClass
 
 
 def _evidence(**overrides):

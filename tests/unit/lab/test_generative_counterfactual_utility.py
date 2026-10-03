@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from symbiont_lab.studies.learning.generative_counterfactual_utility import (
+from lab.studies.learning.generative_counterfactual_utility import (
     run_generative_counterfactual_utility_study,
 )
 

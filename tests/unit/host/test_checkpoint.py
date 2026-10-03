@@ -478,7 +478,7 @@ def test_v3_checkpoint_migrates_to_current_backfilling_recency_class():
     assert migrated["schema_version"] == CHECKPOINT_SCHEMA_VERSION
     # v3->v4 backfills last_observed_tick to saved_at_tick (idle=0); v5->v6
     # then converts that into recency_class -- CURRENT, since idle is 0.
-    from symbiont.core.selfmodel import RecencyClass
+    from symbiont.core.cognition.host_self_model import RecencyClass
 
     assert "last_observed_tick" not in migrated["self_model"]["sense-a"]
     assert migrated["self_model"]["sense-a"]["recency_class"] == RecencyClass.CURRENT.value
@@ -520,7 +520,7 @@ def test_v5_self_model_with_exact_last_observed_tick_migrates_without_crashing()
     recency_class, but no migration step existed for a genuine historical
     v5 checkpoint's exact last_observed_tick -- this crashed with a raw
     KeyError, not even a clean CheckpointError, before this task."""
-    from symbiont.core.selfmodel import RecencyClass, SelfModel
+    from symbiont.core.cognition.host_self_model import RecencyClass, SelfModel
 
     v5_payload = {
         "schema_version": 5,

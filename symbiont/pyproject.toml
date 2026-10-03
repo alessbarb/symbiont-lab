@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "symbiont"
+version = "0.90.0"
+description = "The Symbiont organism: installable and testable without Lab, Environment or Physics3D"
+requires-python = ">=3.12"
+dependencies = ["cryptography>=42"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["symbiont*"]
+
+[tool.setuptools.package-data]
+"symbiont.cognition" = ["defaults/*.json"]
+"symbiont.genetics" = ["defaults/*.json"]

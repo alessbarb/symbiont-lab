@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from symbiont_lab.physics3d.humanoid import HumanoidPhysics
-from symbiont_lab.physics3d.resource import PhysicalResource
+from embodiment.physics3d.humanoid import HumanoidPhysics
+from lab.physics3d.resource import PhysicalResource
 
 
 class FakeBullet:
@@ -88,8 +88,8 @@ def test_opaque_environment_state_accepts_only_bounded_scalars():
 
 
 def test_world_loss_equals_body_gain_for_accepted_physical_transfer():
-    from symbiont.core.metabolism import MetabolicLedger
-    from symbiont.core.physiology import LivingBodyState
+    from symbiont.core.embodiment.metabolism import MetabolicLedger
+    from symbiont.core.embodiment.physiology import LivingBodyState
 
     resource = PhysicalResource(
         FakeBullet(),

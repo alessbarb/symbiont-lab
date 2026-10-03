@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from symbiont_lab.experiments.registry import get_protocol
-from symbiont_lab.studies.learning.temporal_private_model_controls import (
+from lab.experiments.registry import get_protocol
+from lab.studies.learning.temporal_private_model_controls import (
     _normalize_seeds,
     temporal_controls,
     temporal_history,

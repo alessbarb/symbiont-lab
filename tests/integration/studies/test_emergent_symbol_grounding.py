@@ -3,11 +3,11 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from symbiont_lab.studies.learning.emergent_symbol_grounding import (
+from lab.studies.learning.emergent_symbol_grounding import (
     run_emergent_symbol_grounding_study,
 )
 
-SOURCE = Path("src/symbiont_lab/studies/learning/emergent_symbol_grounding.py")
+SOURCE = Path("lab/src/lab/studies/learning/emergent_symbol_grounding.py")
 
 
 def test_preregistered_symbol_study_passes_all_current_baseline_gates() -> None:

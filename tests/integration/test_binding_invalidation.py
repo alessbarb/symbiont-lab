@@ -10,12 +10,12 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+from lab.studies.learning.agency_acquisition_body import CausalBody, build_subject
 from symbiont.actuation.binding import (
     BindingStatus,
     CompetenceExecutionBindingRegistry,
     InvalidationReason,
 )
-from symbiont_lab.studies.learning.agency_acquisition_body import CausalBody, build_subject
 
 
 def _organism():

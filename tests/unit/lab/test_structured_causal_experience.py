@@ -1,5 +1,5 @@
-from symbiont_lab.experiments.registry import get_protocol
-from symbiont_lab.studies.learning.structured_causal_experience import _records
+from lab.experiments.registry import get_protocol
+from lab.studies.learning.structured_causal_experience import _records
 
 
 def test_structured_causal_protocol_registered():

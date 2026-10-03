@@ -1,6 +1,7 @@
 import pytest
-from symbiont.core.communication import ConsentBoundChannel
-from symbiont.core.exchange import ExchangeEnvelope
+
+from symbiont.core.social.communication import ConsentBoundChannel
+from symbiont.core.social.exchange import ExchangeEnvelope
 
 
 def test_local_channel_requires_consent_and_authenticates() -> None:

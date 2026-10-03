@@ -1,8 +1,9 @@
 import pytest
-from symbiont.core.metabolism import MetabolicLedger
-from symbiont.core.ontogeny import OntogenyController, PhysicalLifeStage
-from symbiont.core.physiology import LivingBodyState, VitalState
-from symbiont.core.physiology_config import PhysiologyConfig
+
+from symbiont.core.embodiment.metabolism import MetabolicLedger
+from symbiont.core.embodiment.ontogeny import OntogenyController, PhysicalLifeStage
+from symbiont.core.embodiment.physiology import LivingBodyState, VitalState
+from symbiont.core.embodiment.physiology_config import PhysiologyConfig
 
 
 def _zero_replenishment():

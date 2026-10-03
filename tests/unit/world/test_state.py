@@ -1,7 +1,7 @@
 import pytest
 
-from symbiont_world.state import TickAborted, WorldState
-from symbiont_world.topology import HexCoord
+from environment.state import TickAborted, WorldState
+from environment.topology import HexCoord
 
 
 def test_successful_tick_commits_and_advances():
@@ -31,7 +31,7 @@ def test_no_partial_causality_survives_an_aborted_tick():
 
 
 def test_aborted_tick_rolls_back_body_registry_too():
-    from symbiont_world.topology import BodyPlacement
+    from environment.topology import BodyPlacement
 
     state = WorldState(world_id="genesis")
     body = BodyPlacement(organism_id="org-a", occupied_cell=HexCoord(0, 0))

@@ -2,8 +2,8 @@ import json
 
 import pytest
 
-from symbiont_lab.observation.bus import ObservationBus
-from symbiont_lab.observation.delta import (
+from lab.observation.bus import ObservationBus
+from lab.observation.delta import (
     DELTA_CONTRACT,
     ObservationDeltaDecoder,
     ObservationDeltaEncoder,

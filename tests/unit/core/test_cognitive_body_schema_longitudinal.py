@@ -1,6 +1,6 @@
 from copy import deepcopy
 
-from symbiont.core.body_schema import MAX_COGNITIVE_REGION_MEMBERS, BodySchemaEngine
+from symbiont.core.embodiment.body_schema import MAX_COGNITIVE_REGION_MEMBERS, BodySchemaEngine
 
 
 def _channel(index):

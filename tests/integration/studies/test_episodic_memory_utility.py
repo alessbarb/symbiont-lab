@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from symbiont.modeling.experience import EpistemicStatus, ExperienceRecord, SourceKind
-from symbiont_lab.studies.learning.episodic_memory_utility import (
+from lab.studies.learning.episodic_memory_utility import (
     evaluate_episodic_predictive_utility,
     run_episodic_memory_utility_study,
 )
+from symbiont.modeling.experience import EpistemicStatus, ExperienceRecord, SourceKind
 
 ORG = "study-org"
 

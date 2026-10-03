@@ -1,11 +1,11 @@
-from symbiont_lab.world.genesis_v1 import RESOURCE_IDS, build_ground_truth
-from symbiont_lab.world.genesis_v2 import (
+from environment.topology import HexCoord
+from lab.world.genesis_v1 import RESOURCE_IDS, build_ground_truth
+from lab.world.genesis_v2 import (
     REGION_NORTH,
     REGION_SOUTH,
     build_ground_truth_v2,
     region_of,
 )
-from symbiont_world.topology import HexCoord
 
 
 def test_v2_preset_keeps_v1_field_resource_hazard_counts():

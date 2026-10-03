@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from symbiont.provenance import CausalEvent, CausalRef, ProvenanceLog
-from symbiont_lab.cli.main import main
-from symbiont_lab.observation.provenance_journal import (
+from lab.cli.main import main
+from lab.observation.provenance_journal import (
     ProvenanceIndex,
     ProvenanceJournal,
     render_tree,
 )
+from symbiont.provenance import CausalEvent, CausalRef, ProvenanceLog
 
 PULSE = CausalRef("commitment", "c1")
 VERSION = CausalRef("footprint_version", "footprint.x@v1")

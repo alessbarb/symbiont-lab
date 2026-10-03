@@ -3,7 +3,8 @@ from __future__ import annotations
 from copy import deepcopy
 
 import pytest
-from symbiont.core.body_schema import (
+
+from symbiont.core.embodiment.body_schema import (
     BODY_SCHEMA_VERSION,
     LEGACY_BODY_SCHEMA_VERSION,
     MAX_COGNITIVE_REGIONS,

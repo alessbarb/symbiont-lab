@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from symbiont_lab.physics3d.engine import run
-from symbiont_lab.physics3d.equivalence import EquivalenceRunConfig, equivalent, run_digests
-from symbiont_lab.physics3d.equivalence_suite import (
+from lab.physics3d.engine import run
+from lab.physics3d.equivalence import EquivalenceRunConfig, equivalent, run_digests
+from lab.physics3d.equivalence_suite import (
     EquivalenceStatus,
     Scenario,
     _coverage_failure,
@@ -75,7 +75,7 @@ def test_not_assessable_status_is_distinct_from_causal_fail() -> None:
 
 
 def test_suite_status_reports_missing_reference_snapshots(tmp_path: Path) -> None:
-    from symbiont_lab.physics3d.equivalence_suite import suite_status
+    from lab.physics3d.equivalence_suite import suite_status
 
     suite = tmp_path / "suite.toml"
     suite.write_text(
@@ -101,7 +101,7 @@ coverage = ["organism-state"]
 
 
 def test_snapshot_contract_rejects_wrong_body_kind() -> None:
-    from symbiont_lab.physics3d.equivalence_suite import _snapshot_contract_failure
+    from lab.physics3d.equivalence_suite import _snapshot_contract_failure
 
     scenario = Scenario(
         scenario_id="developed-cognition",
@@ -129,7 +129,7 @@ def test_snapshot_contract_rejects_wrong_body_kind() -> None:
 
 
 def test_snapshot_contract_rejects_wrong_scenario() -> None:
-    from symbiont_lab.physics3d.equivalence_suite import _snapshot_contract_failure
+    from lab.physics3d.equivalence_suite import _snapshot_contract_failure
 
     scenario = Scenario(
         scenario_id="promotion-eligible",
@@ -157,7 +157,7 @@ def test_snapshot_contract_rejects_wrong_scenario() -> None:
 
 
 def test_snapshot_contract_rejects_missing_model_artifacts() -> None:
-    from symbiont_lab.physics3d.equivalence_suite import _snapshot_contract_failure
+    from lab.physics3d.equivalence_suite import _snapshot_contract_failure
 
     scenario = Scenario(
         scenario_id="developed-cognition",

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from lab.studies.learning.agency_acquisition_body import CausalBody, build_subject
 from symbiont.actuation.commitment import CommitmentStatus
 from symbiont.agency.intention import IntentStatus
 from symbiont.agency.prospective import ProspectiveDecision
@@ -17,7 +18,6 @@ from symbiont.core.domains.intention import (
     IntentionDomain,
     IntentionPolicy,
 )
-from symbiont_lab.studies.learning.agency_acquisition_body import CausalBody, build_subject
 
 DECISION = ProspectiveDecision(
     competence_id="competence.c",

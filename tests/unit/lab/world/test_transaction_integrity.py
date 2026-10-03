@@ -10,11 +10,11 @@ from unittest.mock import patch
 
 import pytest
 
-from symbiont_lab.world.deferred import DeferredEffect
-from symbiont_lab.world.genesis_v1 import build_ground_truth
-from symbiont_lab.world.population import PopulationGenesisRuntime, founder_placement
-from symbiont_world.state import TickAborted
-from symbiont_world.topology import HexTopology
+from environment.state import TickAborted
+from environment.topology import HexTopology
+from lab.world.deferred import DeferredEffect
+from lab.world.genesis_v1 import build_ground_truth
+from lab.world.population import PopulationGenesisRuntime, founder_placement
 
 
 def _make_pop(seed: int = 101, count: int = 4) -> PopulationGenesisRuntime:
@@ -99,9 +99,7 @@ def test_failed_tick_restores_exact_state_phase_action_execution():
     pop.run(5)
     pre = _capture_world_full_state(pop)
 
-    with patch(
-        "symbiont_lab.world.population._act", side_effect=RuntimeError("action execution failed")
-    ):
+    with patch("lab.world.population._act", side_effect=RuntimeError("action execution failed")):
         with pytest.raises(RuntimeError, match="action execution failed"):
             pop.run_tick()
 

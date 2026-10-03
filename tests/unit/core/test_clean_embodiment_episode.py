@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import pytest
-from symbiont.core.body import create_standard_body
-from symbiont.core.individual import create_individual
 
 from symbiont.actuation.competence import CompetenceEvidence, MotorCompetence
 from symbiont.core.embodiment import EmbodimentState
+from symbiont.core.embodiment.body import create_standard_body
+from symbiont.core.orchestration.individual import create_individual
 
 
 def test_clean_individual_session_and_episode_share_identity() -> None:

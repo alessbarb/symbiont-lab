@@ -4,8 +4,8 @@ from types import SimpleNamespace
 
 import pytest
 
-import symbiont_lab.studies.learning.private_model_utility as protocol
-from symbiont_lab.studies.learning.private_model_utility import _normalize_seeds
+import lab.studies.learning.private_model_utility as protocol
+from lab.studies.learning.private_model_utility import _normalize_seeds
 
 
 def test_private_model_utility_accepts_declarative_seed_list():

@@ -1,1 +1,1 @@
-"""symbiont_lab.world unit tests package."""
+"""lab.world unit tests package."""

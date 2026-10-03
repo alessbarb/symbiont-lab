@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 
-from symbiont_lab.studies.learning.embodied_behavioral_ablation import (
+from lab.studies.learning.embodied_behavioral_ablation import (
     _freeze_cognitive_learning,
     _lesion_cognitive_motor_outputs,
     _shuffle_cognitive_motor_outputs,

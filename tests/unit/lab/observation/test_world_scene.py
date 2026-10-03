@@ -5,8 +5,8 @@ from copy import deepcopy
 
 import pytest
 
-from symbiont_lab.observation.bus import ObservationBus
-from symbiont_lab.observation.world_scene import (
+from lab.observation.bus import ObservationBus
+from lab.observation.world_scene import (
     WorldScenePublisher,
     apply_world_event,
     project_world_scene,
@@ -114,7 +114,7 @@ def test_last_provider_call_cannot_establish_complete_sampling():
 def test_sampling_union_covers_multiple_calls_and_resets_between_ticks():
     from types import SimpleNamespace
 
-    from symbiont_lab.physics3d.apparatus import PhysicsReadingProvider
+    from lab.physics3d.apparatus import PhysicsReadingProvider
 
     apparatus = SimpleNamespace(
         receptor_ids=("rec.0", "rec.1"), sample_receptors=lambda: {"rec.0": 0.3, "rec.1": 0.0}
@@ -132,7 +132,7 @@ def test_sampling_union_covers_multiple_calls_and_resets_between_ticks():
 def test_recovery_endpoint_returns_materialized_state_without_mutating_bus():
     from pathlib import Path
 
-    from symbiont_lab.server.api import make_handler
+    from lab.server.api import make_handler
 
     bus = ObservationBus()
     pub = WorldScenePublisher()
@@ -140,7 +140,7 @@ def test_recovery_endpoint_returns_materialized_state_without_mutating_bus():
     bus.push(pub.event(scene))
     scene["entities"]["e"]["position"] = [9, 0, 0]
     bus.push(pub.event(scene))
-    handler_type = make_handler(None, None, None, None, bus, None, Path("."))
+    handler_type = make_handler(bus, None, Path("."))
     handler = object.__new__(handler_type)
     handler.path = "/api/world-scene"
     responses = []

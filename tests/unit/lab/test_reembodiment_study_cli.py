@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from symbiont_lab.studies.embodiment.reembodiment_cli import _parse_sequence
+from lab.studies.embodiment.reembodiment_cli import _parse_sequence
 
 
 def test_reembodiment_cli_accepts_short_body_aliases() -> None:

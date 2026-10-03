@@ -1,6 +1,6 @@
 import pytest
 
-from symbiont_lab.studies.shared_habitat_intake import run_shared_habitat_intake_study
+from lab.studies.shared_habitat_intake import run_shared_habitat_intake_study
 
 
 def test_shared_habitat_intake_is_finite_and_replayable() -> None:

@@ -10,8 +10,8 @@ base_commit = "c00846d3499dae81b05b9b6be645be3312ae2063"
 external_run_exception = true
 protected_paths = [
   "docs/design/vision/**",
-  "experiments/learning/visual-acquisition-v1/**",
-  "src/symbiont_lab/studies/learning/visual_acquisition.py",
+  "lab/experiments/learning/visual-acquisition-v1/**",
+  "lab/src/lab/studies/learning/visual_acquisition.py",
 ]
 notes = "Closed 2026-09-30 as preregistered structural negative (not_assessable); development run complete, no horizon passed, held-out disabled."
 

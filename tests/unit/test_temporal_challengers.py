@@ -4,13 +4,13 @@ import math
 
 import pytest
 
-from symbiont.modeling import TemporalMechanism
-from symbiont_lab.modeling import (
+from lab.modeling import (
     DecayedVariableOrderMarkov,
     EncodedSplit,
     SparseEchoStateRegressor,
     evaluate_vomm_challenger,
 )
+from symbiont.modeling import TemporalMechanism
 
 
 def test_decayed_vomm_learns_variable_order_alternation_without_semantic_role():

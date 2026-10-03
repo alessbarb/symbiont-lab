@@ -11,11 +11,10 @@ feeding primitive formation and actuator causal-evidence tracking.
 
 from __future__ import annotations
 
-from symbiont.core.runtime import OrganismDeadError, OrganismRuntime
-
 from symbiont.actuation.surface import derive_actuator_constitution
 from symbiont.cognition.birth import load_base_genome
 from symbiont.cognition.limits import KernelLimits
+from symbiont.core.orchestration.runtime import OrganismDeadError, OrganismRuntime
 from symbiont.host.discovery import HostDiscovery
 from symbiont.host.lifecycle import HostLifecycle
 from symbiont.host.providers.interoception import InteroceptionProvider

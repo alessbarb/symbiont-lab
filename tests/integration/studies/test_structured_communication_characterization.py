@@ -3,12 +3,12 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from symbiont_lab.experiments.registry import get_protocol
-from symbiont_lab.studies.learning.structured_communication_characterization import (
+from lab.experiments.registry import get_protocol
+from lab.studies.learning.structured_communication_characterization import (
     run_structured_communication_characterization,
 )
 
-SOURCE = Path("src/symbiont_lab/studies/learning/structured_communication_characterization.py")
+SOURCE = Path("lab/src/lab/studies/learning/structured_communication_characterization.py")
 
 
 def test_characterization_is_registered_and_replayable():

@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import pytest
 
-from symbiont_lab.experiments.loader import load_experiment_file
-from symbiont_lab.experiments.registry import get_protocol
-from symbiont_lab.experiments.runner import ExperimentRunner
-from symbiont_lab.studies.learning.cognitive_graph_causal_composition import (
+from lab.experiments.loader import load_experiment_file
+from lab.experiments.registry import get_protocol
+from lab.experiments.runner import ExperimentRunner
+from lab.studies.learning.cognitive_graph_causal_composition import (
     run_cognitive_graph_causal_composition_study,
 )
 
@@ -43,7 +43,7 @@ def test_cognitive_graph_protocol_rejects_invalid_ticks():
 
 def test_declared_experiment_runs_through_runner(tmp_path):
     spec = load_experiment_file(
-        "experiments/learning/cognitive-graph-causal-composition/experiment.toml"
+        "lab/experiments/learning/cognitive-graph-causal-composition/experiment.toml"
     )
     result, _manifest, run_dir = ExperimentRunner(tmp_path).run(spec)
     assert result.full_capability_supported is False

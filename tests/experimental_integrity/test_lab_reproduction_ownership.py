@@ -4,9 +4,9 @@ import inspect
 
 import pytest
 
+from lab.reproduction import HabitatBirthAuthority
 from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont.modeling.runtime import ModeledOrganismRuntime
-from symbiont_lab.reproduction import HabitatBirthAuthority
 
 
 @pytest.mark.parametrize("runtime_type", [OrganismRuntime, ModeledOrganismRuntime])
@@ -19,10 +19,10 @@ def test_subject_cannot_receive_population_authority(runtime_type):
 
 
 def test_population_records_and_authority_have_only_lab_ownership():
-    from symbiont_lab.reproduction import BirthRecord, DeathRecord
+    from lab.reproduction import BirthRecord, DeathRecord
 
     for owner in (BirthRecord, DeathRecord, HabitatBirthAuthority):
-        assert inspect.getmodule(owner).__name__.startswith("symbiont_lab.")
+        assert inspect.getmodule(owner).__name__.startswith("lab.")
 
 
 @pytest.mark.parametrize("runtime_type", [OrganismRuntime, ModeledOrganismRuntime])

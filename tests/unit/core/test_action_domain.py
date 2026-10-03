@@ -90,7 +90,7 @@ def test_command_requires_active_commitment() -> None:
 def test_competence_whose_controller_left_the_pool_is_not_executable():
     """Regression: a library competence outliving its controller seed was
     admitted on every tick and failed its controller in a loop."""
-    from symbiont_lab.studies.learning.agency_acquisition_body import CausalBody, build_subject
+    from lab.studies.learning.agency_acquisition_body import CausalBody, build_subject
 
     body = CausalBody(actuator_count=4, seed=127)
     runtime = build_subject(body, organism_id="controller-pool", factorized_effects=True)

@@ -1,14 +1,14 @@
-from symbiont_lab.world.cli_view import render_world, world_snapshot
-from symbiont_lab.world.genesis_v1 import (
+from environment.events import WorldEvent
+from environment.topology import HexTopology
+from lab.world.cli_view import render_world, world_snapshot
+from lab.world.genesis_v1 import (
     GENESIS_V1_METADATA,
     HAZARD_IDS,
     RESOURCE_IDS,
     build_ground_truth,
 )
-from symbiont_lab.world.genesis_v2 import build_ground_truth_v2
-from symbiont_lab.world.population import PopulationGenesisRuntime, founder_placement
-from symbiont_world.events import WorldEvent
-from symbiont_world.topology import HexTopology
+from lab.world.genesis_v2 import build_ground_truth_v2
+from lab.world.population import PopulationGenesisRuntime, founder_placement
 
 
 def _population(count: int = 3):
@@ -51,7 +51,7 @@ def test_render_world_lists_every_occupied_organism():
 def test_render_world_has_no_control_surface():
     """The public contract exposes exactly one callable; nothing here can
     call WorldAction or advance a tick."""
-    import symbiont_lab.world.cli_view as module
+    import lab.world.cli_view as module
 
     public_names = [name for name in dir(module) if not name.startswith("_")]
     assert "render_world" in public_names

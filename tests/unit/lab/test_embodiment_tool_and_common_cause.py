@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from symbiont_lab.experiments.registry import get_protocol
-from symbiont_lab.studies.embodiment.hidden_common_cause import run_hidden_common_cause_study
-from symbiont_lab.studies.embodiment.tool_body_distinction import run_tool_body_distinction_study
+from lab.experiments.registry import get_protocol
+from lab.studies.embodiment.hidden_common_cause import run_hidden_common_cause_study
+from lab.studies.embodiment.tool_body_distinction import run_tool_body_distinction_study
 
 
 def test_e2_replay_and_bounds():

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from symbiont.core.individual import create_individual
+from symbiont.core.orchestration.individual import create_individual
 
 
 def test_reduced_symbiont_physical_output_has_canonical_action_trace() -> None:

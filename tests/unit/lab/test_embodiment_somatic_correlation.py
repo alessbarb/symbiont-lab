@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from symbiont_lab.experiments.registry import get_protocol
-from symbiont_lab.studies.embodiment.somatic_correlation_trap import (
+from lab.experiments.registry import get_protocol
+from lab.studies.embodiment.somatic_correlation_trap import (
     run_somatic_correlation_trap_study,
 )
 

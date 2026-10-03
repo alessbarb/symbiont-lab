@@ -10,10 +10,9 @@ import hashlib
 
 import pytest
 
-from symbiont.actuation.types import Actuation
-from symbiont_lab.experiments.loader import load_experiment_file
-from symbiont_lab.studies.embodiment import reembodiment_functional_transfer as study
-from symbiont_lab.studies.embodiment.reembodiment_functional_transfer import (
+from lab.experiments.loader import load_experiment_file
+from lab.studies.embodiment import reembodiment_functional_transfer as study
+from lab.studies.embodiment.reembodiment_functional_transfer import (
     ARMS,
     CONFIRMATION_SEEDS,
     DEVELOPMENT_SEEDS,
@@ -27,7 +26,8 @@ from symbiont_lab.studies.embodiment.reembodiment_functional_transfer import (
     seed_contamination,
     shared_pairs,
 )
-from symbiont_lab.studies.learning.agency_acquisition_body import BodyCondition, CausalBody
+from lab.studies.learning.agency_acquisition_body import BodyCondition, CausalBody
+from symbiont.actuation.types import Actuation
 
 pytestmark = pytest.mark.experiment_contract
 
@@ -155,7 +155,7 @@ def test_the_r6_family_was_outside_the_spread() -> None:
 def test_d_max_is_the_r8_value_and_the_record_states_it() -> None:
     assert study.D_MAX == 2000
     spec = load_experiment_file(
-        "experiments/embodiment/reembodiment-functional-transfer-v1/experiment.toml"
+        "lab/experiments/embodiment/reembodiment-functional-transfer-v1/experiment.toml"
     )
     assert "<= 2000" in spec.extra_params["transfer"]["development_ticks_rule"]
 
@@ -285,7 +285,7 @@ def test_the_single_confirmatory_claim_is_a_conjunction() -> None:
 
 def test_the_experiment_record_matches_the_frozen_constants() -> None:
     spec = load_experiment_file(
-        "experiments/embodiment/reembodiment-functional-transfer-v1/experiment.toml"
+        "lab/experiments/embodiment/reembodiment-functional-transfer-v1/experiment.toml"
     )
     frozen = spec.extra_params["transfer"]
 

@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import pytest
 
+from lab.studies.learning.agency_acquisition_body import CausalBody, build_subject
 from symbiont.agency.intention import IntentStatus
 from symbiont.agency.prospective import ProspectiveDecision
 from symbiont.core.domains.action import ActionDomain
 from symbiont.core.domains.cognition import CognitionDomain
 from symbiont.core.domains.intention import IntentionDomain
-from symbiont_lab.studies.learning.agency_acquisition_body import CausalBody, build_subject
 
 
 def _run_until_satisfied(monkeypatch, ticks: int = 600):

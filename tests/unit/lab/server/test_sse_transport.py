@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import queue
 
-from symbiont_lab.observation.bus import ObservationBus, ObservationMessage
-from symbiont_lab.server import sse
+from lab.observation.bus import ObservationBus, ObservationMessage
+from lab.server import sse
 
 
 def test_serialized_sse_framing_keeps_payload_bytes_opaque():

@@ -9,8 +9,8 @@ import pytest
 
 pybullet = pytest.importorskip("pybullet")
 
-from symbiont_lab.physics3d.cli import main
-from symbiont_lab.physics3d.persistence import read_symbiont_bundle_runtime
+from lab.physics3d.cli import main
+from lab.physics3d.persistence import read_symbiont_bundle_runtime
 
 
 @pytest.mark.slow

@@ -4,6 +4,15 @@ import pytest
 
 pytest.importorskip("torch")
 
+from lab.modeling import (
+    FileArtifactStore,
+    PromotionPolicy,
+    TrainingConfig,
+    encode_corpus,
+    evaluate_candidate,
+    train_private_model,
+)
+from lab.modeling.gateway import ArtifactInferenceGateway
 from symbiont.modeling import (
     ArchitectureId,
     EpistemicStatus,
@@ -16,15 +25,6 @@ from symbiont.modeling import (
     TrainingRequest,
     build_training_corpus,
 )
-from symbiont_lab.modeling import (
-    FileArtifactStore,
-    PromotionPolicy,
-    TrainingConfig,
-    encode_corpus,
-    evaluate_candidate,
-    train_private_model,
-)
-from symbiont_lab.modeling.gateway import ArtifactInferenceGateway
 
 
 def _records() -> tuple[ExperienceRecord, ...]:

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from symbiont_lab.studies.embodiment.integrity_gates import (
+from lab.studies.embodiment.integrity_gates import (
     run_embodiment_integrity_gates,
 )
 

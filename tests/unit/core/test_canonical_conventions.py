@@ -9,28 +9,28 @@ from dataclasses import FrozenInstanceError
 from pathlib import Path
 
 import pytest
-from symbiont.core.epistemic import (
-    DEFAULT_EPISTEMIC_CONVENTIONS,
-    EpistemicConventions,
-    RecencyClass,
-)
-from symbiont.core.fingerprint import (
-    FINGERPRINT_SCHEMA_VERSION,
-    generate_runtime_fingerprint,
-)
-from symbiont.core.limits import OrganismLimits
-from symbiont.core.physiology import (
-    DEFAULT_PHYSIOLOGY_CONFIG,
-    PhysiologyConfig,
-)
 
-from observatory.config import (
+from lab.observatory.config import (
     DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
     INGESTION_MAX_BODY_PARTS,
     INGESTION_MAX_COGNITIVE_REGIONS,
     INGESTION_MAX_SENSORY_PARTS,
     STALE_HEARTBEAT_FACTOR,
 )
+from symbiont.core.embodiment.physiology import (
+    DEFAULT_PHYSIOLOGY_CONFIG,
+    PhysiologyConfig,
+)
+from symbiont.core.foundation.epistemic import (
+    DEFAULT_EPISTEMIC_CONVENTIONS,
+    EpistemicConventions,
+    RecencyClass,
+)
+from symbiont.core.foundation.fingerprint import (
+    FINGERPRINT_SCHEMA_VERSION,
+    generate_runtime_fingerprint,
+)
+from symbiont.core.foundation.limits import OrganismLimits
 from symbiont.core.runtime_defaults import (
     DEFAULT_CHECKPOINT_TICKS,
     DEFAULT_TICK_INTERVAL_SECONDS,
@@ -124,10 +124,10 @@ def test_observatory_independence_and_limits() -> None:
     # Scan all observatory python files to guarantee NO imports of internal symbiont biology
     observatory_dir = Path(__file__).resolve().parents[3] / "observatory"
     forbidden_modules = {
-        "symbiont.core.limits",
-        "symbiont.core.epistemic",
-        "symbiont.core.physiology",
-        "symbiont.core.selfmodel",
+        "symbiont.core.foundation.limits",
+        "symbiont.core.foundation.epistemic",
+        "symbiont.core.embodiment.physiology",
+        "symbiont.core.cognition.host_self_model",
     }
 
     for py_file in observatory_dir.rglob("*.py"):
@@ -149,17 +149,15 @@ def test_observatory_independence_and_limits() -> None:
 
 
 def test_no_symbiont_imports_symbiont_lab() -> None:
-    symbiont_dir = Path(__file__).resolve().parents[3] / "src" / "symbiont"
+    symbiont_dir = Path(__file__).resolve().parents[3] / "symbiont" / "src" / "symbiont"
     for py_file in symbiont_dir.rglob("*.py"):
         tree = ast.parse(py_file.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 for alias in node.names:
-                    assert not alias.name.startswith("symbiont_lab"), (
-                        f"{py_file} imports symbiont_lab"
-                    )
+                    assert not alias.name.startswith("lab"), f"{py_file} imports lab"
             elif isinstance(node, ast.ImportFrom) and node.module:
-                assert not node.module.startswith("symbiont_lab"), f"{py_file} imports symbiont_lab"
+                assert not node.module.startswith("lab"), f"{py_file} imports lab"
 
 
 def test_runtime_defaults_decoupling() -> None:
@@ -207,7 +205,7 @@ def test_runtime_fingerprint_determinism() -> None:
 
 
 def test_physiology_config_governs_metabolic_pressure() -> None:
-    from symbiont.core.metabolism import MetabolicLedger, ResourcePressure
+    from symbiont.core.embodiment.metabolism import MetabolicLedger, ResourcePressure
 
     # Default thresholds: ratio_severe = 0.2, ratio_elevated = 0.5.
     # Four 1.0 accounting capacities create a 4.0 physical-energy pool.
@@ -228,9 +226,9 @@ def test_physiology_config_governs_metabolic_pressure() -> None:
 
 
 def test_constitutive_repair_uses_canonical_physiology_config() -> None:
-    from symbiont.core.homeostasis import HomeostaticController
-    from symbiont.core.metabolism import MetabolicLedger
-    from symbiont.core.physiology import LivingBodyState
+    from symbiont.core.embodiment.homeostasis import HomeostaticController
+    from symbiont.core.embodiment.metabolism import MetabolicLedger
+    from symbiont.core.embodiment.physiology import LivingBodyState
 
     custom_phys = PhysiologyConfig(
         max_repair_per_tick=0.10,
@@ -260,7 +258,7 @@ def test_constitutive_repair_uses_canonical_physiology_config() -> None:
 
 
 def test_organism_runtime_propagates_single_physiology_config() -> None:
-    from symbiont.core.runtime import OrganismRuntime
+    from symbiont.core.orchestration.runtime import OrganismRuntime
 
     custom_phys = PhysiologyConfig(
         max_repair_per_tick=0.12,
@@ -286,10 +284,10 @@ def test_organism_runtime_propagates_single_physiology_config() -> None:
 
 
 def test_organism_runtime_rejects_incompatible_subsystems() -> None:
-    from symbiont.core.degradation import DegradationQueue
-    from symbiont.core.homeostasis import HomeostaticController
-    from symbiont.core.metabolism import MetabolicLedger
-    from symbiont.core.runtime import OrganismRuntime
+    from symbiont.core.embodiment.degradation import DegradationQueue
+    from symbiont.core.embodiment.homeostasis import HomeostaticController
+    from symbiont.core.embodiment.metabolism import MetabolicLedger
+    from symbiont.core.orchestration.runtime import OrganismRuntime
 
     runtime_phys = PhysiologyConfig(max_repair_per_tick=0.10, aging_ticks=16, waste_ticks=8)
 
@@ -314,7 +312,7 @@ def test_organism_runtime_rejects_incompatible_subsystems() -> None:
 
 
 def test_runtime_fingerprint_from_live_runtime() -> None:
-    from symbiont.core.runtime import OrganismRuntime
+    from symbiont.core.orchestration.runtime import OrganismRuntime
 
     runtime1 = OrganismRuntime(organism_id="symbiont-alpha", mutation_seed=42)
     runtime2 = OrganismRuntime(organism_id="symbiont-beta", mutation_seed=42)
@@ -345,7 +343,7 @@ def test_fingerprint_canonicalization_exactness() -> None:
     import hashlib
     import json
 
-    from symbiont.core.fingerprint import _canonical_normalize
+    from symbiont.core.foundation.fingerprint import _canonical_normalize
 
     # 1. Dicts with different insertion order yield identical JSON
     d1 = {"z": 1, "a": 2, "m": {"b": 3, "a": 4}}
@@ -421,7 +419,7 @@ def test_physiology_config_semantic_validation() -> None:
 
 
 def test_runtime_fingerprint_software_version_and_build_identity() -> None:
-    from symbiont.core.runtime import OrganismRuntime
+    from symbiont.core.orchestration.runtime import OrganismRuntime
 
     runtime = OrganismRuntime(organism_id="symbiont-v-test", mutation_seed=42)
     fp1 = runtime.runtime_fingerprint(software_version="0.80.16")
@@ -437,9 +435,8 @@ def test_runtime_fingerprint_software_version_and_build_identity() -> None:
 def test_runtime_fingerprint_kernel_limits_completeness() -> None:
     from dataclasses import asdict
 
-    from symbiont.core.runtime import OrganismRuntime
-
     from symbiont.cognition.limits import KernelLimits
+    from symbiont.core.orchestration.runtime import OrganismRuntime
 
     limits_default = KernelLimits()
     runtime = OrganismRuntime(organism_id="symbiont-limits-test", kernel_limits=limits_default)
@@ -468,7 +465,7 @@ def test_runtime_fingerprint_kernel_limits_completeness() -> None:
 
 
 def test_runtime_fingerprint_min_samples_and_conflict_z() -> None:
-    from symbiont.core.runtime import OrganismRuntime
+    from symbiont.core.orchestration.runtime import OrganismRuntime
 
     runtime_base = OrganismRuntime(organism_id="symbiont-test", min_samples=5, conflict_z=2.0)
     fp_base = runtime_base.runtime_fingerprint()
@@ -487,7 +484,7 @@ def test_runtime_fingerprint_min_samples_and_conflict_z() -> None:
 
 
 def test_runtime_fingerprint_excludes_learned_trajectory_state() -> None:
-    from symbiont.core.runtime import OrganismRuntime
+    from symbiont.core.orchestration.runtime import OrganismRuntime
 
     runtime = OrganismRuntime(organism_id="symbiont-trajectory", mutation_seed=123)
     fp_before = runtime.runtime_fingerprint()
@@ -500,10 +497,10 @@ def test_runtime_fingerprint_excludes_learned_trajectory_state() -> None:
 
 
 def test_multi_subsystem_physiology_resolution_contradiction() -> None:
-    from symbiont.core.degradation import DegradationQueue
-    from symbiont.core.homeostasis import HomeostaticController
-    from symbiont.core.metabolism import MetabolicLedger
-    from symbiont.core.runtime import OrganismRuntime
+    from symbiont.core.embodiment.degradation import DegradationQueue
+    from symbiont.core.embodiment.homeostasis import HomeostaticController
+    from symbiont.core.embodiment.metabolism import MetabolicLedger
+    from symbiont.core.orchestration.runtime import OrganismRuntime
 
     phys1 = PhysiologyConfig(ratio_severe=0.25)
     phys2 = PhysiologyConfig(ratio_severe=0.35)
@@ -523,8 +520,7 @@ def test_multi_subsystem_physiology_resolution_contradiction() -> None:
 
 
 def test_checkpoint_physiology_fail_closed_and_migration() -> None:
-    from symbiont.core.runtime import OrganismRuntime
-
+    from symbiont.core.orchestration.runtime import OrganismRuntime
     from symbiont.host.checkpoint import CheckpointError
 
     runtime = OrganismRuntime(organism_id="symbiont-ckpt-test", min_samples=7, conflict_z=2.75)
@@ -604,7 +600,7 @@ def test_epistemic_conventions_hardened_bijection() -> None:
 
 
 def test_canonical_normalize_type_safety() -> None:
-    from symbiont.core.fingerprint import _canonical_normalize
+    from symbiont.core.foundation.fingerprint import _canonical_normalize
 
     # Unsupported type raises TypeError
     class CustomObject:
@@ -628,8 +624,7 @@ def test_fingerprint_schema_version_is_v5() -> None:
 
 
 def test_prebuilt_subsystems_min_samples_resolution() -> None:
-    from symbiont.core.runtime import OrganismRuntime
-
+    from symbiont.core.orchestration.runtime import OrganismRuntime
     from symbiont.host.acclimation import HostAcclimation
     from symbiont.host.rhythms import RhythmModel
 
@@ -669,7 +664,7 @@ def test_prebuilt_subsystems_min_samples_resolution() -> None:
 
 
 def test_sensory_capacity_is_constitutional_but_acquired_phenotype_is_not() -> None:
-    from symbiont.core.runtime import OrganismRuntime
+    from symbiont.core.orchestration.runtime import OrganismRuntime
 
     legacy = OrganismRuntime(organism_id="sensory-fingerprint", sensory_plasticity=False)
     adaptive = OrganismRuntime(organism_id="sensory-fingerprint", sensory_plasticity=True)
@@ -681,8 +676,7 @@ def test_sensory_capacity_is_constitutional_but_acquired_phenotype_is_not() -> N
 
 
 def test_checkpoint_rejects_contradictory_sensory_constitution() -> None:
-    from symbiont.core.runtime import OrganismRuntime
-
+    from symbiont.core.orchestration.runtime import OrganismRuntime
     from symbiont.host.checkpoint import CheckpointError
 
     runtime = OrganismRuntime(

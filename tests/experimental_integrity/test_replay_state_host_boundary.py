@@ -5,8 +5,8 @@ from __future__ import annotations
 
 import json
 
+from lab.studies.learning.agency_acquisition_body import CausalBody, build_subject
 from symbiont.core.orchestration.runtime import OrganismRuntime
-from symbiont_lab.studies.learning.agency_acquisition_body import CausalBody, build_subject
 
 _REPLAY_KEYS = ("acclimation_replay", "rhythms_replay", "drift_replay")
 _RAW_SENSOR_FIELDS = ("previous_input", "last_output", "integrator")

@@ -1,5 +1,5 @@
-from symbiont_lab.experiments.registry import get_protocol
-from symbiont_lab.studies.observability.population_communication import (
+from lab.experiments.registry import get_protocol
+from lab.studies.observability.population_communication import (
     run_population_communication_study,
 )
 

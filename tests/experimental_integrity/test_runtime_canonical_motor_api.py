@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 
-from symbiont.core.runtime import OrganismRuntime
+from symbiont.core.orchestration.runtime import OrganismRuntime
 
 
 def test_runtime_constructor_exposes_only_canonical_motor_dependencies() -> None:

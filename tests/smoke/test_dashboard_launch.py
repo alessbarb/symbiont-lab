@@ -1,5 +1,4 @@
-from symbiont_lab.experiments.spec import ExperimentSpec, spec_from_payload
-from symbiont_lab.workbench.runs import ExperimentRunState
+from lab.experiments.spec import spec_from_payload
 
 
 def test_experiment_spec_parses_research_metadata_and_bounds_parameters():
@@ -22,20 +21,3 @@ def test_experiment_spec_parses_research_metadata_and_bounds_parameters():
     assert spec.steps == 100000
     assert spec.poison_fraction == 1.0
     assert spec.drift_step is None
-
-
-def test_server_state_prevents_overlapping_experiments_and_preserves_spec():
-    state = ExperimentRunState()
-    first = ExperimentSpec(title="First", hypothesis="H1")
-    second = ExperimentSpec(title="Second")
-
-    assert state.start(first)
-    assert not state.start(second)
-    payload = state.payload()
-    assert payload["spec"]["title"] == "First"
-    assert payload["spec"]["hypothesis"] == "H1"
-    assert payload["experiment_number"] == 1
-
-    state.finish()
-    assert state.start(second)
-    assert state.payload()["experiment_number"] == 2

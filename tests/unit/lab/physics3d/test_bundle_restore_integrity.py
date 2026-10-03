@@ -5,7 +5,7 @@ import zipfile
 
 import pytest
 
-from symbiont_lab.physics3d import persistence
+from lab.physics3d import persistence
 
 
 def _bundle(tmp_path, *, state="shadow"):

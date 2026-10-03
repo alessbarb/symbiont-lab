@@ -1874,7 +1874,7 @@ was not modified.
 The Observatory journal now enforces a global 512 MiB retention cap across run ids,
 pruning only whole historical segments and preserving the active segment. A
 read-only inventory of the current resident state is recorded in
-[`research/qa/observatory/state-audit-2026-09-15.md`](../research/qa/observatory/state-audit-2026-09-15.md).
+[`research/qa/observatory/state-audit-2026-09-15.md`](../lab/research/qa/observatory/state-audit-2026-09-15.md).
 No existing state files were modified.
 
 ---
@@ -1930,7 +1930,7 @@ closing two Observatory integration gaps:
 - `observatory.resident` now supports both the documented script invocation and
   `python -m observatory.resident` with the same imports and CLI contract.
 - The Observatory schema compatibility rules are centralized in
-  [`schemas/CONTRACT_MATRIX.md`](../observatory/schemas/CONTRACT_MATRIX.md),
+  [`schemas/CONTRACT_MATRIX.md`](../lab/src/lab/observatory/schemas/CONTRACT_MATRIX.md),
   covering snapshot versions 1–3 and bounded nested projections.
 
 The Observatory contract suite passes in full (`163 passed`). No host write,

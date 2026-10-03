@@ -11,8 +11,9 @@ def test_relation_valence_is_evidence_based():
 
 def test_engine_supports_exchange_and_finite_competition():
     return
-    from symbiont.core.interactions import EcologicalResourcePool
     from symbiont.core.social.engine import SocialInteractionEngine
+
+    from symbiont.core.social.interactions import EcologicalResourcePool
 
     e = SocialInteractionEngine(EcologicalResourcePool({"food": 1.0}))
     assert e.exchange("a", "b", "food", 0.4).granted == 0.4
@@ -30,9 +31,8 @@ def test_relation_ledger_checkpoint_round_trip_preserves_aggregate_evidence() ->
 
 
 def test_social_habitat_requires_authorized_members() -> None:
-    from symbiont.core.interactions import EcologicalResourcePool
-
     from symbiont.core.social import SocialHabitat
+    from symbiont.core.social.interactions import EcologicalResourcePool
 
     habitat = SocialHabitat(EcologicalResourcePool({"food": 1.0}))
     assert habitat.admit("a") and habitat.admit("b")
@@ -47,9 +47,8 @@ def test_social_habitat_requires_authorized_members() -> None:
 
 
 def test_habitat_checkpoint_roundtrip_preserves_boundary_and_evidence() -> None:
-    from symbiont.core.interactions import EcologicalResourcePool
-
     from symbiont.core.social import SocialHabitat
+    from symbiont.core.social.interactions import EcologicalResourcePool
 
     habitat = SocialHabitat(EcologicalResourcePool({"food": 10.0}), max_members=3)
     assert habitat.admit("a") and habitat.admit("b")
@@ -61,9 +60,8 @@ def test_habitat_checkpoint_roundtrip_preserves_boundary_and_evidence() -> None:
 
 
 def test_habitat_checkpoint_rejects_duplicate_members() -> None:
-    from symbiont.core.interactions import EcologicalResourcePool
-
     from symbiont.core.social import SocialHabitat
+    from symbiont.core.social.interactions import EcologicalResourcePool
 
     payload = SocialHabitat(EcologicalResourcePool({"food": 1.0})).checkpoint()
     payload["members"] = ["a", "a"]
@@ -160,9 +158,8 @@ def test_resource_evidence_revises_a_previously_useful_token_after_repeated_deni
 
 
 def test_social_habitat_can_suspend_and_resume_pair_interaction() -> None:
-    from symbiont.core.interactions import EcologicalResourcePool
-
     from symbiont.core.social import SocialHabitat
+    from symbiont.core.social.interactions import EcologicalResourcePool
 
     habitat = SocialHabitat(EcologicalResourcePool({"food": 2.0}))
     habitat.admit("a")
@@ -179,11 +176,10 @@ def test_social_habitat_can_suspend_and_resume_pair_interaction() -> None:
 
 
 def test_runtime_social_requests_are_explicit_and_stop_after_death() -> None:
-    from symbiont.core.interactions import EcologicalResourcePool
-    from symbiont.core.physiology import PhysiologyController, VitalState
-    from symbiont.core.runtime import OrganismDeadError, OrganismRuntime
-
+    from symbiont.core.embodiment.physiology import PhysiologyController, VitalState
+    from symbiont.core.orchestration.runtime import OrganismDeadError, OrganismRuntime
     from symbiont.core.social import SocialHabitat
+    from symbiont.core.social.interactions import EcologicalResourcePool
 
     social = SocialHabitat(EcologicalResourcePool({"food": 1.0}))
     social.admit("a")
@@ -204,10 +200,9 @@ def test_runtime_social_requests_are_explicit_and_stop_after_death() -> None:
 
 
 def test_runtime_can_suspend_and_resume_its_own_social_channel() -> None:
-    from symbiont.core.interactions import EcologicalResourcePool
-    from symbiont.core.runtime import OrganismRuntime
-
+    from symbiont.core.orchestration.runtime import OrganismRuntime
     from symbiont.core.social import SocialHabitat
+    from symbiont.core.social.interactions import EcologicalResourcePool
 
     social = SocialHabitat(EcologicalResourcePool({"food": 2.0}))
     social.admit("a")
@@ -224,10 +219,9 @@ def test_runtime_can_suspend_and_resume_its_own_social_channel() -> None:
 
 
 def test_runtime_can_reject_and_retain_directional_evidence() -> None:
-    from symbiont.core.interactions import EcologicalResourcePool
-    from symbiont.core.runtime import OrganismRuntime
-
+    from symbiont.core.orchestration.runtime import OrganismRuntime
     from symbiont.core.social import SocialHabitat
+    from symbiont.core.social.interactions import EcologicalResourcePool
 
     social = SocialHabitat(EcologicalResourcePool({"food": 2.0}))
     social.admit("a")
@@ -243,10 +237,9 @@ def test_runtime_can_reject_and_retain_directional_evidence() -> None:
 
 
 def test_runtime_competition_records_resource_availability_evidence() -> None:
-    from symbiont.core.interactions import EcologicalResourcePool
-    from symbiont.core.runtime import OrganismRuntime
-
+    from symbiont.core.orchestration.runtime import OrganismRuntime
     from symbiont.core.social import SocialHabitat
+    from symbiont.core.social.interactions import EcologicalResourcePool
 
     social = SocialHabitat(EcologicalResourcePool({"food": 0.25}))
     social.admit("a")
@@ -258,10 +251,9 @@ def test_runtime_competition_records_resource_availability_evidence() -> None:
 
 
 def test_runtime_social_selection_uses_local_evidence_without_forcing_a_label() -> None:
-    from symbiont.core.interactions import EcologicalResourcePool
-    from symbiont.core.runtime import OrganismRuntime
-
+    from symbiont.core.orchestration.runtime import OrganismRuntime
     from symbiont.core.social import SocialHabitat
+    from symbiont.core.social.interactions import EcologicalResourcePool
 
     social = SocialHabitat(EcologicalResourcePool({"food": 4.0}))
     for member in ("a", "good", "costly"):
@@ -273,10 +265,9 @@ def test_runtime_social_selection_uses_local_evidence_without_forcing_a_label() 
 
 
 def test_runtime_selection_considers_the_best_opaque_channel_per_target() -> None:
-    from symbiont.core.interactions import EcologicalResourcePool
-    from symbiont.core.runtime import OrganismRuntime
-
+    from symbiont.core.orchestration.runtime import OrganismRuntime
     from symbiont.core.social import SocialHabitat
+    from symbiont.core.social.interactions import EcologicalResourcePool
 
     social = SocialHabitat(EcologicalResourcePool({"food": 4.0, "water": 4.0}))
     for member in ("a", "mixed", "good"):
@@ -289,10 +280,9 @@ def test_runtime_selection_considers_the_best_opaque_channel_per_target() -> Non
 
 
 def test_runtime_autonomous_social_step_selects_opaque_target_and_resource() -> None:
-    from symbiont.core.interactions import EcologicalResourcePool
-    from symbiont.core.runtime import OrganismRuntime
-
+    from symbiont.core.orchestration.runtime import OrganismRuntime
     from symbiont.core.social import SocialHabitat
+    from symbiont.core.social.interactions import EcologicalResourcePool
 
     social = SocialHabitat(EcologicalResourcePool({"opaque-resource": 1.0}))
     social.admit("a")
@@ -310,11 +300,10 @@ def test_runtime_autonomous_social_step_selects_opaque_target_and_resource() -> 
 
 
 def test_social_exchange_charges_declared_cognitive_metabolism_and_roundtrips() -> None:
-    from symbiont.core.interactions import EcologicalResourcePool
-    from symbiont.core.metabolism import MetabolicLedger
-    from symbiont.core.runtime import OrganismRuntime
-
+    from symbiont.core.embodiment.metabolism import MetabolicLedger
+    from symbiont.core.orchestration.runtime import OrganismRuntime
     from symbiont.core.social import SocialHabitat
+    from symbiont.core.social.interactions import EcologicalResourcePool
 
     zero = {kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")}
     habitat = SocialHabitat(EcologicalResourcePool({"food": 1.0}))
@@ -334,12 +323,11 @@ def test_social_exchange_charges_declared_cognitive_metabolism_and_roundtrips() 
 
 
 def test_runtime_death_releases_social_membership_once() -> None:
-    from symbiont.core.interactions import EcologicalResourcePool
-    from symbiont.core.metabolism import MetabolicLedger
-    from symbiont.core.physiology import PhysiologyController
-    from symbiont.core.runtime import OrganismRuntime
-
+    from symbiont.core.embodiment.metabolism import MetabolicLedger
+    from symbiont.core.embodiment.physiology import PhysiologyController
+    from symbiont.core.orchestration.runtime import OrganismRuntime
     from symbiont.core.social import SocialHabitat
+    from symbiont.core.social.interactions import EcologicalResourcePool
 
     social = SocialHabitat(EcologicalResourcePool({"food": 1.0}))
     social.admit("a")

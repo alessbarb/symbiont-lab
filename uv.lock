@@ -7,6 +7,16 @@ resolution-markers = [
     "python_full_version < '3.13'",
 ]
 
+[manifest]
+members = [
+    "embodiment",
+    "environment",
+    "lab",
+    "modality",
+    "symbiont",
+    "symbiont-lab",
+]
+
 [[package]]
 name = "bandit"
 version = "1.9.4"
@@ -560,6 +570,22 @@ wheels = [
 ]
 
 [[package]]
+name = "embodiment"
+version = "0.90.0"
+source = { editable = "embodiment" }
+dependencies = [
+    { name = "modality" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "modality", editable = "modality" }]
+
+[[package]]
+name = "environment"
+version = "0.90.0"
+source = { editable = "environment" }
+
+[[package]]
 name = "execnet"
 version = "2.1.2"
 source = { registry = "https://pypi.org/simple" }
@@ -700,6 +726,44 @@ sdist = { url = "https://files.pythonhosted.org/packages/df/bf/f7da0350254c0ed7c
 wheels = [
     { url = "https://files.pythonhosted.org/packages/62/a1/3d680cbfd5f4b8f15abc1d571870c5fc3e594bb582bc3b64ea099db13e56/jinja2-3.1.6-py3-none-any.whl", hash = "sha256:85ece4451f492d0c13c5dd7c13a64681a86afae63a5f347908daf103ce6d2f67", size = 134899, upload-time = "2025-03-05T20:05:00.369Z" },
 ]
+
+[[package]]
+name = "lab"
+version = "0.90.0"
+source = { editable = "lab" }
+dependencies = [
+    { name = "embodiment" },
+    { name = "environment" },
+    { name = "modality" },
+    { name = "rich" },
+    { name = "symbiont" },
+]
+
+[package.optional-dependencies]
+modeling = [
+    { name = "torch" },
+]
+physics3d = [
+    { name = "numpy" },
+    { name = "pillow" },
+    { name = "pybullet" },
+    { name = "torch" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "embodiment", editable = "embodiment" },
+    { name = "environment", editable = "environment" },
+    { name = "modality", editable = "modality" },
+    { name = "numpy", marker = "extra == 'physics3d'", specifier = ">=1.26,<3" },
+    { name = "pillow", marker = "extra == 'physics3d'", specifier = ">=10,<13" },
+    { name = "pybullet", marker = "extra == 'physics3d'", specifier = ">=3.2.7,<4" },
+    { name = "rich", specifier = ">=15" },
+    { name = "symbiont", editable = "symbiont" },
+    { name = "torch", marker = "extra == 'modeling'", specifier = ">=2.4,<3" },
+    { name = "torch", marker = "extra == 'physics3d'", specifier = ">=2.4,<3" },
+]
+provides-extras = ["modeling", "physics3d"]
 
 [[package]]
 name = "libcst"
@@ -876,6 +940,11 @@ sdist = { url = "https://files.pythonhosted.org/packages/d6/54/cfe61301667036ec9
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b3/38/89ba8ad64ae25be8de66a6d463314cf1eb366222074cfda9ee839c56a4b4/mdurl-0.1.2-py3-none-any.whl", hash = "sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8", size = 9979, upload-time = "2022-08-14T12:40:09.779Z" },
 ]
+
+[[package]]
+name = "modality"
+version = "0.90.0"
+source = { editable = "modality" }
 
 [[package]]
 name = "mpmath"
@@ -1709,12 +1778,22 @@ wheels = [
 ]
 
 [[package]]
-name = "symbiont-lab"
+name = "symbiont"
 version = "0.90.0"
-source = { editable = "." }
+source = { editable = "symbiont" }
 dependencies = [
     { name = "cryptography" },
-    { name = "rich" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "cryptography", specifier = ">=42" }]
+
+[[package]]
+name = "symbiont-lab"
+version = "0.90.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "lab" },
 ]
 
 [package.optional-dependencies]
@@ -1731,34 +1810,27 @@ dev = [
     { name = "ruff" },
 ]
 modeling = [
-    { name = "torch" },
+    { name = "lab", extra = ["modeling"] },
 ]
 physics3d = [
-    { name = "numpy" },
-    { name = "pillow" },
-    { name = "pybullet" },
-    { name = "torch" },
+    { name = "lab", extra = ["physics3d"] },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "bandit", extras = ["toml"], marker = "extra == 'dev'", specifier = ">=1.8" },
     { name = "coverage", marker = "extra == 'dev'", specifier = ">=7.10" },
-    { name = "cryptography", specifier = ">=42" },
     { name = "hypothesis", marker = "extra == 'dev'", specifier = ">=6.0" },
+    { name = "lab", editable = "lab" },
+    { name = "lab", extras = ["modeling"], marker = "extra == 'modeling'", editable = "lab" },
+    { name = "lab", extras = ["physics3d"], marker = "extra == 'physics3d'", editable = "lab" },
     { name = "mutmut", marker = "extra == 'dev'", specifier = ">=3.3" },
-    { name = "numpy", marker = "extra == 'physics3d'", specifier = ">=1.26,<3" },
-    { name = "pillow", marker = "extra == 'physics3d'", specifier = ">=10,<13" },
     { name = "pip-audit", marker = "extra == 'dev'", specifier = ">=2.9" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.0" },
-    { name = "pybullet", marker = "extra == 'physics3d'", specifier = ">=3.2.7,<4" },
     { name = "pyright", marker = "extra == 'dev'", specifier = ">=1.1.404" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
     { name = "pytest-xdist", marker = "extra == 'dev'", specifier = ">=3.5" },
-    { name = "rich", specifier = ">=15" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.16" },
-    { name = "torch", marker = "extra == 'modeling'", specifier = ">=2.4,<3" },
-    { name = "torch", marker = "extra == 'physics3d'", specifier = ">=2.4,<3" },
 ]
 provides-extras = ["dev", "modeling", "physics3d"]
 

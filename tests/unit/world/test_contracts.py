@@ -3,13 +3,13 @@ from types import MappingProxyType
 
 import pytest
 
-from symbiont_world.contracts import (
+from environment.contracts import (
     ContactEvidence,
     ReceivedEmission,
     WorldAction,
     WorldObservation,
 )
-from symbiont_world.events import WorldEvent
+from environment.events import WorldEvent
 
 FORBIDDEN_SUBSTRINGS = ("ground_truth", "semantic", "observer", "cell_id", "entity_type")
 

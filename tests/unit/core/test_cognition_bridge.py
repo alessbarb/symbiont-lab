@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from symbiont.core.cognition_bridge import CognitiveBridge, TopologyHealth
-
 from symbiont.cognition.genome import GenomeCodec
 from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.metaplasticity import SafetyState
 from symbiont.cognition.types import EdgeKind, NodeKind
+from symbiont.core.cognition.bridge import CognitiveBridge, TopologyHealth
 
 _GENOME_PAYLOAD = {
     "schema_version": 2,

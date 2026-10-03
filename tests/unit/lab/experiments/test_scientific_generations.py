@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from symbiont_lab.experiments.generations import GenerationStore
+from lab.experiments.generations import GenerationStore
 
 
 def _files(label: str) -> dict[str, bytes | str]:

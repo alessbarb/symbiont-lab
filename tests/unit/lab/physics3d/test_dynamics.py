@@ -2,7 +2,7 @@ import math
 
 import pytest
 
-from symbiont_lab.physics3d.humanoid import (
+from embodiment.physics3d.humanoid import (
     JOINT_LIMIT_SOLVER_TOLERANCE,
     JOINT_SPECS,
     HumanoidPhysics,

@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from lab.studies.learning.agency_acquisition_body import CausalBody, build_subject
 from symbiont.actuation.action import (
     ActionEvaluation,
     ActionJustification,
@@ -18,10 +19,9 @@ from symbiont.actuation.arbitration import ActionArbitrator
 from symbiont.actuation.surface import derive_actuator_constitution
 from symbiont.agency.intention import ActionIntent, IntentStatus
 from symbiont.core.domains.action import ActionDomain
-from symbiont_lab.studies.learning.agency_acquisition_body import CausalBody, build_subject
 
 ROOT = Path(__file__).resolve().parents[2]
-SRC = ROOT / "src" / "symbiont"
+SRC = ROOT / "symbiont" / "src" / "symbiont"
 
 
 def _imports(path: Path) -> tuple[str, ...]:
@@ -172,7 +172,7 @@ def test_action_arbitrator_remains_single_motor_authority():
         for path in SRC.rglob("*.py")
         if "ActionArbitrator" in _names(path) and path.name != "arbitration.py"
     ]
-    assert arbitrator_users == ["src/symbiont/core/domains/action.py"]
+    assert arbitrator_users == ["symbiont/src/symbiont/core/domains/action.py"]
     commitment_builders = []
     for path in SRC.rglob("*.py"):
         tree = ast.parse(path.read_text(encoding="utf-8"))
@@ -183,7 +183,7 @@ def test_action_arbitrator_remains_single_motor_authority():
                 and node.func.id == "ActionCommitment"
             ):
                 commitment_builders.append(path.relative_to(ROOT).as_posix())
-    assert set(commitment_builders) == {"src/symbiont/core/domains/action.py"}
+    assert set(commitment_builders) == {"symbiont/src/symbiont/core/domains/action.py"}
     for path in _EXECUTIVE:
         assert "choose" not in {
             node.attr

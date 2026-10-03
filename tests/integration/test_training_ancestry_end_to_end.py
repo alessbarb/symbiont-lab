@@ -13,10 +13,11 @@ import pytest
 
 pytest.importorskip("torch")
 
-from symbiont.modeling import ModeledOrganismRuntime, ModelState
-from symbiont_lab.modeling.artifacts import FileArtifactStore
-from symbiont_lab.physics3d.private_model_training import _train_job
 from tests.unit.modeling.test_modeled_organism_runtime import _transition
+
+from lab.modeling.artifacts import FileArtifactStore
+from lab.physics3d.private_model_training import _train_job
+from symbiont.modeling import ModeledOrganismRuntime, ModelState
 
 
 @pytest.mark.slow
@@ -81,10 +82,10 @@ def test_lineage_mechanics_only(tmp_path):
 
     import torch
 
+    from lab.modeling.architectures import architecture_spec_from_manifest, build_model
+    from lab.modeling.dataset import encode_corpus
+    from lab.modeling.trainer import _extend_vocabulary_state
     from symbiont.modeling.tokenizer import _record_tokens
-    from symbiont_lab.modeling.architectures import architecture_spec_from_manifest, build_model
-    from symbiont_lab.modeling.dataset import encode_corpus
-    from symbiont_lab.modeling.trainer import _extend_vocabulary_state
 
     runtime = ModeledOrganismRuntime(organism_id="ancestry-mechanics")
     runtime.ancestry_training = True

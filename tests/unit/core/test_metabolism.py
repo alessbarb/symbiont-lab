@@ -1,5 +1,6 @@
 import pytest
-from symbiont.core.metabolism import MetabolicLedger, ResourcePressure
+
+from symbiont.core.embodiment.metabolism import MetabolicLedger, ResourcePressure
 
 
 def test_ledger_charges_and_classifies_bounded_pressure():
@@ -49,7 +50,7 @@ def test_checkpoint_round_trip_preserves_bounded_negative_reserve():
 
 
 def test_explicit_intake_restores_one_physical_pool_without_compartment_gating() -> None:
-    from symbiont.core.physiology import LivingBodyState
+    from symbiont.core.embodiment.physiology import LivingBodyState
 
     state = LivingBodyState(energy_reserve=1.0, max_energy=2.0)
     ledger = MetabolicLedger(

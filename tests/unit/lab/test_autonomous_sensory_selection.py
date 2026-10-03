@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from symbiont_lab.studies.perception.autonomous_selection import (
+from lab.studies.perception.autonomous_selection import (
     run_autonomous_sensory_selection,
     run_experience_conditioned_phenotype,
     run_sensory_null_selection,

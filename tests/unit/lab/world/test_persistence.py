@@ -18,25 +18,25 @@ from pathlib import Path
 
 import pytest
 
-from symbiont.actuation.surface import derive_actuator_constitution
-from symbiont_lab.world.adapter import (
+from environment.events import EventJournal
+from environment.topology import HexCoord, HexTopology
+from lab.world.adapter import (
     ActuationBinding,
     ActuationBindingConstitution,
     _load_base_genome,
 )
-from symbiont_lab.world.genesis_v1 import (
+from lab.world.genesis_v1 import (
     build_genesis_smoke_v1,
     build_genesis_v1,
     build_ground_truth,
 )
-from symbiont_lab.world.persistence import (
+from lab.world.persistence import (
     WorldStorage,
     capture_checkpoint,
     restore_population_from_checkpoint,
 )
-from symbiont_lab.world.population import PopulationGenesisRuntime, founder_placement
-from symbiont_world.events import EventJournal
-from symbiont_world.topology import HexCoord, HexTopology
+from lab.world.population import PopulationGenesisRuntime, founder_placement
+from symbiont.actuation.surface import derive_actuator_constitution
 
 
 def _make_pop(

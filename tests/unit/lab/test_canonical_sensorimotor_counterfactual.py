@@ -1,4 +1,4 @@
-from symbiont_lab.studies.learning.canonical_sensorimotor_counterfactual import (
+from lab.studies.learning.canonical_sensorimotor_counterfactual import (
     CounterfactualReplayStudy,
     CounterfactualReplayTrial,
 )

@@ -5,7 +5,9 @@ from dataclasses import replace
 from importlib import resources
 
 import pytest
+from tests.checkpoints import as_legacy
 
+from lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
 from symbiont.cognition.genome import GenomeCodec
 from symbiont.modeling import (
     ArchitectureId,
@@ -19,8 +21,6 @@ from symbiont.modeling import (
     SourceKind,
     TrainingRequest,
 )
-from symbiont_lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
-from tests.checkpoints import as_legacy
 
 HASH_A = "a" * 64
 HASH_B = "b" * 64

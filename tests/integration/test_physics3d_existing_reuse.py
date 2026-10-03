@@ -7,8 +7,8 @@ import pytest
 
 pybullet = pytest.importorskip("pybullet")
 
-from symbiont_lab.physics3d.engine import run
-from symbiont_lab.physics3d.persistence import (
+from lab.physics3d.engine import run
+from lab.physics3d.persistence import (
     load_body_state_file,
     read_symbiont_bundle_runtime,
 )

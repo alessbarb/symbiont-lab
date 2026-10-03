@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-OBSERVATORY = ROOT / "observatory"
+OBSERVATORY = ROOT / "lab" / "src" / "lab" / "observatory"
 MODULES = sorted(OBSERVATORY.glob("*.py"))
 
 # Organism construction, restore and training live behind these modules.
@@ -21,9 +21,9 @@ FORBIDDEN_IMPORTS = (
     "symbiont.core",
     "symbiont.modeling",
     "symbiont.host.checkpoint",
-    "symbiont_lab.cli",
-    "symbiont_lab.modeling",
-    "symbiont_lab.physics3d",
+    "lab.cli",
+    "lab.modeling",
+    "lab.physics3d",
 )
 FORBIDDEN_CALLS = {
     "from_checkpoint",
@@ -61,6 +61,6 @@ def test_observatory_module_cannot_construct_or_drive_an_organism(path: Path) ->
 
 @pytest.mark.parametrize("name", LAUNCHERS)
 def test_launchers_live_in_the_lab(name: str) -> None:
-    assert (ROOT / "src" / "symbiont_lab" / "cli" / name).is_file()
+    assert (ROOT / "lab" / "src" / "lab" / "cli" / name).is_file()
     assert not (OBSERVATORY / name).exists()
     assert not (OBSERVATORY / "resident.py").exists()

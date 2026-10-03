@@ -23,12 +23,11 @@ import cProfile
 import io
 import pstats
 
-from symbiont.core.physiology import LivingBodyState
-from symbiont.core.runtime import OrganismRuntime
-
 from symbiont.actuation.surface import derive_actuator_constitution
 from symbiont.cognition.birth import load_base_cognition
 from symbiont.cognition.limits import KernelLimits
+from symbiont.core.embodiment.physiology import LivingBodyState
+from symbiont.core.orchestration.runtime import OrganismRuntime
 
 
 def make_organism(*, synthetic: bool) -> OrganismRuntime:

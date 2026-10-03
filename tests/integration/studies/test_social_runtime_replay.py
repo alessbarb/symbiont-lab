@@ -1,4 +1,4 @@
-from symbiont_lab.studies.social_runtime_replay import run_social_runtime_replay_study
+from lab.studies.social_runtime_replay import run_social_runtime_replay_study
 
 
 def test_social_runtime_replay_preserves_local_evidence_and_releases_death() -> None:

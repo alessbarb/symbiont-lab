@@ -4,9 +4,6 @@ import json
 from pathlib import Path
 
 import pytest
-from symbiont.core.cognition_bridge import CognitiveBridge
-from symbiont.core.evidence import EvidenceRevisionLedger
-from symbiont.core.runtime import OrganismRuntime
 
 from symbiont.cognition.checkpoint import (
     export_graph_checkpoint,
@@ -18,6 +15,9 @@ from symbiont.cognition.graph import CognitiveGraph, GraphError, PlasticEdge, Pl
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.structure import Mutation, apply_mutations, validate_mutation
 from symbiont.cognition.types import EdgeKind, NodeKind
+from symbiont.core.cognition.bridge import CognitiveBridge
+from symbiont.core.cognition.evidence import EvidenceRevisionLedger
+from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont.host.checkpoint import CheckpointError
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -25,7 +25,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def _genome():
     payload = json.loads(
-        (ROOT / "examples" / "cognition" / "genome.json").read_text(encoding="utf-8")
+        (ROOT / "lab" / "examples" / "cognition" / "genome.json").read_text(encoding="utf-8")
     )
     return GenomeCodec().load(payload)
 

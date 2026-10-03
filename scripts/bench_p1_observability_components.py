@@ -21,9 +21,9 @@ from pathlib import Path
 
 import pybullet
 
-from symbiont_lab.app.physics3d.monitor.viewer import UnifiedViewerProcess
-from symbiont_lab.physics3d.runtime import PyBulletEmbodimentRuntime
-from symbiont_lab.physics3d.telemetry.v41 import (
+from lab.app.physics3d.monitor.viewer import UnifiedViewerProcess
+from lab.physics3d.runtime import PyBulletEmbodimentRuntime
+from lab.physics3d.telemetry.v41 import (
     AsyncTelemetryV41Writer,
     TelemetryV41Writer,
 )
@@ -83,7 +83,7 @@ def _telemetry_writer(
 
 
 def _viewer_wall_seconds(root: Path, *, with_viewer: bool, ticks: int) -> float:
-    from symbiont_lab.physics3d.engine import run
+    from lab.physics3d.engine import run
 
     viewer = UnifiedViewerProcess(mp.get_context("spawn")) if with_viewer else None
     if viewer is not None:
@@ -143,9 +143,7 @@ def main() -> None:
     ipc_in = mp.get_context("spawn").Queue(maxsize=2)
     ipc_out = mp.get_context("spawn").Queue(maxsize=2)
     ipc_count = 30
-    process = mp.get_context("spawn").Process(
-        target=_ipc_worker, args=(ipc_in, ipc_out, ipc_count)
-    )
+    process = mp.get_context("spawn").Process(target=_ipc_worker, args=(ipc_in, ipc_out, ipc_count))
     process.start()
     ipc_samples: list[float] = []
     for _ in range(ipc_count):
@@ -171,8 +169,12 @@ def main() -> None:
                 disk_samples.append(time.perf_counter() - started)
         finally:
             os.close(fd)
-        sync_ms, sync_total = _telemetry_writer(root / "sync", False, physical_payload, sample_count)
-        async_ms, async_total = _telemetry_writer(root / "async", True, physical_payload, sample_count)
+        sync_ms, sync_total = _telemetry_writer(
+            root / "sync", False, physical_payload, sample_count
+        )
+        async_ms, async_total = _telemetry_writer(
+            root / "async", True, physical_payload, sample_count
+        )
         ui_off = [
             _viewer_wall_seconds(root / f"ui-off-{n}", with_viewer=False, ticks=30)
             for n in range(parser_repeats)
@@ -199,7 +201,10 @@ def main() -> None:
             "sync_v41_append_producer": sync_ms,
             "async_v41_append_producer_queue": async_ms,
         },
-        "writer_elapsed_s": {"sync_including_close": sync_total, "async_including_close": async_total},
+        "writer_elapsed_s": {
+            "sync_including_close": sync_total,
+            "async_including_close": async_total,
+        },
         "viewer_pipeline_30_ticks_total_s": {
             "off_samples": ui_off,
             "on_samples": ui_on,

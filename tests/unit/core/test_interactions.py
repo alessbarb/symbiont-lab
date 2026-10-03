@@ -1,5 +1,6 @@
 import pytest
-from symbiont.core.interactions import EcologicalResourcePool
+
+from symbiont.core.social.interactions import EcologicalResourcePool
 
 
 def test_competing_requests_are_allocated_proportionally() -> None:

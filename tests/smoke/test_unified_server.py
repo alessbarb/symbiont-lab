@@ -7,8 +7,8 @@ from http.client import HTTPConnection
 from threading import Thread
 from typing import Iterator
 
-from symbiont_lab.observation.bus import ObservationBus
-from symbiont_lab.server.server import UnifiedLabServer, _default_observatory_dir, make_server
+from lab.observation.bus import ObservationBus
+from lab.server.server import UnifiedLabServer, _default_observatory_dir, make_server
 
 
 @contextmanager
@@ -46,19 +46,9 @@ def test_unified_server_starts_without_synthetic_telemetry() -> None:
     stream = ObservationBus()
     server = make_server(host="127.0.0.1", port=0, observation_bus=stream)
     try:
-        assert server.demo_telemetry is None
         assert not stream.has_data
     finally:
         server.server_close()
-
-
-def test_demo_telemetry_requires_explicit_opt_in() -> None:
-    server = make_server(host="127.0.0.1", port=0, demo=True)
-    try:
-        assert server.demo_telemetry is not None
-    finally:
-        server.server_close()
-    assert server.demo_telemetry is None
 
 
 def test_api_state_exposes_source_availability() -> None:
@@ -86,7 +76,6 @@ def test_spa_and_api_state_are_served_by_unified_server() -> None:
 
         status, body = request(server, "/api/state")
         assert status == 200
-        assert b'"study"' in body
 
 
 def test_static_traversal_is_rejected() -> None:
@@ -111,7 +100,7 @@ def test_request_body_limits_fail_closed() -> None:
     with running_server() as server:
         status, _ = request(
             server,
-            "/api/experiments/start",
+            "/api/runs/stop",
             method="POST",
             body=b"{}",
             headers={"Content-Length": "not-a-number"},
@@ -121,27 +110,18 @@ def test_request_body_limits_fail_closed() -> None:
         oversized = b"{" + b" " * 32768 + b"}"
         status, _ = request(
             server,
-            "/api/experiments/start",
+            "/api/runs/stop",
             method="POST",
             body=oversized,
         )
         assert status == 413
 
 
-def test_demo_and_physics3d_modes_are_mutually_exclusive() -> None:
-    try:
-        make_server(host="127.0.0.1", port=0, demo=True, physics3d=True)
-    except ValueError as exc:
-        assert "mutually exclusive" in str(exc)
-    else:
-        raise AssertionError("expected mutually exclusive telemetry modes to fail")
-
-
 def test_cross_origin_mutation_is_rejected() -> None:
     with running_server() as server:
         status, body = request(
             server,
-            "/api/experiments/start",
+            "/api/runs/stop",
             method="POST",
             body=b"{}",
             headers={
@@ -166,7 +146,7 @@ def test_observatory_default_is_optional(monkeypatch) -> None:
     real_import = builtins.__import__
 
     def without_observatory(name, globals=None, locals=None, fromlist=(), level=0):
-        if name == "observatory.config":
+        if name == "lab.observatory.config":
             raise ImportError("observatory intentionally unavailable")
         return real_import(name, globals, locals, fromlist, level)
 

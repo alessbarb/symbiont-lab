@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 
-from symbiont_lab.kernel_characterization.config import BASELINE_KERNEL, KernelVariant
-from symbiont_lab.kernel_characterization.runner import (
+from lab.kernel_characterization.config import BASELINE_KERNEL, KernelVariant
+from lab.kernel_characterization.runner import (
     run_k1,
     run_k2,
     run_k3,

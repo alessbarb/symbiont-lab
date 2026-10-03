@@ -1,6 +1,6 @@
 import pytest
 
-from symbiont_lab.studies.physiology import (
+from lab.studies.physiology import (
     run_physiology_study,
     run_runtime_recovery_study,
     run_runtime_replay_study,

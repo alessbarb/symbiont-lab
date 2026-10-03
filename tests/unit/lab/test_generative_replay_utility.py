@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from symbiont_lab.studies.learning.generative_replay_utility import (
+from lab.studies.learning.generative_replay_utility import (
     run_generative_replay_utility_study,
 )
 

@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from symbiont.actuation.surface import derive_actuator_constitution
-from symbiont_lab.world.adapter import (
+from environment.topology import HexCoord, HexTopology
+from lab.world.adapter import (
     ActuationBinding,
     ActuationBindingConstitution,
     _load_base_genome,
 )
-from symbiont_lab.world.genesis_v1 import build_ground_truth
-from symbiont_lab.world.population import PopulationGenesisRuntime
-from symbiont_world.topology import HexCoord, HexTopology
+from lab.world.genesis_v1 import build_ground_truth
+from lab.world.population import PopulationGenesisRuntime
+from symbiont.actuation.surface import derive_actuator_constitution
 
 
 def _binding(effect: str, argument: str) -> ActuationBindingConstitution:

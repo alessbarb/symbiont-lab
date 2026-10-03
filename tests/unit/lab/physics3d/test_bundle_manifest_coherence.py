@@ -8,7 +8,7 @@ import zipfile
 
 import pytest
 
-from symbiont_lab.physics3d.persistence import (
+from lab.physics3d.persistence import (
     build_symbiont_bundle_manifest,
     read_symbiont_bundle_manifest,
 )

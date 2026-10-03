@@ -1,4 +1,4 @@
-from symbiont_lab.studies.social_runtime_preference import run_social_runtime_preference_study
+from lab.studies.social_runtime_preference import run_social_runtime_preference_study
 
 
 def test_runtime_preference_is_local_and_replayable() -> None:

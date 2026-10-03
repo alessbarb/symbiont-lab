@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from symbiont_lab.studies.learning.generative_planning_utility import (
+from lab.studies.learning.generative_planning_utility import (
     run_generative_planning_utility_study,
 )
 

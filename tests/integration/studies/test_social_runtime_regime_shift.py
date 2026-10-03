@@ -1,6 +1,6 @@
 import pytest
 
-from symbiont_lab.studies.social_runtime_regime_shift import run_social_runtime_regime_shift_study
+from lab.studies.social_runtime_regime_shift import run_social_runtime_regime_shift_study
 
 
 def test_runtime_revises_resource_evidence_after_regime_shift() -> None:

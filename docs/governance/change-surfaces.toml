@@ -7,66 +7,66 @@ classification = "CONSTITUTIONAL"
 
 [[surface]]
 id = "scientific-protocol"
-paths = ["experiments/**", "docs/design/**", "research/**"]
+paths = ["lab/experiments/**", "docs/design/**", "lab/research/**"]
 classification = "SCIENTIFIC"
 
 [[surface]]
 id = "organism-causal-runtime"
-paths = ["src/symbiont/**"]
+paths = ["symbiont/src/symbiont/**"]
 classification = "SCIENTIFIC"
 equivalence = ["developed-cognition"]
 
 [[surface]]
 id = "private-model-lifecycle"
-paths = ["src/symbiont_lab/physics3d/private_model_training.py", "src/symbiont_lab/modeling/**"]
+paths = ["lab/src/lab/physics3d/private_model_training.py", "lab/src/lab/modeling/**"]
 classification = "SCIENTIFIC"
 equivalence = ["private-model-training", "promotion-eligible"]
 
 [[surface]]
 id = "physics3d-causal-engine"
 paths = [
-  "src/symbiont_lab/physics3d/alternative_bodies.py",
-  "src/symbiont_lab/physics3d/apparatus.py",
-  "src/symbiont_lab/physics3d/articulated.py",
-  "src/symbiont_lab/physics3d/bodies.py",
-  "src/symbiont_lab/physics3d/effects.py",
-  "src/symbiont_lab/physics3d/engine.py",
-  "src/symbiont_lab/physics3d/environments.py",
-  "src/symbiont_lab/physics3d/humanoid.py",
-  "src/symbiont_lab/physics3d/persistence.py",
-  "src/symbiont_lab/physics3d/resource.py",
-  "src/symbiont_lab/physics3d/runtime.py",
-  "src/symbiont_lab/physics3d/settling.py",
-  "src/symbiont_lab/physics3d/vision.py",
-  "src/symbiont_lab/world/**",
-  "src/symbiont_world/**",
+  "lab/src/lab/physics3d/alternative_bodies.py",
+  "lab/src/lab/physics3d/apparatus.py",
+  "lab/src/lab/physics3d/articulated.py",
+  "lab/src/lab/physics3d/bodies.py",
+  "lab/src/lab/physics3d/effects.py",
+  "lab/src/lab/physics3d/engine.py",
+  "lab/src/lab/physics3d/environments.py",
+  "lab/src/embodiment/physics3d/humanoid.py",
+  "lab/src/lab/physics3d/persistence.py",
+  "lab/src/lab/physics3d/resource.py",
+  "lab/src/lab/physics3d/runtime.py",
+  "lab/src/lab/physics3d/settling.py",
+  "lab/src/embodiment/physics3d/vision.py",
+  "lab/src/lab/world/**",
+  "environment/src/environment/**",
 ]
 classification = "SCIENTIFIC"
 equivalence = ["established-anthropomorphic", "developed-cognition"]
 
 [[surface]]
 id = "reembodiment"
-paths = ["src/symbiont_lab/physics3d/reembodiment.py", "src/symbiont/**"]
+paths = ["lab/src/lab/physics3d/reembodiment.py", "symbiont/src/symbiont/**"]
 classification = "SCIENTIFIC"
 symbols = ["reembodiment", "embodiment", "BodySchema", "body_schema"]
 equivalence = ["reembodied-established"]
 
 [[surface]]
 id = "observatory-presentation"
-paths = ["observatory/**", "src/symbiont_lab/workbench/web/**"]
+paths = ["observatory/**", "lab/src/lab/workbench/web/**"]
 classification = "ORDINARY"
 
 
 [[surface]]
 id = "equivalence-control-plane"
 paths = [
-  "src/symbiont_lab/physics3d/equivalence.py",
-  "src/symbiont_lab/physics3d/equivalence_suite.py",
-  "src/symbiont_lab/modeling/determinism.py",
-  "src/symbiont_lab/experiments/snapshot_archive.py",
-  "src/symbiont_lab/experiments/resource_guard.py",
-  "src/symbiont_lab/experiments/execution_workspace.py",
-  "experiments/equivalence/**",
+  "lab/src/lab/physics3d/equivalence.py",
+  "lab/src/lab/physics3d/equivalence_suite.py",
+  "lab/src/lab/modeling/determinism.py",
+  "lab/src/lab/experiments/snapshot_archive.py",
+  "lab/src/lab/experiments/resource_guard.py",
+  "lab/src/lab/experiments/execution_workspace.py",
+  "lab/experiments/equivalence/**",
   "tests/integration/test_equivalence*.py",
   "tests/unit/lab/experiments/test_snapshot_archive.py",
   "tests/unit/lab/experiments/test_resource_guard.py",
@@ -77,10 +77,10 @@ classification = "CONSTITUTIONAL"
 [[surface]]
 id = "lab-run-control"
 paths = [
-  "src/symbiont_lab/app/physics3d/runs.py",
-  "src/symbiont_lab/app/physics3d/session.py",
-  "src/symbiont_lab/app/run_controller.py",
-  "src/symbiont_lab/workbench/runs.py",
+  "lab/src/lab/app/physics3d/runs.py",
+  "lab/src/lab/app/physics3d/session.py",
+  "lab/src/lab/app/run_controller.py",
+  "lab/src/lab/workbench/runs.py",
 ]
 classification = "SCIENTIFIC"
 equivalence = ["established-anthropomorphic", "developed-cognition"]
@@ -113,5 +113,5 @@ classification = "SCIENTIFIC"
 
 [[surface]]
 id = "scientific-study-code"
-paths = ["src/symbiont_lab/studies/**", "src/symbiont_lab/experiments/**"]
+paths = ["lab/src/lab/studies/**", "lab/src/lab/experiments/**"]
 classification = "SCIENTIFIC"

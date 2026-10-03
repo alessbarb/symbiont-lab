@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from symbiont_lab.studies.genetics.genome_causal_validation import (
+from lab.studies.genetics.genome_causal_validation import (
     run_genome_causal_validation,
 )
 

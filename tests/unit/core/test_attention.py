@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import pytest
-from symbiont.core.attention import (
+
+from symbiont.core.cognition.attention import (
     AttentionBudget,
     AttentionCandidate,
     attend_to_host,
     uncertainty_from_baseline,
 )
-
 from symbiont.host.acclimation import CapabilityBaseline, HostAcclimation
 from symbiont.host.readings import ReadingPrivacyClass, ReadingQuality, SensorReading, Unit
 

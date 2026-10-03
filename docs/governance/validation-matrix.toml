@@ -10,25 +10,25 @@ paths = ["docs/governance/**", "AGENTS.md", "CLAUDE.md", "scripts/agentctl.py", 
 
 [subject]
 ci_lanes = ["software_core", "architecture_integrity"]
-paths = ["src/symbiont/**"]
+paths = ["symbiont/src/symbiont/**"]
 
 [lab]
 ci_lanes = ["software_core", "architecture_integrity"]
-paths = ["src/symbiont_lab/**"]
+paths = ["lab/src/lab/**"]
 
 [world]
 ci_lanes = ["world", "architecture_integrity"]
-paths = ["src/symbiont_world/**", "src/symbiont_lab/world/**"]
+paths = ["environment/src/environment/**", "lab/src/lab/world/**"]
 
 [observatory]
 ci_lanes = ["observatory", "architecture_integrity"]
 # The launchers that publish to the Observatory live in the Lab; their contract
 # suite is observatory/tests, so a change to them must select this lane too.
-paths = ["observatory/**", "src/symbiont_lab/cli/observed_*.py"]
+paths = ["observatory/**", "lab/src/lab/cli/observed_*.py"]
 
 [experiment_protocol]
 ci_lanes = ["experiment_mechanics", "architecture_integrity"]
-paths = ["experiments/**", "src/symbiont_lab/studies/**", "docs/design/**", "research/**"]
+paths = ["lab/experiments/**", "lab/src/lab/studies/**", "docs/design/**", "lab/research/**"]
 
 [tests]
 ci_lanes = ["canonical_full"]

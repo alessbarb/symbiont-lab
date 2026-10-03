@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import pytest
-from symbiont.core.advisory import AdvisorySignal, DefensiveAdvisory, append_advisories_to_log
 
-from symbiont_lab.evaluation.advisory_evaluation import (
+from lab.evaluation.advisory_evaluation import (
     OperatorJudgment,
     evaluate_advisories,
     evaluate_advisories_over_time,
     record_operator_judgment,
 )
+from symbiont.core.host.advisory import AdvisorySignal, DefensiveAdvisory, append_advisories_to_log
 
 
 def _advisory(tick: int, capability_id: str) -> DefensiveAdvisory:
@@ -178,7 +178,7 @@ def test_evaluate_over_time_empty_log_returns_empty_tuple(tmp_path):
 def test_summary_exposes_no_classification_field():
     """Same discipline as everywhere else: count/rate only, never a verdict
     about the organism (ADR-0003)."""
-    from symbiont_lab.evaluation.advisory_evaluation import AdvisoryEvaluationSummary
+    from lab.evaluation.advisory_evaluation import AdvisoryEvaluationSummary
 
     summary = AdvisoryEvaluationSummary(
         total_fired=0, total_labeled=0, useful_count=0, false_alarm_count=0, unknown_count=0

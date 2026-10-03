@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from symbiont.core.resident import ResidentConfig, ResidentOrganism
+from symbiont.core.orchestration.resident import ResidentConfig, ResidentOrganism
 
 
 class FakeRuntime:
@@ -38,7 +38,7 @@ def test_resident_stops_at_explicit_budget_and_saves_on_exit(tmp_path) -> None:
 def test_resident_stops_cleanly_on_death(tmp_path) -> None:
     from types import SimpleNamespace
 
-    from symbiont.core.physiology import VitalState
+    from symbiont.core.embodiment.physiology import VitalState
 
     class DyingRuntime(FakeRuntime):
         def tick(self):
@@ -59,9 +59,9 @@ def test_resident_stops_cleanly_on_death(tmp_path) -> None:
 
 
 def test_resident_publishes_capsule_to_local_habitat(tmp_path) -> None:
-    from symbiont.core.capsule import CapsuleKeyPair
-    from symbiont.core.local_habitat import LocalHabitat
-    from symbiont.core.runtime import OrganismRuntime
+    from symbiont.core.host.local_habitat import LocalHabitat
+    from symbiont.core.orchestration.runtime import OrganismRuntime
+    from symbiont.core.social.capsule import CapsuleKeyPair
 
     habitat = LocalHabitat(tmp_path / "habitat")
     keypair = CapsuleKeyPair.generate()
@@ -92,7 +92,7 @@ def test_resident_dilates_interval_when_dormant(tmp_path, monkeypatch) -> None:
     import threading
     from types import SimpleNamespace
 
-    from symbiont.core.physiology import VitalState
+    from symbiont.core.embodiment.physiology import VitalState
 
     waited_intervals = []
 
@@ -156,9 +156,9 @@ def test_resident_can_sample_observation_slower_than_life_ticks(tmp_path) -> Non
 def test_resident_budding_deposits_embryo_checkpoint(tmp_path) -> None:
     import json
 
-    from symbiont.core.capsule import CapsuleKeyPair
-    from symbiont.core.local_habitat import LocalHabitat
-    from symbiont.core.runtime import OrganismRuntime
+    from symbiont.core.host.local_habitat import LocalHabitat
+    from symbiont.core.orchestration.runtime import OrganismRuntime
+    from symbiont.core.social.capsule import CapsuleKeyPair
 
     habitat = LocalHabitat(tmp_path / "habitat")
     runtime = OrganismRuntime(
@@ -189,9 +189,9 @@ def test_resident_budding_deposits_embryo_checkpoint(tmp_path) -> None:
 def test_resident_budding_charges_parent_only_when_embryo_is_deposited(
     tmp_path, monkeypatch
 ) -> None:
-    from symbiont.core.capsule import CapsuleKeyPair
-    from symbiont.core.local_habitat import LocalHabitat
-    from symbiont.core.runtime import OrganismRuntime
+    from symbiont.core.host.local_habitat import LocalHabitat
+    from symbiont.core.orchestration.runtime import OrganismRuntime
+    from symbiont.core.social.capsule import CapsuleKeyPair
 
     habitat = LocalHabitat(tmp_path / "habitat")
     runtime = OrganismRuntime(

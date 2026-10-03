@@ -1,7 +1,7 @@
 import queue
 
-from symbiont_lab.physics3d.humanoid import MOTOR_DOF
-from symbiont_lab.physics3d.monitor import (
+from embodiment.physics3d.humanoid import MOTOR_DOF
+from lab.app.physics3d.monitor.viewer import (
     CameraState,
     MonitorSnapshot,
     _event_context,
@@ -178,7 +178,7 @@ def test_camera_state_is_bounded_for_safe_passive_rendering():
 
 
 def test_viewer_ecology_fields_cover_all_rendered_values():
-    from symbiont_lab.app.physics3d.monitor.viewer import ECOLOGY_FIELD_LABELS
+    from lab.app.physics3d.monitor.viewer import ECOLOGY_FIELD_LABELS
 
     assert {key for key, _ in ECOLOGY_FIELD_LABELS} == {
         "reserve",
@@ -196,7 +196,7 @@ def test_viewer_process_poll_commands_and_stop():
     import time
     from multiprocessing import get_context
 
-    from symbiont_lab.physics3d.monitor import UnifiedViewerProcess
+    from lab.app.physics3d.monitor.viewer import UnifiedViewerProcess
 
     ctx = get_context("spawn")
     viewer = UnifiedViewerProcess(ctx)
@@ -222,7 +222,7 @@ def test_viewer_process_poll_commands_and_stop():
 
 
 def test_record_to_snapshot_conversion():
-    from symbiont_lab.physics3d.monitor import record_to_snapshot
+    from lab.app.physics3d.monitor.viewer import record_to_snapshot
 
     record = {
         "tick": 42,
@@ -259,14 +259,14 @@ def test_record_to_snapshot_conversion():
 
 
 def test_monitor_conversion_helpers_keep_the_compatibility_exports():
-    from symbiont_lab.app import physics3d_monitor
-    from symbiont_lab.app.physics3d.monitor.converters import (
+    from lab.app.physics3d.monitor import viewer as physics3d_monitor
+    from lab.app.physics3d.monitor.converters import (
         record_to_snapshot as converted_record_to_snapshot,
     )
-    from symbiont_lab.app.physics3d.monitor.converters import (
+    from lab.app.physics3d.monitor.converters import (
         snapshot_to_physical_state as converted_snapshot_to_physical_state,
     )
-    from symbiont_lab.physics3d.monitor import (
+    from lab.app.physics3d.monitor.viewer import (
         record_to_snapshot,
         snapshot_to_physical_state,
     )
@@ -278,7 +278,7 @@ def test_monitor_conversion_helpers_keep_the_compatibility_exports():
 
 
 def test_snapshot_to_physical_state_with_full_and_fallback_data():
-    from symbiont_lab.physics3d.monitor import snapshot_to_physical_state
+    from lab.app.physics3d.monitor.viewer import snapshot_to_physical_state
 
     # 1. Full data with joints and contact links
     record_full = {
@@ -428,7 +428,7 @@ def test_event_context_handles_edges_and_missing_values():
 def test_pill_frame_delegates_fg_and_bg():
     import pytest
 
-    from symbiont_lab.physics3d.monitor import PillFrame
+    from lab.app.physics3d.monitor.viewer import PillFrame
 
     if PillFrame is None:
         pytest.skip("Tkinter not available")
@@ -459,7 +459,7 @@ def test_pill_frame_delegates_fg_and_bg():
 
 
 def test_convex_hull_2d():
-    from symbiont_lab.physics3d.monitor import _convex_hull_2d
+    from lab.app.physics3d.monitor.viewer import _convex_hull_2d
 
     assert _convex_hull_2d([]) == []
     assert _convex_hull_2d([(1.0, 1.0)]) == [(1.0, 1.0)]
@@ -472,7 +472,7 @@ def test_convex_hull_2d():
 
 
 def test_point_in_polygon_2d():
-    from symbiont_lab.physics3d.monitor import _point_in_polygon_2d
+    from lab.app.physics3d.monitor.viewer import _point_in_polygon_2d
 
     poly = [(-1.0, -1.0), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0)]
     assert _point_in_polygon_2d((0.0, 0.0), poly) is True

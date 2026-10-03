@@ -1,4 +1,4 @@
-from symbiont_lab.studies import run_developmental_milestone_gate_study
+from lab.studies import run_developmental_milestone_gate_study
 
 
 def test_active_developmental_milestones_have_independent_passing_gates() -> None:

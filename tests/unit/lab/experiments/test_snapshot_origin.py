@@ -11,14 +11,14 @@ import zipfile
 from pathlib import Path
 
 import pytest
+from tests.checkpoints import as_legacy
 
-from symbiont.core.orchestration.runtime import OrganismRuntime
-from symbiont_lab.experiments.snapshot_archive import (
+from lab.experiments.snapshot_archive import (
     archive_snapshot,
     inspect_snapshot_source,
     verify_snapshot,
 )
-from tests.checkpoints import as_legacy
+from symbiont.core.orchestration.runtime import OrganismRuntime
 
 KWARGS = dict(bootstrap_semantic_senses=False)
 
@@ -75,7 +75,7 @@ def test_the_origin_is_read_from_a_bundle_written_by_the_real_bundle_writer(
     tmp_path: Path, build, expected: bool
 ) -> None:
     # Not a hand-built zip: the layout the launcher will actually meet.
-    from symbiont_lab.physics3d.persistence import save_symbiont_bundle
+    from lab.physics3d.persistence import save_symbiont_bundle
 
     source = tmp_path / "source"
     (source / "models").mkdir(parents=True)

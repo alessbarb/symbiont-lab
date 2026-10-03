@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from symbiont.core.attention import AttentionAllocation
-from symbiont.core.evidence import DissentRecord
-from symbiont.core.narrative import narrate_capability, narrate_host
-
+from symbiont.core.cognition.attention import AttentionAllocation
+from symbiont.core.cognition.evidence import DissentRecord
+from symbiont.core.foundation.narrative import narrate_capability, narrate_host
 from symbiont.host.acclimation import CapabilityBaseline, HostAcclimation
 from symbiont.host.readings import ReadingPrivacyClass, ReadingQuality, SensorReading, Unit
 

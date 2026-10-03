@@ -1,7 +1,7 @@
 from pathlib import Path
 
-import symbiont_lab.experiments.resource_guard as guard
-from symbiont_lab.experiments.resource_guard import ResourceRequest, assess_resources
+import lab.experiments.resource_guard as guard
+from lab.experiments.resource_guard import ResourceRequest, assess_resources
 
 
 def test_resource_guard_rejects_impossible_disk_request(tmp_path: Path) -> None:

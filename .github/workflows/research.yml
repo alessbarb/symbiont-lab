@@ -6,7 +6,7 @@ on:
       experiment:
         description: "Experiment TOML under experiments/"
         required: true
-        default: "experiments/evidence/causal-budget-v027/experiment.toml"
+        default: "lab/experiments/evidence/causal-budget-v027/experiment.toml"
         type: string
       python-version:
         description: "Python version"
@@ -61,7 +61,7 @@ jobs:
               raise SystemExit("experiment path is empty")
           if path.is_absolute() or ".." in path.parts:
               raise SystemExit("experiment must be a relative path without '..'")
-          if not path.parts or path.parts[0] != "experiments":
+          if path.parts[:2] != ("lab", "experiments"):
               raise SystemExit("experiment must live under experiments/")
           if path.suffix != ".toml":
               raise SystemExit("experiment must be a .toml file")

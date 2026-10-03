@@ -16,7 +16,7 @@ language: en
 > exists in `src/`. This document fixes the contract, the invariants and the
 > tick model that any future implementation of `symbiont_world` must
 > comply with. The real implementation status is only verified in
-> [`../../roadmap.md`](../../roadmap.md) and [`../../../ORGANISM.md`](../../../ORGANISM.md).
+> [`../../roadmap.md`](../../roadmap.md).
 > The rationale, the ALife background and the bibliography that motivate
 > this design are in
 > [`../world/symbiont-world-v1-rationale.md`](../world/symbiont-world-v1-rationale.md).

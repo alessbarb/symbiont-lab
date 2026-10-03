@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import copy
 
-from symbiont.cognition.limits import KernelLimits
-from symbiont.core.orchestration.runtime import OrganismRuntime
-from symbiont.provenance import CausalRef
-from symbiont_lab.studies.learning.agency_acquisition_body import (
+from lab.studies.learning.agency_acquisition_body import (
     CausalBody,
     build_subject,
     subject_lifecycle,
 )
+from symbiont.cognition.limits import KernelLimits
+from symbiont.core.orchestration.runtime import OrganismRuntime
+from symbiont.provenance import CausalRef
 
 
 def _developed(ticks=400):

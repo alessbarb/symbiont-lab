@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+from lab.evolution.mutation import mutate_soft_budget
 from symbiont.cognition.genome import GenomeCodec
 from symbiont.cognition.limits import KernelLimits
 from symbiont.genetics.migration import GenomeMigrationCodec
-from symbiont_lab.evolution.mutation import mutate_soft_budget
 
 _PAYLOAD = {
     "schema_version": 1,

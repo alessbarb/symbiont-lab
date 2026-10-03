@@ -20,13 +20,12 @@ import json
 import resource
 import time
 
-from symbiont.core.physiology import LivingBodyState
-from symbiont.core.runtime import OrganismDeadError, OrganismRuntime
-
 from symbiont import __version__ as symbiont_version
 from symbiont.actuation.surface import derive_actuator_constitution
 from symbiont.cognition.birth import load_base_genome
 from symbiont.cognition.limits import KernelLimits
+from symbiont.core.embodiment.physiology import LivingBodyState
+from symbiont.core.orchestration.runtime import OrganismDeadError, OrganismRuntime
 
 _SEED = 7
 

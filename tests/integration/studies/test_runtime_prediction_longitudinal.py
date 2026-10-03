@@ -1,6 +1,6 @@
 import pytest
 
-from symbiont_lab.studies.runtime_prediction_longitudinal import (
+from lab.studies.runtime_prediction_longitudinal import (
     run_runtime_prediction_longitudinal_study,
 )
 

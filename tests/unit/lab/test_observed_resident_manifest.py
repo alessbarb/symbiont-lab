@@ -7,10 +7,10 @@ from pathlib import Path
 
 import pytest
 
-from observatory.schema_validate import validate
-from symbiont_lab.cli import observed_resident
+from lab.cli import observed_resident
+from lab.observatory.schema_validate import validate
 
-OBSERVATORY = Path(__file__).resolve().parents[3] / "observatory"
+OBSERVATORY = Path(__file__).resolve().parents[3] / "lab" / "src" / "lab" / "observatory"
 
 
 def _run(tmp_path: Path) -> int:

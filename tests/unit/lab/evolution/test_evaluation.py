@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from lab.evolution.evaluation import EvaluationResult, select_archive
 from symbiont.cognition.metaplasticity import LearningObjective
-from symbiont_lab.evolution.evaluation import EvaluationResult, select_archive
 
 
 def _result(genome_id: str, **objective_kwargs) -> EvaluationResult:

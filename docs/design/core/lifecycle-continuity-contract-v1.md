@@ -20,7 +20,7 @@ language: en
 
 [Longitudinal Integrity v1](longitudinal-integrity-v1.md) established that state
 survives. The
-[current-state audit](../../../research/audits/current/2026-10-02-current-state-architecture-audit.md)
+[current-state audit](../../../lab/research/audits/current/2026-10-02-current-state-architecture-audit.md)
 found that what "survives" means is still decided in more than one place: two
 re-embodiment semantics, two restore semantics, and a restart that is not an
 uninterrupted run.

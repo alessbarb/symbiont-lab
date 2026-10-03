@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from symbiont_lab.experiments.registry import get_protocol
-from symbiont_lab.studies.continuity.recurrent_restoration import (
+from lab.experiments.registry import get_protocol
+from lab.studies.continuity.recurrent_restoration import (
     run_recurrent_restoration_study,
     run_restoration_continuity_trial,
 )

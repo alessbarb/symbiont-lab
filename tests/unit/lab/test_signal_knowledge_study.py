@@ -1,6 +1,6 @@
 import pytest
 
-from symbiont_lab.studies.learning.signal_knowledge import (
+from lab.studies.learning.signal_knowledge import (
     measure_acceptance_resources,
     run_acceptance_scenarios,
     run_acceptance_suite,

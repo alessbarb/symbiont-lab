@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import pytest
-from symbiont.core.advisory import (
+
+from symbiont.core.cognition.evidence import DissentRecord
+from symbiont.core.foundation.narrative import NarrativeEntry
+from symbiont.core.host.advisory import (
     _BANNED_WORDS,
     AdvisoryConsentRequiredError,
     DefensiveAdvisor,
@@ -9,10 +12,7 @@ from symbiont.core.advisory import (
     append_advisories_to_log,
     load_advisory_log,
 )
-from symbiont.core.evidence import DissentRecord
-from symbiont.core.narrative import NarrativeEntry
-from symbiont.core.runtime import RuntimeTickResult
-
+from symbiont.core.orchestration.runtime import RuntimeTickResult
 from symbiont.host.drift import DriftKind, DriftObservation
 
 

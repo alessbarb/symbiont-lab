@@ -27,7 +27,7 @@ Individual studies select only the dimensions relevant to their preregistered
 claim; this document does not require every study to measure every dimension.
 
 The current audit in
-[`research/audits/current/2026-10-02-symbiont-metric-audit.md`](../../../research/audits/current/2026-10-02-symbiont-metric-audit.md)
+[`research/audits/current/2026-10-02-symbiont-metric-audit.md`](../../../lab/research/audits/current/2026-10-02-symbiont-metric-audit.md)
 records the source studies, artifacts, implementation observations, and
 limitations underlying this proposal. Their outcomes remain bounded to those
 studies.

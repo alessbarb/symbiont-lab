@@ -11,21 +11,21 @@ import json
 
 import pytest
 
-from symbiont.actuation.binding import BindingStatus
-from symbiont.cognition.limits import KernelLimits
-from symbiont.host.checkpoint import CheckpointError
-from symbiont.host.continuity import REGISTER, Reembodiment
-from symbiont.modeling.private_runtime import PrivateModelOrganismRuntime
-from symbiont_lab.physics3d.reembodiment import (
+from lab.physics3d.reembodiment import (
     PhysicsEmbodimentDescriptor,
     prepare_fresh_embodiment_checkpoint,
 )
-from symbiont_lab.studies.learning.agency_acquisition_body import (
+from lab.studies.learning.agency_acquisition_body import (
     CausalBody,
     build_subject,
     run_ticks,
     subject_lifecycle,
 )
+from symbiont.actuation.binding import BindingStatus
+from symbiont.cognition.limits import KernelLimits
+from symbiont.host.checkpoint import CheckpointError
+from symbiont.host.continuity import REGISTER, Reembodiment
+from symbiont.modeling.private_runtime import PrivateModelOrganismRuntime
 
 ORGANISM_ID = "reembodied-subject"
 DEVELOPMENT_TICKS = 600

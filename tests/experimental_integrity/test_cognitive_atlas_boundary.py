@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from symbiont_lab.observation.atlas import (
+from lab.observation.atlas import (
     AtlasEdge,
     AtlasNode,
     build_cognitive_atlas,
@@ -21,7 +21,7 @@ def test_ast_atlas_never_imports_symbiont():
     dict contract, and would make 'never mutates Symbiont state' a
     runtime accident instead of a structural guarantee."""
     repo_root = Path(__file__).resolve().parents[2]
-    atlas_module = repo_root / "src" / "symbiont_lab" / "observation" / "atlas.py"
+    atlas_module = repo_root / "lab" / "src" / "lab" / "observation" / "atlas.py"
     assert atlas_module.is_file(), f"Not found: {atlas_module}"
 
     tree = ast.parse(atlas_module.read_text(encoding="utf-8"), filename=str(atlas_module))

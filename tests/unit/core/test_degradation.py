@@ -1,4 +1,4 @@
-from symbiont.core.degradation import DegradationQueue, RetentionState
+from symbiont.core.embodiment.degradation import DegradationQueue, RetentionState
 
 
 def test_state_ages_and_is_excreted():

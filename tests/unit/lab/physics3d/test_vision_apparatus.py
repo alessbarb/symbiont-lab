@@ -5,18 +5,20 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from symbiont_lab.physics3d import vision
-from symbiont_lab.physics3d.bodies import (
-    ANTHROPOMORPHIC_V6,
-    ANTHROPOMORPHIC_V6_VISION,
-)
-from symbiont_lab.physics3d.humanoid import receptor_contract_ids
-from symbiont_lab.physics3d.vision import (
-    VISUAL_ARRAY_SIDE,
-    PerceptualTopology,
+import pytest
+
+from embodiment.physics3d import vision
+from embodiment.physics3d.humanoid import receptor_contract_ids
+from embodiment.physics3d.vision import (
     vision_receptor_contract_ids,
     visual_receptor_contract_ids,
 )
+from lab.physics3d.bodies import (
+    ANTHROPOMORPHIC_V6,
+    ANTHROPOMORPHIC_V6_VISION,
+)
+from modality import vision as vision_channel
+from modality.vision import VISUAL_ARRAY_SIDE, PerceptualTopology
 
 
 def test_v6_receptor_contract_is_byte_identical() -> None:
@@ -61,8 +63,9 @@ def test_topology_is_symmetric_adjacency_over_opaque_ids_only() -> None:
         assert f"'{forbidden}" not in flat
 
 
-def test_visual_apparatus_never_imports_observer_truth() -> None:
-    tree = ast.parse(Path(vision.__file__).read_text(encoding="utf-8"))
+@pytest.mark.parametrize("module", [vision, vision_channel], ids=["body", "channel"])
+def test_visual_apparatus_never_imports_observer_truth(module) -> None:
+    tree = ast.parse(Path(module.__file__).read_text(encoding="utf-8"))
     modules = [node.module or "" for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)] + [
         alias.name
         for node in ast.walk(tree)

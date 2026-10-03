@@ -1,6 +1,6 @@
 import pytest
 
-from symbiont_world.topology import BodyPlacement, HexCoord, HexTopology, OccupancyGrid
+from environment.topology import BodyPlacement, HexCoord, HexTopology, OccupancyGrid
 
 
 def test_hex_neighbor_and_distance_roundtrip():

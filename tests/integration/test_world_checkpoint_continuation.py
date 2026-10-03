@@ -1,9 +1,9 @@
 """Public World checkpoints preserve deterministic movement continuation."""
 
-from symbiont_world.checkpoint import restore, take_checkpoint
-from symbiont_world.movement import resolve_movement
-from symbiont_world.state import WorldState
-from symbiont_world.topology import BodyPlacement, HexCoord, HexTopology
+from environment.checkpoint import restore, take_checkpoint
+from environment.movement import resolve_movement
+from environment.state import WorldState
+from environment.topology import BodyPlacement, HexCoord, HexTopology
 
 
 def test_restored_world_matches_uninterrupted_movement_trajectory():

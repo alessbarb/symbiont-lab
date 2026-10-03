@@ -1,5 +1,6 @@
 import pytest
-from symbiont.core.ecology import SharedHabitat
+
+from symbiont.core.social.ecology import SharedHabitat
 
 
 def test_capacity_is_independent_from_physical_resource_stock():

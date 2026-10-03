@@ -2,7 +2,7 @@ import json
 import zipfile
 from dataclasses import dataclass
 
-from symbiont_lab.physics3d.persistence import (
+from lab.physics3d.persistence import (
     TelemetryWriter,
     load_symbiont_bundle,
     save_symbiont_bundle,
@@ -97,7 +97,7 @@ def test_telemetry_writer_persists_new_dataclass_metrics_without_whitelist(tmp_p
 def test_load_telemetry_records(tmp_path):
     import pytest
 
-    from symbiont_lab.physics3d.persistence import load_telemetry_records
+    from lab.physics3d.persistence import load_telemetry_records
 
     path = tmp_path / "telemetry.ndjson"
     lines = [
@@ -126,7 +126,7 @@ def test_load_telemetry_records_nonexistent_raises():
 
     import pytest
 
-    from symbiont_lab.physics3d.persistence import load_telemetry_records
+    from lab.physics3d.persistence import load_telemetry_records
 
     with pytest.raises(FileNotFoundError):
         load_telemetry_records(Path("/nonexistent/file.ndjson"))
@@ -135,7 +135,7 @@ def test_load_telemetry_records_nonexistent_raises():
 def test_portable_bundle_contains_authoritative_manifest_and_validates_invariants(tmp_path):
     import hashlib
 
-    from symbiont_lab.physics3d.persistence import (
+    from lab.physics3d.persistence import (
         read_symbiont_bundle_manifest,
         save_symbiont_bundle,
     )
@@ -208,7 +208,7 @@ def test_portable_bundle_contains_authoritative_manifest_and_validates_invariant
 
 
 def test_portable_bundle_syncs_external_organism_metadata(tmp_path):
-    from symbiont_lab.physics3d.persistence import (
+    from lab.physics3d.persistence import (
         read_symbiont_bundle_manifest,
         save_symbiont_bundle,
     )
@@ -273,7 +273,7 @@ def test_portable_bundle_syncs_external_organism_metadata(tmp_path):
 def test_portable_bundle_rejects_export_invariant_violations():
     import pytest
 
-    from symbiont_lab.physics3d.persistence import validate_bundle_export_invariants
+    from lab.physics3d.persistence import validate_bundle_export_invariants
 
     payload = {
         "saved_at_tick": 500,

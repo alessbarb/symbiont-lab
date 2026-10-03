@@ -10,6 +10,7 @@ tokenizers, and ancestry never grants control.
 from __future__ import annotations
 
 import pytest
+from tests.unit.modeling.test_modeled_organism_runtime import _transition
 
 from symbiont.modeling import (
     ArchitectureId,
@@ -19,7 +20,6 @@ from symbiont.modeling import (
     ModelState,
     TrainingRequest,
 )
-from tests.unit.modeling.test_modeled_organism_runtime import _transition
 
 VOCAB = ("<PAD>", "<UNK>", "<BOS>", "<EOS>", "<SEP>", "sense.test.0", "action.test.0")
 

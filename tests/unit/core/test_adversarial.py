@@ -1,4 +1,4 @@
-from symbiont.core.adversarial import AdversarialEcology
+from symbiont.core.social.adversarial import AdversarialEcology
 
 
 def test_stale_replay_and_poisoning_are_explicit() -> None:

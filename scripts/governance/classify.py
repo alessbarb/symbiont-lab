@@ -44,10 +44,10 @@ def _elevate(current: ChangeClass, candidate: ChangeClass) -> ChangeClass:
 
 def _frozen(repo: Path, base: str, path: str) -> bool:
     parts = Path(path).parts
-    if not parts or parts[0] != "experiments":
+    if parts[:2] != ("lab", "experiments"):
         return False
     parent = Path(path).parent
-    while len(parent.parts) > 1:
+    while len(parent.parts) > 2:
         result = subprocess.run(
             ["git", "cat-file", "-e", f"{base}:{parent.as_posix()}/results.json"],
             cwd=repo,

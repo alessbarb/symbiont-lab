@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from symbiont_lab.experiments.registry import get_protocol
-from symbiont_lab.studies.learning.replay_efficiency import _intervals
-from symbiont_lab.studies.learning.replay_pressure_curve import ReplayDose
+from lab.experiments.registry import get_protocol
+from lab.studies.learning.replay_efficiency import _intervals
+from lab.studies.learning.replay_pressure_curve import ReplayDose
 
 
 def test_replay_efficiency_protocol_registered():

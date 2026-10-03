@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from symbiont_lab.experiments.registry import get_protocol
-from symbiont_lab.studies.embodiment.causal_revision_sequence import (
+from lab.experiments.registry import get_protocol
+from lab.studies.embodiment.causal_revision_sequence import (
     run_causal_revision_sequence_study,
 )
 

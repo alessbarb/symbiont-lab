@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import pytest
-from symbiont.core.weight_stability import WeightStabilityTracker
 
 from symbiont.cognition.limits import KernelLimits
+from symbiont.core.foundation.weight_stability import WeightStabilityTracker
 
 
 def test_seed_sets_the_durable_class_before_any_observation():

@@ -2,7 +2,7 @@ import copy
 
 import pytest
 
-from symbiont_lab.observation.atlas import build_cognitive_atlas, diff_cognitive_atlas
+from lab.observation.atlas import build_cognitive_atlas, diff_cognitive_atlas
 
 
 def _snapshot():

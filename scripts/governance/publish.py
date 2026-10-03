@@ -20,14 +20,17 @@ import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-SRC = ROOT / "src"
-if str(SRC) not in sys.path:
-    sys.path.insert(0, str(SRC))
+SOURCE_ROOTS = tuple(
+    ROOT / domain / "src" for domain in ("symbiont", "environment", "modality", "embodiment", "lab")
+)
+for _source_root in SOURCE_ROOTS:
+    if str(_source_root) not in sys.path:
+        sys.path.insert(0, str(_source_root))
 
 from governance.classify import Assessment, ChangeClass, assess  # noqa: E402
-from symbiont_lab.experiments.execution_workspace import pinned_worktree  # noqa: E402
-from symbiont_lab.experiments.resource_guard import ResourceRequest, assess_resources  # noqa: E402
-from symbiont_lab.physics3d.equivalence_suite import compare, load_suite, suite_status  # noqa: E402
+from lab.experiments.execution_workspace import pinned_worktree  # noqa: E402
+from lab.experiments.resource_guard import ResourceRequest, assess_resources  # noqa: E402
+from lab.physics3d.equivalence_suite import compare, load_suite, suite_status  # noqa: E402
 
 
 def _git(*args: str, check: bool = True) -> str:
@@ -143,12 +146,15 @@ class _EquivalenceLock:
 
 def _run_scenario(code_root: Path, suite: Path, scenario: str, output: Path) -> dict:
     env = os.environ.copy()
-    env["PYTHONPATH"] = str(code_root / "src")
+    env["PYTHONPATH"] = os.pathsep.join(
+        str(code_root / domain / "src")
+        for domain in ("symbiont", "environment", "modality", "embodiment", "lab")
+    )
     result = subprocess.run(
         [
             sys.executable,
             "-m",
-            "symbiont_lab.physics3d.equivalence_suite",
+            "lab.physics3d.equivalence_suite",
             str(suite),
             scenario,
             str(output),
@@ -170,7 +176,7 @@ def run_equivalence(base: str, scenarios: tuple[str, ...]) -> tuple[bool, dict[s
     if running:
         return False, {"suite": {"status": "NOT_ASSESSABLE_ACTIVE_RUN", "active_work": running}}
 
-    suite = ROOT / "experiments/equivalence/suite-v1/suite.toml"
+    suite = ROOT / "lab/experiments/equivalence/suite-v1/suite.toml"
     if not suite.is_file():
         return False, {"suite": {"status": "ERROR", "reason": "equivalence suite missing"}}
     readiness = suite_status(suite)

@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+from lab.experiments.registry import get_protocol
+from lab.studies.learning import autonomous_replay_stopping as study
 from symbiont.modeling import ArchitectureId, ModelObjective
-from symbiont_lab.experiments.registry import get_protocol
-from symbiont_lab.studies.learning import autonomous_replay_stopping as study
 
 
 def test_autonomous_replay_stopping_protocol_registered():

@@ -2,8 +2,9 @@ import math
 import random
 
 import pytest
-from symbiont.core.signal_knowledge_checkpoint import validate_checkpoint
-from symbiont.core.signal_prediction import (
+
+from symbiont.core.signals.knowledge_checkpoint import validate_checkpoint
+from symbiont.core.signals.prediction import (
     BoundedPredictor,
     RidgePredictor,
     absolute_loss,

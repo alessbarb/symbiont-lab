@@ -1,4 +1,4 @@
-from symbiont_lab.studies.social_runtime_longitudinal import run_social_runtime_longitudinal_study
+from lab.studies.social_runtime_longitudinal import run_social_runtime_longitudinal_study
 
 
 def test_prolonged_runtime_ecology_is_deterministic_and_replayable() -> None:

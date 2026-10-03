@@ -1,4 +1,4 @@
-from symbiont_lab.studies.social_runtime_emergence import run_social_runtime_emergence_study
+from lab.studies.social_runtime_emergence import run_social_runtime_emergence_study
 
 
 def test_runtime_emergence_study_is_deterministic_and_uses_local_choices() -> None:

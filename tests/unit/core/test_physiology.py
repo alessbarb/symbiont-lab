@@ -1,6 +1,7 @@
 import pytest
-from symbiont.core.metabolism import MetabolicSnapshot, ResourcePressure
-from symbiont.core.physiology import PhysiologyController, VitalState
+
+from symbiont.core.embodiment.metabolism import MetabolicSnapshot, ResourcePressure
+from symbiont.core.embodiment.physiology import PhysiologyController, VitalState
 
 
 def snap(p):
@@ -14,7 +15,7 @@ def test_unrecoverable_pressure_causes_irreversible_death():
 
 
 def test_runtime_refuses_execution_after_death() -> None:
-    from symbiont.core.runtime import OrganismDeadError, OrganismRuntime
+    from symbiont.core.orchestration.runtime import OrganismDeadError, OrganismRuntime
 
     runtime = OrganismRuntime(physiology=PhysiologyController(state=VitalState.DEAD, death_tick=1))
     try:
@@ -26,7 +27,7 @@ def test_runtime_refuses_execution_after_death() -> None:
 
 
 def test_runtime_explicit_metabolism_disables_automatic_replenishment() -> None:
-    from symbiont.core.runtime import OrganismRuntime
+    from symbiont.core.orchestration.runtime import OrganismRuntime
 
     runtime = OrganismRuntime(explicit_metabolism=True)
     assert all(value == 0.0 for value in runtime.metabolism.checkpoint()["replenishment"].values())
@@ -34,8 +35,8 @@ def test_runtime_explicit_metabolism_disables_automatic_replenishment() -> None:
 
 
 def test_environmental_damage_is_bounded_and_repairs_only_when_affordable() -> None:
-    from symbiont.core.metabolism import MetabolicLedger
-    from symbiont.core.runtime import OrganismRuntime
+    from symbiont.core.embodiment.metabolism import MetabolicLedger
+    from symbiont.core.orchestration.runtime import OrganismRuntime
 
     metabolism = MetabolicLedger(
         replenishment={
@@ -64,9 +65,9 @@ def test_environmental_damage_is_bounded_and_repairs_only_when_affordable() -> N
 
 
 def test_dormant_runtime_scales_declared_activity_costs() -> None:
-    from symbiont.core.metabolism import MetabolicLedger
-    from symbiont.core.physiology import LivingBodyState
-    from symbiont.core.runtime import OrganismRuntime
+    from symbiont.core.embodiment.metabolism import MetabolicLedger
+    from symbiont.core.embodiment.physiology import LivingBodyState
+    from symbiont.core.orchestration.runtime import OrganismRuntime
 
     state = LivingBodyState(vital_state=VitalState.DORMANT)
     metabolism = MetabolicLedger(
@@ -85,7 +86,7 @@ def test_dormant_runtime_scales_declared_activity_costs() -> None:
 
 
 def test_physical_ontogeny_controls_reproductive_readiness() -> None:
-    from symbiont.core.runtime import OrganismRuntime
+    from symbiont.core.orchestration.runtime import OrganismRuntime
 
     runtime = OrganismRuntime(
         bootstrap_semantic_senses=False,
@@ -101,8 +102,8 @@ def test_physical_ontogeny_controls_reproductive_readiness() -> None:
 
 
 def test_runtime_rest_request_is_checkpointed_without_free_replenishment() -> None:
-    from symbiont.core.metabolism import MetabolicLedger
-    from symbiont.core.runtime import OrganismRuntime
+    from symbiont.core.embodiment.metabolism import MetabolicLedger
+    from symbiont.core.orchestration.runtime import OrganismRuntime
 
     metabolism = MetabolicLedger(
         replenishment={
@@ -131,9 +132,9 @@ def test_runtime_rest_request_is_checkpointed_without_free_replenishment() -> No
 
 
 def test_runtime_homeostasis_and_viability_share_one_living_body_state() -> None:
-    from symbiont.core.homeostasis import HomeostaticController
-    from symbiont.core.physiology import LivingBodyState, PhysiologyController
-    from symbiont.core.runtime import OrganismRuntime
+    from symbiont.core.embodiment.homeostasis import HomeostaticController
+    from symbiont.core.embodiment.physiology import LivingBodyState, PhysiologyController
+    from symbiont.core.orchestration.runtime import OrganismRuntime
 
     state = LivingBodyState(structural_integrity=0.75)
     runtime = OrganismRuntime(
@@ -158,7 +159,7 @@ def test_runtime_homeostasis_and_viability_share_one_living_body_state() -> None
 
 
 def test_runtime_checkpoint_roundtrip_preserves_one_shared_living_body_state() -> None:
-    from symbiont.core.runtime import OrganismRuntime
+    from symbiont.core.orchestration.runtime import OrganismRuntime
 
     runtime = OrganismRuntime(
         bootstrap_semantic_senses=False,
@@ -181,7 +182,7 @@ def test_runtime_checkpoint_roundtrip_preserves_one_shared_living_body_state() -
 
 
 def test_living_body_death_is_shared_and_irreversible() -> None:
-    from symbiont.core.physiology import LivingBodyState, PhysiologyController
+    from symbiont.core.embodiment.physiology import LivingBodyState, PhysiologyController
 
     state = LivingBodyState()
     controller = PhysiologyController(body_state=state)
@@ -200,7 +201,7 @@ def test_living_body_death_is_shared_and_irreversible() -> None:
 
 
 def test_runtime_metabolism_uses_same_living_body_state() -> None:
-    from symbiont.core.runtime import OrganismRuntime
+    from symbiont.core.orchestration.runtime import OrganismRuntime
 
     runtime = OrganismRuntime(
         bootstrap_semantic_senses=False,
@@ -217,7 +218,7 @@ def test_runtime_metabolism_uses_same_living_body_state() -> None:
 
 
 def test_runtime_checkpoint_has_one_authoritative_metabolic_reserve() -> None:
-    from symbiont.core.runtime import OrganismRuntime
+    from symbiont.core.orchestration.runtime import OrganismRuntime
 
     runtime = OrganismRuntime(
         bootstrap_semantic_senses=False,
@@ -240,8 +241,8 @@ def test_runtime_checkpoint_has_one_authoritative_metabolic_reserve() -> None:
 
 
 def test_runtime_repairs_damage_constitutively_during_tick() -> None:
-    from symbiont.core.metabolism import MetabolicLedger
-    from symbiont.core.runtime import OrganismRuntime
+    from symbiont.core.embodiment.metabolism import MetabolicLedger
+    from symbiont.core.orchestration.runtime import OrganismRuntime
 
     metabolism = MetabolicLedger(
         replenishment={
@@ -264,8 +265,8 @@ def test_runtime_repairs_damage_constitutively_during_tick() -> None:
 
 
 def test_dead_runtime_cannot_gain_physical_energy() -> None:
-    from symbiont.core.physiology import LivingBodyState, VitalState
-    from symbiont.core.runtime import OrganismDeadError, OrganismRuntime
+    from symbiont.core.embodiment.physiology import LivingBodyState, VitalState
+    from symbiont.core.orchestration.runtime import OrganismDeadError, OrganismRuntime
 
     state = LivingBodyState(
         energy_reserve=0.0,
@@ -285,7 +286,7 @@ def test_dead_runtime_cannot_gain_physical_energy() -> None:
 
 
 def test_no_external_source_cannot_raise_physical_energy_over_many_cycles() -> None:
-    from symbiont.core.metabolism import MetabolicLedger
+    from symbiont.core.embodiment.metabolism import MetabolicLedger
 
     ledger = MetabolicLedger()
     ledger.charge("cognition", 0.25)

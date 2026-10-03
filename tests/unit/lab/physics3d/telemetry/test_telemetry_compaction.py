@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from symbiont_lab.physics3d.telemetry.compaction import (
+from lab.physics3d.telemetry.compaction import (
     CompactionPolicy,
     ObjectStore,
     StateDiffer,

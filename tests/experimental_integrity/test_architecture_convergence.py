@@ -28,9 +28,9 @@ def test_legacy_commitment_migration_requires_explicit_surface() -> None:
 def test_runtime_and_core_cognition_use_canonical_genome_type() -> None:
     root = Path(__file__).resolve().parents[2]
     paths = (
-        root / "src" / "symbiont" / "core" / "orchestration" / "runtime.py",
-        root / "src" / "symbiont" / "core" / "cognition" / "bridge.py",
-        root / "src" / "symbiont" / "core" / "orchestration" / "individual.py",
+        root / "symbiont" / "src" / "symbiont" / "core" / "orchestration" / "runtime.py",
+        root / "symbiont" / "src" / "symbiont" / "core" / "cognition" / "bridge.py",
+        root / "symbiont" / "src" / "symbiont" / "core" / "orchestration" / "individual.py",
     )
     for path in paths:
         tree = ast.parse(path.read_text(encoding="utf-8"))

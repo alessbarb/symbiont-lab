@@ -64,7 +64,7 @@ def test_futuro_cultural_absorbs_three_sources_verbatim():
 
 @pytest.mark.skip(reason="Obsolete after English migration")
 def test_research_status_points_at_merged_file():
-    text = (REPO_ROOT / "research" / "STATUS.md").read_text(encoding="utf-8")
+    text = (REPO_ROOT / "lab" / "research" / "STATUS.md").read_text(encoding="utf-8")
     assert "docs/design/futuro-cultural.md" in text
     assert "cultural-foundation-v1.md" not in text
     assert "private-slm-and-cultural-foundation.md" not in text

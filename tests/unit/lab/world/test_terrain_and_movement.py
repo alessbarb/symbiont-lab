@@ -2,15 +2,15 @@
 
 import pytest
 
-from symbiont_lab.world.genesis_v1 import build_ground_truth
-from symbiont_lab.world.persistence import (
+from environment.state import TickAborted
+from environment.topology import HexCoord, HexTopology
+from lab.world.genesis_v1 import build_ground_truth
+from lab.world.persistence import (
     capture_checkpoint,
     restore_population_from_checkpoint,
 )
-from symbiont_lab.world.population import PopulationGenesisRuntime
-from symbiont_lab.world.terrain import DynamicGeography
-from symbiont_world.state import TickAborted
-from symbiont_world.topology import HexCoord, HexTopology
+from lab.world.population import PopulationGenesisRuntime
+from lab.world.terrain import DynamicGeography
 
 
 def test_dynamic_geography_determinism():
@@ -120,7 +120,7 @@ def test_geography_rollback_on_failed_tick():
     traces_before = pop.geography.snapshot()
 
     # Simulate a forced tick failure
-    from symbiont_lab.world.transaction import IntegratedWorldTickTransaction
+    from lab.world.transaction import IntegratedWorldTickTransaction
 
     tx = IntegratedWorldTickTransaction(
         state=pop.state,
@@ -173,8 +173,8 @@ def test_geography_checkpoint_and_restore_equivalence():
 
 
 def test_dynamic_ecology_death_deposits_detritus_and_changes_fertility():
-    from symbiont_lab.world.terrain import DynamicGeography
-    from symbiont_world.topology import HexCoord, HexTopology
+    from environment.topology import HexCoord, HexTopology
+    from lab.world.terrain import DynamicGeography
 
     topo = HexTopology(width=4, height=4)
     geo = DynamicGeography(topo, 123)
@@ -189,8 +189,8 @@ def test_dynamic_ecology_death_deposits_detritus_and_changes_fertility():
 
 
 def test_dynamic_ecology_presence_creates_pressure_and_then_decays():
-    from symbiont_lab.world.terrain import DynamicGeography
-    from symbiont_world.topology import HexCoord, HexTopology
+    from environment.topology import HexCoord, HexTopology
+    from lab.world.terrain import DynamicGeography
 
     topo = HexTopology(width=4, height=4)
     geo = DynamicGeography(topo, 321)
@@ -205,8 +205,8 @@ def test_dynamic_ecology_presence_creates_pressure_and_then_decays():
 
 
 def test_surface_water_is_deterministic_and_persistent_roundtrip():
-    from symbiont_lab.world.terrain import DynamicGeography
-    from symbiont_world.topology import HexTopology
+    from environment.topology import HexTopology
+    from lab.world.terrain import DynamicGeography
 
     topo = HexTopology(width=6, height=6)
     a = DynamicGeography(topo, 909)
@@ -219,8 +219,8 @@ def test_surface_water_is_deterministic_and_persistent_roundtrip():
 
 
 def test_ecological_pressure_reduces_resource_renewal_factor():
-    from symbiont_lab.world.terrain import DynamicGeography
-    from symbiont_world.topology import HexCoord, HexTopology
+    from environment.topology import HexCoord, HexTopology
+    from lab.world.terrain import DynamicGeography
 
     topo = HexTopology(width=3, height=3)
     geo = DynamicGeography(topo, 515)
@@ -284,7 +284,7 @@ def test_substrate_impulse_is_transactionally_rolled_back():
     pop.geography._surface_water[origin] = 0.5
     before = pop.geography.snapshot()
 
-    from symbiont_lab.world.transaction import IntegratedWorldTickTransaction
+    from lab.world.transaction import IntegratedWorldTickTransaction
 
     tx = IntegratedWorldTickTransaction(
         state=pop.state,
@@ -324,7 +324,7 @@ def test_substrate_history_can_open_and_close_traversal_without_new_action_type(
 
 
 def test_population_observation_changes_after_same_opaque_motor_consequence():
-    from symbiont_lab.world.adapter import local_substrate_signals
+    from lab.world.adapter import local_substrate_signals
 
     topo = HexTopology(width=4, height=4)
     gt = build_ground_truth()
@@ -358,8 +358,8 @@ def test_population_observation_changes_after_same_opaque_motor_consequence():
 
 
 def test_motor_actuation_commits_substrate_impulse_event_without_new_world_action():
+    from lab.world.transaction import IntegratedWorldTickTransaction
     from symbiont.actuation.types import Actuation
-    from symbiont_lab.world.transaction import IntegratedWorldTickTransaction
 
     topo = HexTopology(width=4, height=4)
     gt = build_ground_truth()
@@ -399,8 +399,8 @@ def test_motor_actuation_commits_substrate_impulse_event_without_new_world_actio
 
 
 def test_clean_population_observation_contains_no_apparatus_resource_hazard_or_occupancy_ids():
-    from symbiont_lab.world.adapter import local_substrate_signals
-    from symbiont_world.observation import LOCAL_OCCUPANCY_SIGNAL
+    from environment.observation import LOCAL_OCCUPANCY_SIGNAL
+    from lab.world.adapter import local_substrate_signals
 
     truth = build_ground_truth()
     pop = PopulationGenesisRuntime(

@@ -9,10 +9,10 @@ import pytest
 pybullet = pytest.importorskip("pybullet")
 pybullet_data = pytest.importorskip("pybullet_data")
 
-from symbiont_lab.physics3d.engine import run
-from symbiont_lab.physics3d.environments import build_environment, environment_recipe
-from symbiont_lab.physics3d.persistence import read_symbiont_bundle_manifest
-from symbiont_lab.physics3d.vision import VisionHumanoidPhysics
+from embodiment.physics3d.vision import VisionHumanoidPhysics
+from lab.physics3d.engine import run
+from lab.physics3d.environments import build_environment, environment_recipe
+from lab.physics3d.persistence import read_symbiont_bundle_manifest
 
 pytestmark = pytest.mark.slow
 

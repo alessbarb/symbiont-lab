@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lab"
+version = "0.90.0"
+description = "Lab domain: composition, experiments, studies, observation and analysis"
+requires-python = ">=3.12"
+dependencies = ["symbiont", "environment", "modality", "embodiment", "rich>=15"]
+
+[project.optional-dependencies]
+modeling = [
+  "torch>=2.4,<3",
+]
+physics3d = [
+  "pybullet>=3.2.7,<4",
+  "torch>=2.4,<3",
+  "numpy>=1.26,<3",
+  "pillow>=10,<13",
+]
+
+[project.scripts]
+symbiont-lab = "lab.cli.main:main"
+symbiont-lab-gui = "lab.app.main:main"
+symbiont-world = "lab.cli.world:main"
+symbiont-body-3d = "lab.physics3d.cli:main"
+symbiont-physics-audit = "lab.studies.physics3d.constitution_audit:main"
+symbiont-reembodiment-study = "lab.studies.embodiment.reembodiment_cli:main"
+symbiont-telemetry-benchmark = "lab.physics3d.telemetry.cli:benchmark_main"
+symbiont-telemetry-convert = "lab.physics3d.telemetry.cli:convert_main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["lab*"]
+exclude = ["lab.observatory.tests*"]
+
+[tool.setuptools.package-data]
+"lab.workbench" = [
+  "web/*.html",
+  "web/*.css",
+  "web/*.js",
+  "web/views/*.js",
+  "web/views/body/*.js",
+  "web/views/world/*.js",
+  "web/views/embodiment/*.js",
+  "web/views/lab/*.js",
+  "web/views/archive/*.js",
+  "web/views/shared/*.js",
+  "web/views/mind/*.js",
+]
+"lab.observatory" = ["*.json", "*.html", "schemas/*.json"]
+
+[tool.uv.sources]
+symbiont = { workspace = true }
+environment = { workspace = true }
+modality = { workspace = true }
+embodiment = { workspace = true }

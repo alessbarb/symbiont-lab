@@ -1,4 +1,4 @@
-from symbiont_lab.studies.social_runtime_generations import run_social_runtime_generations_study
+from lab.studies.social_runtime_generations import run_social_runtime_generations_study
 
 
 def test_social_runtime_generations_are_bounded_and_replayable() -> None:

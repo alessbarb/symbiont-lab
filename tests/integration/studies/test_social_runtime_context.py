@@ -1,4 +1,4 @@
-from symbiont_lab.studies.social_runtime_context import run_social_runtime_context_study
+from lab.studies.social_runtime_context import run_social_runtime_context_study
 
 
 def test_runtime_context_shift_is_deterministic_and_bounded() -> None:

@@ -6,8 +6,8 @@ import math
 import platform
 
 import pytest
-from symbiont.core.runtime import OrganismRuntime
 
+from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont.host.providers.portable_surfaces import PortableSurfaceProvider
 
 

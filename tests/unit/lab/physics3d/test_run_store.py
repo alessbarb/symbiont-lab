@@ -4,8 +4,8 @@ import json
 
 import pytest
 
-from symbiont_lab.app.physics3d.runs import Physics3DRunStore
-from symbiont_lab.physics3d.bodies import DEFAULT_BODY_REGISTRY, BodyDescriptor, BodyRegistry
+from lab.app.physics3d.runs import Physics3DRunStore
+from lab.physics3d.bodies import DEFAULT_BODY_REGISTRY, BodyDescriptor, BodyRegistry
 
 
 def test_run_store_prepares_new_organism_and_fresh_body(tmp_path) -> None:
@@ -63,7 +63,7 @@ def test_injected_run_store_does_not_import_global_legacy_subject(tmp_path) -> N
 
 
 def test_catalog_summary_does_not_materialize_private_models(tmp_path, monkeypatch) -> None:
-    from symbiont_lab.physics3d import persistence
+    from lab.physics3d import persistence
 
     organism_dir = tmp_path / "organisms" / "org-test"
     organism_dir.mkdir(parents=True)
@@ -80,7 +80,7 @@ def test_catalog_summary_does_not_materialize_private_models(tmp_path, monkeypat
 
 
 def test_dead_body_leaves_symbiont_runnable_for_fresh_reembodiment(tmp_path) -> None:
-    from symbiont_lab.physics3d import persistence
+    from lab.physics3d import persistence
 
     organism_dir = tmp_path / "organisms" / "org-dead"
     organism_dir.mkdir(parents=True)
@@ -122,7 +122,7 @@ def test_dead_body_leaves_symbiont_runnable_for_fresh_reembodiment(tmp_path) -> 
 
 
 def test_changed_contract_is_reembodiment_not_incompatible(tmp_path) -> None:
-    from symbiont_lab.physics3d import persistence
+    from lab.physics3d import persistence
 
     compact = BodyDescriptor(
         body_kind="compact-v1",
@@ -171,7 +171,7 @@ def test_changed_contract_is_reembodiment_not_incompatible(tmp_path) -> None:
 
 
 def _existing_organism(tmp_path, ref="org-x", vital_state="active"):
-    from symbiont_lab.physics3d import persistence
+    from lab.physics3d import persistence
 
     organism_dir = tmp_path / "organisms" / ref
     organism_dir.mkdir(parents=True)
@@ -280,7 +280,7 @@ def test_starting_state_x_is_retained_immutably(tmp_path) -> None:
 
     # The live slot evolves; the retained X never does.
     before = retained.read_bytes()
-    from symbiont_lab.physics3d import persistence
+    from lab.physics3d import persistence
 
     persistence.save_symbiont_bundle(
         {
@@ -305,7 +305,7 @@ def test_starting_state_x_is_retained_immutably(tmp_path) -> None:
 
 
 def test_finalize_records_termination_ending_state_and_lifecycle(tmp_path) -> None:
-    from symbiont_lab.physics3d import persistence
+    from lab.physics3d import persistence
 
     _existing_organism(tmp_path)
     (tmp_path / "bodies" / "body-x" / "body.json").write_text(
@@ -346,7 +346,7 @@ def test_finalize_records_termination_ending_state_and_lifecycle(tmp_path) -> No
 
 
 def test_retention_distinguishes_bundles_sharing_organism_and_tick(tmp_path) -> None:
-    from symbiont_lab.physics3d import persistence
+    from lab.physics3d import persistence
 
     organism_dir = _existing_organism(tmp_path)
     store = Physics3DRunStore(tmp_path)
@@ -402,7 +402,7 @@ def test_acquisition_refuses_resume_at_protected_boundary(tmp_path) -> None:
 
 
 def test_observer_alias_persists_across_runs_and_never_enters_the_organism(tmp_path) -> None:
-    from symbiont_lab.physics3d import persistence
+    from lab.physics3d import persistence
 
     _existing_organism(tmp_path)
     store = Physics3DRunStore(tmp_path)
@@ -478,7 +478,7 @@ def test_resume_rejects_stale_body_before_creating_run(tmp_path) -> None:
 
 
 def test_finalize_only_marks_body_resumable_when_tick_aligned(tmp_path) -> None:
-    from symbiont_lab.physics3d import persistence
+    from lab.physics3d import persistence
 
     _existing_organism(tmp_path)
     store = Physics3DRunStore(tmp_path)

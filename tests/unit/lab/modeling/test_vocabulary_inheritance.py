@@ -11,9 +11,9 @@ import pytest
 
 torch = pytest.importorskip("torch")
 
+from lab.modeling.architectures import architecture_spec, build_model
+from lab.modeling.trainer import _extend_vocabulary_state
 from symbiont.modeling import ArchitectureId
-from symbiont_lab.modeling.architectures import architecture_spec, build_model
-from symbiont_lab.modeling.trainer import _extend_vocabulary_state
 
 PARENT_VOCAB, CHILD_VOCAB = 11, 15
 

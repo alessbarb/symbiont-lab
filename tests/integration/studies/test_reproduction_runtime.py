@@ -1,4 +1,4 @@
-from symbiont_lab.studies.reproduction_runtime import run_runtime_reproduction_study
+from lab.studies.reproduction_runtime import run_runtime_reproduction_study
 
 
 def test_runtime_reproduction_study_materializes_germinal_child_and_replays() -> None:

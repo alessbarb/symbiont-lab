@@ -3,12 +3,12 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from symbiont_lab.experiments.registry import get_protocol
-from symbiont_lab.studies.learning.emergent_structured_communication import (
+from lab.experiments.registry import get_protocol
+from lab.studies.learning.emergent_structured_communication import (
     run_emergent_structured_communication_study,
 )
 
-SOURCE = Path("src/symbiont_lab/studies/learning/emergent_structured_communication.py")
+SOURCE = Path("lab/src/lab/studies/learning/emergent_structured_communication.py")
 
 
 def test_structured_communication_study_is_registered_and_replayable() -> None:

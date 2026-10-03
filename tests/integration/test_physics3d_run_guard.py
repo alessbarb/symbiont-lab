@@ -8,8 +8,8 @@ import pytest
 
 pytest.importorskip("pybullet")
 
-from symbiont_lab.physics3d.engine import run
-from symbiont_lab.physics3d.persistence import read_symbiont_bundle_runtime
+from lab.physics3d.engine import run
+from lab.physics3d.persistence import read_symbiont_bundle_runtime
 
 pytestmark = pytest.mark.slow
 

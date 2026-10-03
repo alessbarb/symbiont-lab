@@ -3,8 +3,8 @@ from __future__ import annotations
 import math
 
 import pytest
-from symbiont.core.selfmodel import IDLE_GRACE_TICKS, RecencyClass, SelfModel
 
+from symbiont.core.cognition.host_self_model import IDLE_GRACE_TICKS, RecencyClass, SelfModel
 from symbiont.host.readings import CapabilitySamplingOutcome, ReadingQuality, SamplingOutcomeKind
 
 

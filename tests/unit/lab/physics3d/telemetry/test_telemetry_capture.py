@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from symbiont_lab.physics3d.apparatus import PhysicsReadingProvider
+from lab.physics3d.apparatus import PhysicsReadingProvider
 
 
 class FakeApparatus:

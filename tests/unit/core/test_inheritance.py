@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-from symbiont.core.inheritance import (
+from lab.evolution import mutate_genome
+from symbiont.cognition.birth import load_base_genome
+from symbiont.cognition.limits import KernelLimits
+from symbiont.core.lineage.inheritance import (
     CulturalArtifact,
     EpigeneticPrior,
     InheritanceChannels,
 )
-
-from symbiont.cognition.birth import load_base_genome
-from symbiont.cognition.limits import KernelLimits
-from symbiont_lab.evolution import mutate_genome
 
 
 def _genome():

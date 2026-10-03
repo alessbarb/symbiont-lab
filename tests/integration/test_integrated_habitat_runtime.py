@@ -1,5 +1,5 @@
-from symbiont_lab.integration import IntegratedHabitatConfig, IntegratedHabitatRuntime
-from symbiont_lab.studies.integrated_habitat_runtime import run_integrated_habitat_smoke
+from lab.integration import IntegratedHabitatConfig, IntegratedHabitatRuntime
+from lab.studies.integrated_habitat_runtime import run_integrated_habitat_smoke
 
 
 def test_integrated_habitat_exercises_population_and_existing_channels():

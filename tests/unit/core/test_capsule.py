@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 
-from symbiont.core.capsule import (
+from symbiont.core.social.capsule import (
     CAPSULE_SCHEMA_VERSION,
     CapsuleKeyPair,
     KnowledgeCapsule,

@@ -5,14 +5,14 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
-from symbiont.core.germline import (
+
+from symbiont.core.lineage.germline import (
     EpigeneticMark,
     GermlineState,
     SymbiontGenome,
     create_germline_state,
     create_standard_genome,
 )
-
 from symbiont.core.orchestration.clean_embodiment_seed import CleanEmbodimentSeed
 from symbiont.genetics.expression import (
     ExpressionRegulator,
@@ -180,10 +180,10 @@ def test_m5_inherited_mark_is_birth_expression_not_new_acquisition():
 
 
 def test_m6_regulator_has_no_world_lab_reward_or_fitness_dependency():
-    source = Path("src/symbiont/genetics/expression.py").read_text(encoding="utf-8")
+    source = Path("symbiont/src/symbiont/genetics/expression.py").read_text(encoding="utf-8")
     tree = ast.parse(source)
 
-    forbidden_modules = ("symbiont_lab", "symbiont_world")
+    forbidden_modules = ("lab", "environment")
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             assert all(not alias.name.startswith(forbidden_modules) for alias in node.names)
@@ -209,7 +209,7 @@ def test_m6_regulator_has_no_world_lab_reward_or_fitness_dependency():
     for token in forbidden_tokens:
         assert not any(token in code_token for code_token in code_tokens), (
             f"forbidden token {token!r} found in code (comments excluded) "
-            f"of src/symbiont/core/regulation.py"
+            f"of symbiont/src/symbiont/core/regulation.py"
         )
 
 

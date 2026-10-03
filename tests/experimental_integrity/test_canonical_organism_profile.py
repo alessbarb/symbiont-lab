@@ -12,6 +12,9 @@ import ast
 import inspect
 from pathlib import Path
 
+from tests.checkpoints import edited
+from tests.layout import source_files
+
 from symbiont.core.domains.intention import IntentionPolicy
 from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont.core.organism_profile import (
@@ -23,7 +26,6 @@ from symbiont.core.organism_profile import (
     symbol_seed_for,
 )
 from symbiont.modeling.runtime import ModeledOrganismRuntime
-from tests.checkpoints import edited
 
 ROOT = Path(__file__).resolve().parents[2]
 REGISTER = ROOT / "docs" / "design" / "core" / "canonical-organism-profile-v1.md"
@@ -33,20 +35,20 @@ REGISTER = ROOT / "docs" / "design" / "core" / "canonical-organism-profile-v1.md
 # intervention a protocol declares, never a launcher default.
 DECLARED_DEVIATIONS: dict[str, set[str]] = {
     # Protocol ablation blocks (experiment.toml) select factorized effects as an arm.
-    "src/symbiont_lab/experiments/runner.py": {"factorized_effects"},
+    "lab/src/lab/experiments/runner.py": {"factorized_effects"},
     # Physics3D CLI flags used to run declared arms of the factorized-effects and
     # ancestry protocols; off unless a protocol passes them.
-    "src/symbiont_lab/physics3d/cli.py": {"ancestry_training", "factorized_effects"},
+    "lab/src/lab/physics3d/cli.py": {"ancestry_training", "factorized_effects"},
     # The causal-equivalence harness scenario that exercises factorized state.
-    "src/symbiont_lab/physics3d/equivalence.py": {"factorized_effects"},
+    "lab/src/lab/physics3d/equivalence.py": {"factorized_effects"},
 }
 # Plumbing that forwards a caller's or a parent's own configuration unchanged,
 # and views that only report a configuration.
 FORWARDERS = {
-    "src/symbiont/core/orchestration/runtime.py",
-    "src/symbiont/core/organism_profile.py",
-    "src/symbiont_lab/reproduction/runtime.py",
-    "src/symbiont_lab/world/cli_view.py",
+    "symbiont/src/symbiont/core/orchestration/runtime.py",
+    "symbiont/src/symbiont/core/organism_profile.py",
+    "lab/src/lab/reproduction/runtime.py",
+    "lab/src/lab/world/cli_view.py",
 }
 
 
@@ -71,7 +73,7 @@ def _explicit_options(path: Path) -> set[str]:
 
 def _scan() -> dict[str, set[str]]:
     found: dict[str, set[str]] = {}
-    for path in sorted((ROOT / "src").rglob("*.py")):
+    for path in source_files():
         relative = path.relative_to(ROOT).as_posix()
         if "/studies/" in relative or relative in FORWARDERS:
             continue

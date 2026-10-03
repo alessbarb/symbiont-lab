@@ -8,7 +8,12 @@ import pytest
 pytestmark = pytest.mark.experiment_contract
 
 _PILOT = (
-    Path(__file__).parents[3] / "experiments" / "learning" / "signal-knowledge-pilot" / "pilot.py"
+    Path(__file__).parents[3]
+    / "lab"
+    / "experiments"
+    / "learning"
+    / "signal-knowledge-pilot"
+    / "pilot.py"
 )
 _SPEC = spec_from_file_location("signal_knowledge_pilot", _PILOT)
 assert _SPEC and _SPEC.loader

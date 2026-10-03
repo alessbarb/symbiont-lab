@@ -6,9 +6,9 @@ import stat
 from pathlib import Path
 
 import pytest
-from symbiont.core.capsule import CapsuleKeyPair
 
-from symbiont_lab.cli.capsule import _load_or_create_keypair
+from lab.cli.capsule import _load_or_create_keypair
+from symbiont.core.social.capsule import CapsuleKeyPair
 
 
 def test_capsule_keypair_public_key_fingerprint() -> None:

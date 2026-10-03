@@ -8,13 +8,16 @@ from pathlib import Path
 
 import pytest
 
+from tests.layout import PYTHONPATH as SOURCE_PYTHONPATH
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SRC_DIR = REPO_ROOT / "src"
+SYMBIONT_SRC = REPO_ROOT / "symbiont" / "src"
+LAB_SRC = REPO_ROOT / "lab" / "src"
 
 
 def test_subprocess_resolves_to_local_checkout() -> None:
     """Validate INF-05 invariant: subprocesses resolve packages from this checkout."""
-    script = "import symbiont, symbiont_lab; print(symbiont.__file__); print(symbiont_lab.__file__)"
+    script = "import symbiont, lab; print(symbiont.__file__); print(lab.__file__)"
     result = subprocess.run(
         [sys.executable, "-c", script],
         capture_output=True,
@@ -28,17 +31,16 @@ def test_subprocess_resolves_to_local_checkout() -> None:
     symbiont_file = Path(lines[0]).resolve()
     symbiont_lab_file = Path(lines[1]).resolve()
 
-    expected_src = SRC_DIR.resolve()
-    assert str(symbiont_file).startswith(str(expected_src)), (
-        f"symbiont was resolved to '{symbiont_file}', expected under '{expected_src}'"
+    assert symbiont_file.is_relative_to(SYMBIONT_SRC.resolve()), (
+        f"symbiont was resolved to '{symbiont_file}', expected under '{SYMBIONT_SRC}'"
     )
-    assert str(symbiont_lab_file).startswith(str(expected_src)), (
-        f"symbiont_lab was resolved to '{symbiont_lab_file}', expected under '{expected_src}'"
+    assert symbiont_lab_file.is_relative_to(LAB_SRC.resolve()), (
+        f"lab was resolved to '{symbiont_lab_file}', expected under '{LAB_SRC}'"
     )
 
 
 def test_execution_fingerprint_captures_active_runtime() -> None:
-    from symbiont_lab.experiments.manifest import ExecutionFingerprint
+    from lab.experiments.manifest import ExecutionFingerprint
 
     fp = ExecutionFingerprint.capture(
         REPO_ROOT,
@@ -61,7 +63,7 @@ def test_execution_fingerprint_captures_active_runtime() -> None:
 
 
 def test_execution_fingerprint_is_canonical_for_config_key_order() -> None:
-    from symbiont_lab.experiments.manifest import ExecutionFingerprint
+    from lab.experiments.manifest import ExecutionFingerprint
 
     left = ExecutionFingerprint.capture(
         REPO_ROOT,
@@ -80,7 +82,7 @@ def test_execution_fingerprint_is_canonical_for_config_key_order() -> None:
 
 
 def test_execution_fingerprint_rejects_declared_environment_mismatch() -> None:
-    from symbiont_lab.experiments.manifest import ExecutionFingerprint
+    from lab.experiments.manifest import ExecutionFingerprint
 
     declared = ExecutionFingerprint.capture(
         REPO_ROOT,
@@ -98,7 +100,7 @@ def test_execution_fingerprint_rejects_declared_environment_mismatch() -> None:
 def test_execution_fingerprint_in_isolated_subprocess() -> None:
     code = (
         "import json, sys\n"
-        "from symbiont_lab.experiments.manifest import ExecutionFingerprint\n"
+        "from lab.experiments.manifest import ExecutionFingerprint\n"
         "fp = ExecutionFingerprint.capture()\n"
         "print(json.dumps({\n"
         "    'hermetic': fp.is_hermetic_to(sys.argv[1]),\n"
@@ -122,7 +124,7 @@ def test_execution_fingerprint_in_isolated_subprocess() -> None:
 def test_isolated_subprocess_verifies_declared_execution_fingerprint() -> None:
     import json
 
-    from symbiont_lab.experiments.manifest import ExecutionFingerprint
+    from lab.experiments.manifest import ExecutionFingerprint
 
     declared = ExecutionFingerprint.capture(
         REPO_ROOT,
@@ -140,7 +142,7 @@ def test_isolated_subprocess_verifies_declared_execution_fingerprint() -> None:
     ).mismatches(declared)
     code = (
         "import json, sys\n"
-        "from symbiont_lab.experiments.manifest import ExecutionFingerprint\n"
+        "from lab.experiments.manifest import ExecutionFingerprint\n"
         "declared = ExecutionFingerprint(**json.loads(sys.argv[1]))\n"
         "actual = ExecutionFingerprint.capture(\n"
         "    declared.repo_root,\n"
@@ -164,8 +166,8 @@ def test_verified_child_checks_identity_before_running_target(monkeypatch) -> No
     import json
     from dataclasses import asdict, replace
 
-    from symbiont_lab.experiments.manifest import ExecutionFingerprint
-    from symbiont_lab.experiments.verified_child import run_verified
+    from lab.experiments.manifest import ExecutionFingerprint
+    from lab.experiments.verified_child import run_verified
 
     config = {"case": "verified-child"}
     declared = ExecutionFingerprint.capture(
@@ -200,7 +202,7 @@ def test_verified_child_subprocess_blocks_mismatch_before_target() -> None:
     import json
     from dataclasses import asdict, replace
 
-    from symbiont_lab.experiments.manifest import ExecutionFingerprint
+    from lab.experiments.manifest import ExecutionFingerprint
 
     config = {"case": "verified-child-subprocess"}
     declared = ExecutionFingerprint.capture(
@@ -224,7 +226,7 @@ def test_verified_child_subprocess_blocks_mismatch_before_target() -> None:
         [
             sys.executable,
             "-m",
-            "symbiont_lab.experiments.verified_child",
+            "lab.experiments.verified_child",
             "code",
             "print('study target executed')",
         ],
@@ -243,7 +245,7 @@ def test_verified_child_subprocess_blocks_mismatch_before_target() -> None:
 def test_verified_child_preserves_python_entrypoint_semantics(tmp_path, mode: str) -> None:
     import json
 
-    from symbiont_lab.experiments.manifest import ExecutionFingerprint
+    from lab.experiments.manifest import ExecutionFingerprint
 
     config = {"case": "entrypoint-semantics"}
     declared = ExecutionFingerprint.capture(
@@ -280,9 +282,9 @@ def test_verified_child_preserves_python_entrypoint_semantics(tmp_path, mode: st
         }
     )
     if mode == "module":
-        env["PYTHONPATH"] = os.pathsep.join([str(tmp_path), str(SRC_DIR)])
+        env["PYTHONPATH"] = os.pathsep.join([str(tmp_path), SOURCE_PYTHONPATH])
     result = subprocess.run(
-        [sys.executable, "-m", "symbiont_lab.experiments.verified_child", *entry],
+        [sys.executable, "-m", "lab.experiments.verified_child", *entry],
         cwd=REPO_ROOT,
         env=env,
         capture_output=True,
@@ -299,7 +301,7 @@ def test_verified_child_preserves_python_entrypoint_semantics(tmp_path, mode: st
 def test_verified_child_propagates_target_exit_code(monkeypatch) -> None:
     import json
 
-    from symbiont_lab.experiments.manifest import ExecutionFingerprint
+    from lab.experiments.manifest import ExecutionFingerprint
 
     config = {"case": "exit-code"}
     declared = ExecutionFingerprint.capture(
@@ -318,7 +320,7 @@ def test_verified_child_propagates_target_exit_code(monkeypatch) -> None:
         [
             sys.executable,
             "-m",
-            "symbiont_lab.experiments.verified_child",
+            "lab.experiments.verified_child",
             "code",
             "raise SystemExit(19)",
         ],

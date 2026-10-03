@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from symbiont_lab.studies.learning.generative_consolidation_gates import (
+from lab.studies.learning.generative_consolidation_gates import (
     run_generative_consolidation_gates_study,
 )
 

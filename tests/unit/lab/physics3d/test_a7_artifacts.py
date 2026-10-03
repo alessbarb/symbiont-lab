@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from symbiont_lab.studies.physics3d.a7_artifacts import (
+from lab.studies.physics3d.a7_artifacts import (
     compare_replays,
     verify_execution_artifacts,
     write_execution_artifacts,

@@ -1,4 +1,4 @@
-from symbiont_lab.studies import run_social_development_gate_study
+from lab.studies import run_social_development_gate_study
 
 
 def test_social_development_gate_matrix_passes_without_runtime_labels() -> None:

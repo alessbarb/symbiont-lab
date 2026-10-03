@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from symbiont_lab.experiments.loader import load_experiment_file
-from symbiont_lab.experiments.registry import get_protocol
+from lab.experiments.loader import load_experiment_file
+from lab.experiments.registry import get_protocol
 
 
 def test_cognitive_ecology_protocols_are_registered():
@@ -30,7 +30,7 @@ def test_cognitive_ecology_protocols_are_registered():
 
 
 def test_cognitive_ecology_preregistrations_bind_expected_protocols():
-    root = Path("experiments/learning")
+    root = Path("lab/experiments/learning")
     cases = {
         "structural-producer-fairness": "learning.structural-producer-fairness",
         "continuous-temporal-challenge": "learning.continuous-temporal-challenge",
@@ -54,7 +54,7 @@ def test_cognitive_ecology_preregistrations_bind_expected_protocols():
 
 def test_behavioral_ablation_preregisters_executable_horizon():
     spec = load_experiment_file(
-        Path("experiments/learning/embodied-behavioral-ablation/experiment.toml")
+        Path("lab/experiments/learning/embodied-behavioral-ablation/experiment.toml")
     )
 
     assert spec.extra_params["ablation"]["horizon_ticks"] == 256

@@ -6,13 +6,13 @@ counts must be right, checkpoint-stable, and absent-tolerant for older payloads.
 
 from __future__ import annotations
 
+from lab.studies.learning.agency_acquisition_body import CausalBody, build_subject
 from symbiont.actuation.binding import CompetenceExecutionBindingRegistry
 from symbiont.actuation.effects import EffectSpace
 from symbiont.agency.executive_outcome import ExecutiveOutcomeLedger
 from symbiont.capacity import CapacityPressure
 from symbiont.cognition.generative.consolidation import GenerativeUseTracker
 from symbiont.core.embodiment.adaptation import EmbodimentAdaptation
-from symbiont_lab.studies.learning.agency_acquisition_body import CausalBody, build_subject
 
 
 def test_pressure_counts_evictions_and_relearning_across_checkpoint():

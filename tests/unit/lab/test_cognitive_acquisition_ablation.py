@@ -9,8 +9,8 @@ are recorded as provenance and reapplied on restart (Longitudinal Integrity v1
 
 from __future__ import annotations
 
-from symbiont_lab.studies.ablations import CognitiveAcquisitionAblation
-from symbiont_lab.studies.learning.agency_acquisition_body import CausalBody, build_subject
+from lab.studies.ablations import CognitiveAcquisitionAblation
+from lab.studies.learning.agency_acquisition_body import CausalBody, build_subject
 
 
 def _run(ablation: CognitiveAcquisitionAblation | None, ticks: int = 120):

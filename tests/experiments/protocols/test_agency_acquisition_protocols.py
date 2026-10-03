@@ -11,12 +11,11 @@ from pathlib import Path
 
 import pytest
 
-from symbiont.actuation.intervention import opaque_channel_ref
-from symbiont_lab.experiments.loader import load_experiment_file
-from symbiont_lab.experiments.registry import get_protocol
-from symbiont_lab.experiments.runner import ExperimentRunner
-from symbiont_lab.experiments.spec import spec_from_payload
-from symbiont_lab.studies.learning.agency_acquisition import (
+from lab.experiments.loader import load_experiment_file
+from lab.experiments.registry import get_protocol
+from lab.experiments.runner import ExperimentRunner
+from lab.experiments.spec import spec_from_payload
+from lab.studies.learning.agency_acquisition import (
     ConsolidationGate,
     _prepare_acquired,
     _relation_classes,
@@ -24,11 +23,12 @@ from symbiont_lab.studies.learning.agency_acquisition import (
     run_acquisition_reuse_closure_study,
     run_consolidated_causal_intervention_study,
 )
-from symbiont_lab.studies.learning.agency_acquisition_body import (
+from lab.studies.learning.agency_acquisition_body import (
     BodyCondition,
     CausalBody,
     build_subject,
 )
+from symbiont.actuation.intervention import opaque_channel_ref
 
 pytestmark = pytest.mark.experiment_contract
 
@@ -90,7 +90,7 @@ EXECUTIVE_STUDIES = {
 
 
 def test_agency_preregistrations_bind_expected_protocols():
-    root = Path("experiments/learning")
+    root = Path("lab/experiments/learning")
     for directory, (protocol, _function) in PROTOCOLS.items():
         spec = load_experiment_file(root / directory / "experiment.toml")
         assert spec.protocol == protocol
@@ -189,7 +189,7 @@ def test_e4_relation_classes_follow_the_physical_ground_truth():
 
 
 def test_e5_v3_isolates_executive_outcome_learning_in_arm_d():
-    from symbiont_lab.studies.learning.agency_acquisition import (
+    from lab.studies.learning.agency_acquisition import (
         run_executive_bridge_ablation_study,
         run_intentional_causal_advantage_study,
     )
@@ -300,7 +300,7 @@ def test_high_dimensional_body_keeps_the_default_body_and_adds_correlation_and_d
 
 
 def test_high_dimensional_acquisition_study_reports_the_chain():
-    from symbiont_lab.studies.learning.agency_acquisition import (
+    from lab.studies.learning.agency_acquisition import (
         run_high_dimensional_acquisition_study,
     )
 
@@ -324,7 +324,7 @@ def test_high_dimensional_acquisition_study_reports_the_chain():
 
 @pytest.mark.experiment_contract
 def test_e8_v3_arms_differ_only_in_reconciliation():
-    root = Path(__file__).resolve().parents[3] / "experiments" / "learning"
+    root = Path(__file__).resolve().parents[3] / "lab" / "experiments" / "learning"
     r = load_experiment_file(root / "agency-intent-reconciliation-r" / "experiment.toml")
     ab = load_experiment_file(root / "agency-intent-reconciliation-ab" / "experiment.toml")
     gate = load_experiment_file(
@@ -345,7 +345,7 @@ def test_e8_v3_arms_differ_only_in_reconciliation():
 
 @pytest.mark.experiment_contract
 def test_e8_v3_reports_terminations_and_spurious_satisfactions():
-    from symbiont_lab.studies.learning.agency_acquisition import (
+    from lab.studies.learning.agency_acquisition import (
         run_high_dimensional_acquisition_study,
     )
 
@@ -369,9 +369,9 @@ def test_e8_v3_reports_terminations_and_spurious_satisfactions():
 
 @pytest.mark.experiment_contract
 def test_fp0_classifies_members_and_reports_the_decision_inputs():
-    from symbiont_lab.studies.learning.footprint_precision import run_footprint_precision_study
+    from lab.studies.learning.footprint_precision import run_footprint_precision_study
 
-    root = Path(__file__).resolve().parents[3] / "experiments" / "learning"
+    root = Path(__file__).resolve().parents[3] / "lab" / "experiments" / "learning"
     spec = load_experiment_file(root / "footprint-precision" / "experiment.toml")
     assert spec.protocol == "learning.footprint-precision"
     assert tuple(spec.seeds) == EXECUTIVE_SEEDS and spec.steps == 3000
@@ -413,7 +413,7 @@ def test_runner_records_fp0_results(tmp_path):
 
 @pytest.mark.experiment_contract
 def test_fp1_arms_differ_only_in_membership():
-    root = Path(__file__).resolve().parents[3] / "experiments" / "learning"
+    root = Path(__file__).resolve().parents[3] / "lab" / "experiments" / "learning"
     arms = {
         arm: load_experiment_file(root / f"footprint-precision-fp1-{arm}" / "experiment.toml")
         for arm in ("r", "t", "m", "tm")
@@ -436,7 +436,7 @@ def test_fp1_arms_differ_only_in_membership():
 
 @pytest.mark.experiment_contract
 def test_fp2_runs_on_new_seeds_disjoint_from_its_design_data():
-    root = Path(__file__).resolve().parents[3] / "experiments" / "learning"
+    root = Path(__file__).resolve().parents[3] / "lab" / "experiments" / "learning"
     design_seeds = set(EXECUTIVE_SEEDS)
     for arm in ("r", "m", "bh"):
         spec = load_experiment_file(root / f"footprint-precision-fp2-{arm}" / "experiment.toml")
@@ -450,7 +450,7 @@ def test_fp2_runs_on_new_seeds_disjoint_from_its_design_data():
 
 @pytest.mark.experiment_contract
 def test_bd1_arms_and_runner(tmp_path):
-    root = Path(__file__).resolve().parents[3] / "experiments" / "learning"
+    root = Path(__file__).resolve().parents[3] / "lab" / "experiments" / "learning"
     used = set(EXECUTIVE_SEEDS) | {463, 467, 479, 487, 491, 499, 503, 509, 521, 523}
     for arm in ("OFF", "HIST"):
         spec = load_experiment_file(root / f"binding-degradation-{arm.lower()}" / "experiment.toml")
@@ -481,7 +481,7 @@ def test_bd1_arms_and_runner(tmp_path):
 
 @pytest.mark.experiment_contract
 def test_fp3_runs_on_seeds_never_used_before():
-    root = Path(__file__).resolve().parents[3] / "experiments" / "learning"
+    root = Path(__file__).resolve().parents[3] / "lab" / "experiments" / "learning"
     used = (
         set(EXECUTIVE_SEEDS)
         | {409, 419, 421, 431, 433, 439, 443, 449, 457, 461}

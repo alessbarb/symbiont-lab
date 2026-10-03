@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from symbiont_lab.physics3d.private_model_training import PrivateModelTrainingService
+from lab.physics3d.private_model_training import PrivateModelTrainingService
 
 
 class _FakeExecutor:

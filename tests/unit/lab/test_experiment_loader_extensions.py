@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from symbiont_lab.experiments.loader import load_experiment_dict
+from lab.experiments.loader import load_experiment_dict
 
 
 def test_loader_accepts_bounded_ablation_extension():

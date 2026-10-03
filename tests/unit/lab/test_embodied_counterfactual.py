@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from symbiont_lab.studies.learning.embodied_counterfactual import (
+from lab.studies.learning.embodied_counterfactual import (
     OpaqueLagCandidate,
     evaluate_frozen_counterfactual,
     fit_frozen_lag_predictors,

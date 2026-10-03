@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from symbiont.core.cognition_bridge import CognitiveBridge, RepresentationMaturity
-
 from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.types import EdgeKind, NodeKind
+from symbiont.core.cognition.bridge import CognitiveBridge, RepresentationMaturity
 from tests.unit.core.test_actuation_cognition_p1 import _genome
 
 

@@ -17,9 +17,8 @@ def _reproduction_genome():
 
 
 def test_materialized_birth_conserves_parent_child_energy() -> None:
-    from symbiont.core.runtime import OrganismRuntime
-
-    from symbiont_lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
+    from lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
+    from symbiont.core.orchestration.runtime import OrganismRuntime
 
     authority = HabitatBirthAuthority(habitat_id="h", capacity=2)
     parent = OrganismRuntime(
@@ -47,9 +46,8 @@ def test_materialized_birth_conserves_parent_child_energy() -> None:
 
 
 def test_denied_birth_does_not_consume_parent_energy() -> None:
-    from symbiont.core.runtime import OrganismRuntime
-
-    from symbiont_lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
+    from lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
+    from symbiont.core.orchestration.runtime import OrganismRuntime
 
     authority = HabitatBirthAuthority(habitat_id="full", capacity=1)
     parent = OrganismRuntime(
@@ -68,9 +66,8 @@ def test_denied_birth_does_not_consume_parent_energy() -> None:
 
 
 def test_materialized_child_is_germinal_and_not_cognitively_inherited() -> None:
-    from symbiont.core.runtime import OrganismRuntime
-
-    from symbiont_lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
+    from lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
+    from symbiont.core.orchestration.runtime import OrganismRuntime
 
     authority = HabitatBirthAuthority(habitat_id="h", capacity=2)
     parent = OrganismRuntime(
@@ -94,11 +91,10 @@ def test_materialized_child_is_germinal_and_not_cognitively_inherited() -> None:
 
 
 def test_materialized_child_can_join_parent_social_habitat() -> None:
-    from symbiont.core.interactions import EcologicalResourcePool
-    from symbiont.core.runtime import OrganismRuntime
-
+    from lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
+    from symbiont.core.orchestration.runtime import OrganismRuntime
     from symbiont.core.social import SocialHabitat
-    from symbiont_lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
+    from symbiont.core.social.interactions import EcologicalResourcePool
 
     authority = HabitatBirthAuthority(habitat_id="h", capacity=2)
     social = SocialHabitat(EcologicalResourcePool({"food": 3.0}), max_members=3)
@@ -123,10 +119,9 @@ def test_materialized_child_can_join_parent_social_habitat() -> None:
 
 
 def test_birth_uses_parent_energy_not_shared_habitat_resource_stock() -> None:
-    from symbiont.core.ecology import SharedHabitat
-    from symbiont.core.runtime import OrganismRuntime
-
-    from symbiont_lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
+    from lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
+    from symbiont.core.orchestration.runtime import OrganismRuntime
+    from symbiont.core.social.ecology import SharedHabitat
 
     authority = HabitatBirthAuthority(habitat_id="h", capacity=2)
     surface = SharedHabitat(
@@ -157,10 +152,9 @@ def test_birth_uses_parent_energy_not_shared_habitat_resource_stock() -> None:
 
 
 def test_lab_observes_death_and_releases_population_slot_once() -> None:
-    from symbiont.core.metabolism import MetabolicLedger
-    from symbiont.core.runtime import OrganismDeadError, OrganismRuntime
-
-    from symbiont_lab.reproduction import HabitatBirthAuthority
+    from lab.reproduction import HabitatBirthAuthority
+    from symbiont.core.embodiment.metabolism import MetabolicLedger
+    from symbiont.core.orchestration.runtime import OrganismDeadError, OrganismRuntime
 
     authority = HabitatBirthAuthority(habitat_id="h", capacity=1)
     metabolism = MetabolicLedger(

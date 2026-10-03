@@ -1,8 +1,8 @@
 import pytest
-from symbiont.core.interactions import EcologicalResourcePool
-from symbiont.core.runtime import OrganismRuntime
 
+from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont.core.social import SocialHabitat
+from symbiont.core.social.interactions import EcologicalResourcePool
 
 
 def test_runtime_can_perceive_only_opaque_admitted_presence() -> None:

@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import pytest
-from symbiont.core.cognition_bridge import CognitiveBridge
 
 from symbiont.cognition.genome import GenomeCodec
 from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.structure import StructuralPlasticity
 from symbiont.cognition.types import EdgeKind, NodeKind
+from symbiont.core.cognition.bridge import CognitiveBridge
 from symbiont.host.adaptive import AdaptiveSenseModel
 from symbiont.host.checkpoint import normalize_checkpoint
 from symbiont.host.readings import ReadingPrivacyClass, ReadingQuality, SensorReading, Unit

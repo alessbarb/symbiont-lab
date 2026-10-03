@@ -42,16 +42,19 @@ import time
 from pathlib import Path
 from typing import Any
 
-from symbiont.cognition.limits import KernelLimits
-from symbiont.modeling.private_runtime import PrivateModelOrganismRuntime
-from symbiont_lab.studies.learning.agency_acquisition_body import (
+from lab.studies.learning.agency_acquisition_body import (
     CausalBody,
     build_subject,
     subject_lifecycle,
 )
+from symbiont.cognition.limits import KernelLimits
+from symbiont.modeling.private_runtime import PrivateModelOrganismRuntime
 
 ROOT = Path(__file__).resolve().parents[1]
-SRC = str(ROOT / "src")
+SOURCE_ROOTS = tuple(
+    str(ROOT / domain / "src")
+    for domain in ("symbiont", "environment", "modality", "embodiment", "lab")
+)
 
 
 def _rss_mb() -> float:
@@ -202,11 +205,12 @@ def _profile(runtime: PrivateModelOrganismRuntime, body: CausalBody, ticks: int)
     total = sum(row[2] for row in stats.stats.values()) or 1.0  # type: ignore[attr-defined]
     rows = []
     for (filename, _line, name), (_cc, calls, tottime, cumtime, _callers) in stats.stats.items():  # type: ignore[attr-defined]
-        if SRC not in filename:
+        source_root = next((root for root in SOURCE_ROOTS if root in filename), None)
+        if source_root is None:
             continue
         rows.append(
             {
-                "function": f"{Path(filename).relative_to(SRC).as_posix()}:{name}",
+                "function": f"{Path(filename).relative_to(source_root).as_posix()}:{name}",
                 "calls_per_tick": round(calls / ticks, 2),
                 "self_share": round(tottime / total, 4),
                 "cumulative_ms_per_tick": round(cumtime * 1000 / ticks, 4),

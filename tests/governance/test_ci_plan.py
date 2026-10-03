@@ -57,7 +57,7 @@ def test_scientific_subject_change_runs_core_and_integrity(monkeypatch) -> None:
     plan = _plan(
         monkeypatch,
         ChangeClass.SCIENTIFIC,
-        ["src/symbiont/core/example.py"],
+        ["symbiont/src/symbiont/core/example.py"],
         sections=("subject",),
         lanes={"software_core", "architecture_integrity"},
     )
@@ -76,7 +76,7 @@ def test_world_change_uses_targeted_world_lane(monkeypatch) -> None:
     plan = _plan(
         monkeypatch,
         ChangeClass.SCIENTIFIC,
-        ["src/symbiont_lab/world/example.py"],
+        ["lab/src/lab/world/example.py"],
         sections=("world",),
         lanes={"world", "architecture_integrity"},
     )
@@ -107,7 +107,7 @@ def test_experiment_change_runs_experiment_mechanics(monkeypatch) -> None:
     plan = _plan(
         monkeypatch,
         ChangeClass.SCIENTIFIC,
-        ["src/symbiont_lab/studies/example.py"],
+        ["lab/src/lab/studies/example.py"],
         sections=("experiment_protocol",),
         lanes={"experiment_mechanics", "architecture_integrity"},
     )
@@ -122,7 +122,7 @@ def test_physics3d_change_adds_heavy_physics_lane(monkeypatch) -> None:
     plan = _plan(
         monkeypatch,
         ChangeClass.SCIENTIFIC,
-        ["src/symbiont_lab/physics3d/engine.py"],
+        ["lab/src/lab/physics3d/engine.py"],
         sections=("lab",),
         lanes={"software_core", "architecture_integrity"},
     )
@@ -137,7 +137,7 @@ def test_modeling_change_adds_heavy_modeling_lane(monkeypatch) -> None:
     plan = _plan(
         monkeypatch,
         ChangeClass.SCIENTIFIC,
-        ["src/symbiont_lab/modeling/trainer.py"],
+        ["lab/src/lab/modeling/trainer.py"],
         sections=("lab",),
         lanes={"software_core", "architecture_integrity"},
     )
@@ -151,7 +151,7 @@ def test_host_change_adds_portability_lanes(monkeypatch) -> None:
     plan = _plan(
         monkeypatch,
         ChangeClass.SCIENTIFIC,
-        ["src/symbiont/host/providers/example.py"],
+        ["symbiont/src/symbiont/host/providers/example.py"],
         sections=("subject",),
         lanes={"software_core", "architecture_integrity"},
     )
@@ -193,7 +193,7 @@ def test_observed_launchers_select_the_observatory_lane() -> None:
     matrix = tomllib.loads(
         (ROOT / "docs" / "governance" / "validation-matrix.toml").read_text(encoding="utf-8")
     )
-    launchers = sorted((ROOT / "src" / "symbiont_lab" / "cli").glob("observed_*.py"))
+    launchers = sorted((ROOT / "lab" / "src" / "lab" / "cli").glob("observed_*.py"))
 
     assert launchers
     for launcher in launchers:

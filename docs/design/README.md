@@ -31,5 +31,4 @@ presence here does not mean it is approved or scheduled.
 > scientific records, including the
 > [`research programme`](../methodology/research-programme.md). For project
 > planning and implementation status, consult [`../roadmap.md`](../roadmap.md),
-> [`../architecture.md`](../architecture.md),
-> and [`../../ORGANISM.md`](../../ORGANISM.md).
+> and [`../architecture.md`](../architecture.md).

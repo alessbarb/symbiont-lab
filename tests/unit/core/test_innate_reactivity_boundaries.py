@@ -3,11 +3,11 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-REGULATION = Path("src/symbiont/core/regulation")
+REGULATION = Path("symbiont/src/symbiont/core/regulation")
 
 
 def test_regulation_imports_no_lab_world_or_evaluator_modules() -> None:
-    forbidden = ("symbiont_lab", "symbiont_world")
+    forbidden = ("lab", "environment")
     for path in sorted(REGULATION.glob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for node in ast.walk(tree):
@@ -43,7 +43,7 @@ def test_regulation_contains_no_anatomical_motor_mapping() -> None:
 
 
 def test_runtime_protection_enters_universal_action_arbitration() -> None:
-    source = Path("src/symbiont/core/domains/action.py").read_text(encoding="utf-8")
+    source = Path("symbiont/src/symbiont/core/domains/action.py").read_text(encoding="utf-8")
     assert "ActionSource.PROTECTION" in source
     assert "self.arbitrator.choose(" in source
     assert '"primitive_reactive"' not in source

@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from symbiont_lab.experiments.loader import load_experiment_file
-from symbiont_lab.experiments.registry import PROTOCOLS
+from lab.experiments.loader import load_experiment_file
+from lab.experiments.registry import PROTOCOLS
 
 _PROTOCOLS = (
     "perception.identity-equivalence",
@@ -25,7 +25,7 @@ def test_all_sensory_protocols_are_registered():
 
 
 def test_all_sensory_experiment_documents_load_and_bind_protocols():
-    root = Path(__file__).resolve().parents[3] / "experiments" / "perception"
+    root = Path(__file__).resolve().parents[3] / "lab" / "experiments" / "perception"
     documents = sorted(root.glob("*/experiment.toml"))
     assert len(documents) == len(_PROTOCOLS)
     loaded = {load_experiment_file(path).protocol for path in documents}

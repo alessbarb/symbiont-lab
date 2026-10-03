@@ -12,11 +12,11 @@ from dataclasses import dataclass
 
 import pytest
 
+from lab.studies.learning.agency_acquisition_body import CausalBody, build_subject
 from symbiont.actuation.model import CausalSourceKind
 from symbiont.agency.intention import IntentStatus
 from symbiont.core.domains.intention import SUPERSEDED_BY_PROTECTION
 from symbiont.core.regulation.types import ReactiveState
-from symbiont_lab.studies.learning.agency_acquisition_body import CausalBody, build_subject
 
 pytestmark = pytest.mark.slow
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from symbiont_lab.studies.learning.structural_producer_fairness import (
+from lab.studies.learning.structural_producer_fairness import (
     run_structural_producer_fairness_study,
 )
 

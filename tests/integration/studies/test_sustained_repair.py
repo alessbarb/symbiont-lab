@@ -1,6 +1,6 @@
 import pytest
 
-from symbiont_lab.studies.physiology import run_sustained_repair_study
+from lab.studies.physiology import run_sustained_repair_study
 
 
 def test_sustained_repair_consumes_intake_and_replays() -> None:

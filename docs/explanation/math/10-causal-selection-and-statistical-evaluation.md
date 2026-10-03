@@ -22,8 +22,8 @@ In the Symbiont Lab architecture, the experimental apparatus is strictly decoupl
 
 This document formalizes the two mathematical cores of this apparatus:
 
-1. The **streaming causal selection** algorithm with exact quotas based on randomly balanced Cartesian trees (*Treaps*) ([`symbiont_lab.studies.common.causal_selection`](../../../src/symbiont_lab/studies/common/causal_selection.py)).
-2. The battery of probabilistic calibration metrics, Brier Score, and decoupled confusion matrix decomposition ([`symbiont.simulation.metrics`](../../../src/symbiont/simulation/metrics.py) and [`evaluation.py`](../../../src/symbiont/simulation/evaluation.py)).
+1. The **streaming causal selection** algorithm with exact quotas based on randomly balanced Cartesian trees (*Treaps*) ([`symbiont_lab.studies.common.causal_selection`](../../../lab/src/lab/studies/common/causal_selection.py)).
+2. The battery of probabilistic calibration metrics, Brier Score, and decoupled confusion matrix decomposition (`symbiont.simulation.metrics` and `evaluation.py`).
 
 ---
 
@@ -38,7 +38,7 @@ A naive retrospective selection (sorting all $M$ events at the end of the execut
 
 ### 2.1 Mathematical Formulation and Environment Assumptions
 
-In the actual Symbiont Lab implementation ([`online_indices`](../../../src/symbiont_lab/studies/common/causal_selection.py#L118-L180)), selection operates under an **online model with ex-ante known finite horizon**:
+In the actual Symbiont Lab implementation ([`online_indices`](../../../lab/src/lab/studies/common/causal_selection.py#L118-L180)), selection operates under an **online model with ex-ante known finite horizon**:
 
 - The total length of the sequence of eligible events $M = \text{len(eligible\_items)}$ is calculated at the beginning of the batch.
 - At each instant $t \in \{1, \dots, M\}$, the selector knows the number of remaining events **including the current one**:
@@ -52,7 +52,7 @@ The formal problem consists of:
 
 ## 3. The Dynamic Order Statistic Treap with SplitMix64
 
-To evaluate exact quantiles of the observed history without reordering memory arrays at each step ($O(n \log n)$ per insertion), Symbiont Lab implements a **Treap** ([`OrderStatisticHistory`](../../../src/symbiont_lab/studies/common/causal_selection.py#L83-L106)).
+To evaluate exact quantiles of the observed history without reordering memory arrays at each step ($O(n \log n)$ per insertion), Symbiont Lab implements a **Treap** ([`OrderStatisticHistory`](../../../lab/src/lab/studies/common/causal_selection.py#L83-L106)).
 
 A Treap is a binary search tree where each node possesses:
 
@@ -72,7 +72,7 @@ It is essential to distinguish the abstract theoretical guarantee from its algor
    - In the worst pathological case (for example, if all priorities were monotonically correlated with the keys), the tree degenerates into a linked list of height $O(n)$.
 
 2. **Behavior under the SplitMix64 Deterministic Generator:**  
-   To avoid non-determinism and preserve bit-for-bit exact reproducibility across replicas without interfering with the simulation's pseudorandom generator, Symbiont Lab deterministically derives the priorities from the arrival ordinal $s$ using the SplitMix64 generator ([`_priority`](../../../src/symbiont_lab/studies/common/causal_selection.py#L29-L35)):
+   To avoid non-determinism and preserve bit-for-bit exact reproducibility across replicas without interfering with the simulation's pseudorandom generator, Symbiont Lab deterministically derives the priorities from the arrival ordinal $s$ using the SplitMix64 generator ([`_priority`](../../../lab/src/lab/studies/common/causal_selection.py#L29-L35)):
 
 $$\begin{aligned}
 v_0 &= (s + \text{0x9E3779B97F4A7C15}) \pmod{2^{64}} \\
@@ -102,7 +102,7 @@ The integer golden ratio constant $\gamma = \text{0x9E3779B97F4A7C15} = \lfloor 
 ```
 
 ### 3.2 Finding the $k$-th Quantile
-Given the subtree size stored in each node, querying the element at ordinal position $k \in \{0, \dots, n-1\}$ is resolved purely top-down ([`_kth`](../../../src/symbiont_lab/studies/common/causal_selection.py#L72-L81)):
+Given the subtree size stored in each node, querying the element at ordinal position $k \in \{0, \dots, n-1\}$ is resolved purely top-down ([`_kth`](../../../lab/src/lab/studies/common/causal_selection.py#L72-L81)):
 
 $$\operatorname{kth}(\text{node}, k) = \begin{cases}
 \operatorname{kth}(\text{node.left}, k) & \text{si } k < S_{\text{left}} \\
@@ -120,7 +120,7 @@ $$\theta_{\text{causal}} = \operatorname{kth}(\text{root}, \text{index})_{\text{
 
 ## 4. Streaming Selection Decision Algorithm
 
-At each step $t \in \{1, \dots, M\}$ over the set of eligible events ([`online_indices`](../../../src/symbiont_lab/studies/common/causal_selection.py#L118-L180)):
+At each step $t \in \{1, \dots, M\}$ over the set of eligible events ([`online_indices`](../../../lab/src/lab/studies/common/causal_selection.py#L118-L180)):
 
 Let:
 - $B_{\text{rem}}$: Remaining event budget to select ($B_1 = K$).
@@ -170,10 +170,10 @@ history.add(s_t)
 
 ## 5. Probabilistic Simulation Evaluation Metrics
 
-The evaluation apparatus ([`symbiont.simulation.evaluation.Evaluator`](../../../src/symbiont/simulation/evaluation.py)) processes the organism's decisions by comparing them with the ground truth $y^* \in \{0, 1\}$.
+The evaluation apparatus (`symbiont.simulation.evaluation.Evaluator`) processes the organism's decisions by comparing them with the ground truth $y^* \in \{0, 1\}$.
 
 ### 5.1 Brier Score
-The Brier Score ([`brier_score`](../../../src/symbiont/simulation/metrics.py#L13-L14)) is a strictly proper scoring rule that measures the mean squared error of predicted probabilities:
+The Brier Score (`brier_score`) is a strictly proper scoring rule that measures the mean squared error of predicted probabilities:
 
 $$BS = \frac{1}{N} \sum_{i=1}^N \big( p_i - y_i^* \big)^2 \in [0, 1]$$
 
@@ -182,7 +182,7 @@ where $p_i = \mathbb{P}(\text{Threat} \mid \mathcal{F}_{\text{org}})$ is the pro
 - $BS = 0.25$: Trivial uninformative predictor ($p_i = 0.5 \quad \forall i$).
 
 ### 5.2 Expected Calibration Error (ECE)
-To assess whether the probabilities declared by the organism correspond to real frequencies in the world ([`expected_calibration_error`](../../../src/symbiont/simulation/metrics.py#L17-L27)), the complete probability space $[0, 1]$ is partitioned into $M = 10$ mutually disjoint intervals:
+To assess whether the probabilities declared by the organism correspond to real frequencies in the world (`expected_calibration_error`), the complete probability space $[0, 1]$ is partitioned into $M = 10$ mutually disjoint intervals:
 
 $$B_1 = [0, 0.1], \qquad B_m = \left( \frac{m-1}{10}, \; \frac{m}{10} \right] \quad \text{for } m \in \{2, 3, \dots, 10\}$$
 
@@ -204,7 +204,7 @@ One of the fundamental design principles of Symbiont (ADR-0003) states that **at
 - An organism may attend to a signal simply because it is novel or uncertain, concluding after investigating it that it is perfectly benign.
 - An organism may classify a signal as a threat based on prior memory without requiring a second look.
 
-Therefore, [`EvaluationCounts`](../../../src/symbiont/simulation/evaluation.py#L13-L95) maintains two completely decoupled confusion matrices:
+Therefore, `EvaluationCounts` maintains two completely decoupled confusion matrices:
 
 ```text
                     MATRIZ DE ATENCIÓN                      MATRIZ DE CLASIFICACIÓN

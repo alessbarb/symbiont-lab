@@ -9,8 +9,9 @@ def test_cognition_layout_uses_spatial_bucketing_not_all_pairs() -> None:
     root = _root()
     controller = (
         root
+        / "lab"
         / "src"
-        / "symbiont_lab"
+        / "lab"
         / "workbench"
         / "web"
         / "views"
@@ -18,7 +19,7 @@ def test_cognition_layout_uses_spatial_bucketing_not_all_pairs() -> None:
         / "cognition-controller.js"
     ).read_text(encoding="utf-8")
     three_d = (
-        root / "src" / "symbiont_lab" / "workbench" / "web" / "views" / "mind" / "cognition-3d.js"
+        root / "lab" / "src" / "lab" / "workbench" / "web" / "views" / "mind" / "cognition-3d.js"
     ).read_text(encoding="utf-8")
 
     assert "forEachNearbyPair2D(" in controller
@@ -30,7 +31,7 @@ def test_cognition_layout_uses_spatial_bucketing_not_all_pairs() -> None:
 def test_3d_layout_does_not_rescan_all_edges_for_each_node() -> None:
     root = _root()
     source = (
-        root / "src" / "symbiont_lab" / "workbench" / "web" / "views" / "mind" / "cognition-3d.js"
+        root / "lab" / "src" / "lab" / "workbench" / "web" / "views" / "mind" / "cognition-3d.js"
     ).read_text(encoding="utf-8")
     relax = source[source.index("export function relaxCognition3D(") :]
 
@@ -42,8 +43,9 @@ def test_cognition_summary_is_not_rebuilt_on_every_animation_frame() -> None:
     root = _root()
     source = (
         root
+        / "lab"
         / "src"
-        / "symbiont_lab"
+        / "lab"
         / "workbench"
         / "web"
         / "views"
@@ -60,8 +62,9 @@ def test_canvas_shadows_are_reserved_for_focused_nodes() -> None:
     root = _root()
     source = (
         root
+        / "lab"
         / "src"
-        / "symbiont_lab"
+        / "lab"
         / "workbench"
         / "web"
         / "views"
@@ -78,7 +81,7 @@ def test_canvas_shadows_are_reserved_for_focused_nodes() -> None:
 def test_body_workspace_ignores_unchanged_metric_updates() -> None:
     root = _root()
     source = (
-        root / "src" / "symbiont_lab" / "workbench" / "web" / "views" / "body" / "workspace.js"
+        root / "lab" / "src" / "lab" / "workbench" / "web" / "views" / "body" / "workspace.js"
     ).read_text(encoding="utf-8")
 
     update = source[source.index("  updateMetric(id, text, color = null)") :]

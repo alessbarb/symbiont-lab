@@ -3,7 +3,9 @@ from __future__ import annotations
 import math
 
 import pytest
-from symbiont.core.consolidation import (
+
+from symbiont.cognition.limits import KernelLimits
+from symbiont.core.cognition.consolidation import (
     ConsolidationCandidate,
     ConsolidationSignal,
     MemoryConsolidator,
@@ -15,8 +17,6 @@ from symbiont.core.consolidation import (
     quantize_unit,
     surprise_from_loss,
 )
-
-from symbiont.cognition.limits import KernelLimits
 
 
 def _weak_signal() -> ConsolidationSignal:

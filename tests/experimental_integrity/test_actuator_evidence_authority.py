@@ -14,7 +14,7 @@ def test_legacy_actuator_proposer_symbol_is_removed() -> None:
 
 def test_action_domain_imports_only_canonical_actuator_evidence() -> None:
     root = Path(__file__).resolve().parents[2]
-    path = root / "src" / "symbiont" / "core" / "domains" / "action.py"
+    path = root / "symbiont" / "src" / "symbiont" / "core" / "domains" / "action.py"
     source = path.read_text(encoding="utf-8")
     tree = ast.parse(source)
     imported = {

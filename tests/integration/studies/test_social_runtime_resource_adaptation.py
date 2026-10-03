@@ -1,4 +1,4 @@
-from symbiont_lab.studies.social_runtime_resource_adaptation import (
+from lab.studies.social_runtime_resource_adaptation import (
     run_social_runtime_resource_adaptation_study,
 )
 

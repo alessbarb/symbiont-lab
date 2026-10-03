@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from symbiont_lab.experiments.snapshot_archive import (
+from lab.experiments.snapshot_archive import (
     archive_snapshot,
     inspect_snapshot_source,
     verify_snapshot,
@@ -60,7 +60,6 @@ def test_verify_snapshot_detects_mutation(tmp_path: Path) -> None:
         verify_snapshot(destination)
 
 
-
 def test_archive_snapshot_extracts_embedded_models(tmp_path: Path) -> None:
     import zipfile
 
@@ -112,7 +111,6 @@ def test_inspect_snapshot_source_requires_physical_body_state(tmp_path: Path) ->
     assert inspected["embedded_model_count"] == 1
     assert inspected["body_present"] is False
     assert inspected["capturable"] is False
-
 
 
 def test_internal_atomic_capture_verifies_destination_identity(tmp_path: Path) -> None:

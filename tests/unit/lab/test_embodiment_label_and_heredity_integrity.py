@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from symbiont_lab.experiments.registry import get_protocol
-from symbiont_lab.studies.embodiment.heredity_leakage_challenge import (
+from lab.experiments.registry import get_protocol
+from lab.studies.embodiment.heredity_leakage_challenge import (
     run_heredity_leakage_challenge_study,
 )
-from symbiont_lab.studies.embodiment.label_invariance import run_label_invariance_study
+from lab.studies.embodiment.label_invariance import run_label_invariance_study
 
 
 def test_e8_label_invariance_replay():

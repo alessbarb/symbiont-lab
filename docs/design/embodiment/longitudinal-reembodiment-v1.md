@@ -36,7 +36,7 @@ Associated normative documents:
 - [Temporal Separation Symbiont / Body](symbiont-body-temporal-separation-v1.md)
 - [Embodiment Memory](embodiment-memory-v1.md)
 - [Embodiment Epoch Summary](embodiment-epoch-summary-v1.md)
-- [Temporal Decontamination Audit](../../../research/audits/current/2026-09-temporal-decontamination.md)
+- [Temporal Decontamination Audit](../../../lab/research/audits/current/2026-09-temporal-decontamination.md)
 
 ---
 

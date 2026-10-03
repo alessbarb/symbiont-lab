@@ -1,6 +1,6 @@
 import pytest
 
-from symbiont_lab.studies.runtime_prediction_promotion import run_runtime_prediction_promotion_study
+from lab.studies.runtime_prediction_promotion import run_runtime_prediction_promotion_study
 
 
 def test_runtime_promotion_study_promotes_gain_and_rejects_noise() -> None:

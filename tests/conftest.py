@@ -8,16 +8,19 @@ from pathlib import Path
 import pytest
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
-_SRC_DIR = _REPO_ROOT / "src"
+_SOURCE_ROOTS = os.pathsep.join(
+    str(_REPO_ROOT / domain / "src")
+    for domain in ("symbiont", "environment", "modality", "embodiment", "lab")
+)
 
 
 @pytest.fixture(autouse=True, scope="session")
 def _ensure_hermetic_checkout_pythonpath() -> None:
-    """Ensure all subprocess invocations resolve to this checkout's src/ directory (INF-05)."""
-    src_str = str(_SRC_DIR)
+    """Ensure all subprocess invocations resolve to this checkout's source roots (INF-05)."""
+    src_str = _SOURCE_ROOTS
     existing = os.environ.get("PYTHONPATH", "")
     if not existing.startswith(src_str):
-        os.environ["PYTHONPATH"] = f"{src_str}:{existing}" if existing else src_str
+        os.environ["PYTHONPATH"] = f"{src_str}{os.pathsep}{existing}" if existing else src_str
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:

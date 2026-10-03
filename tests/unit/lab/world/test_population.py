@@ -1,8 +1,8 @@
 import pytest
 
-from symbiont_lab.world.genesis_v1 import build_ground_truth
-from symbiont_lab.world.population import PopulationGenesisRuntime, founder_placement
-from symbiont_world.topology import HexTopology
+from environment.topology import HexTopology
+from lab.world.genesis_v1 import build_ground_truth
+from lab.world.population import PopulationGenesisRuntime, founder_placement
 
 
 def _topo() -> HexTopology:

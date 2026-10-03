@@ -5,6 +5,11 @@ from __future__ import annotations
 import copy
 from dataclasses import replace
 
+from lab.studies.learning.agency_acquisition_body import (
+    CausalBody,
+    build_subject,
+    subject_lifecycle,
+)
 from symbiont.actuation.commitment import CommitmentStatus
 from symbiont.agency.affordance import ActionAffordance, affordance_id_for
 from symbiont.agency.executive_outcome import CausalRevisionState
@@ -23,11 +28,6 @@ from symbiont.core.domains.intention import (
     IntentionPolicy,
 )
 from symbiont.core.orchestration.runtime import OrganismRuntime
-from symbiont_lab.studies.learning.agency_acquisition_body import (
-    CausalBody,
-    build_subject,
-    subject_lifecycle,
-)
 
 
 def _decision(competence_id: str, effect_id: str) -> ProspectiveDecision:

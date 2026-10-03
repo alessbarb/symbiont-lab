@@ -3,17 +3,17 @@ from __future__ import annotations
 from dataclasses import replace
 
 import pytest
-from symbiont.core.germline import (
+
+from lab.evolution.reproduction import create_offspring_package
+from symbiont.core.lineage.germline import (
     EpigeneticMark,
     GermlineState,
     SymbiontGenome,
     create_germline_state,
     create_standard_genome,
 )
-
 from symbiont.core.orchestration.clean_embodiment_seed import CleanEmbodimentSeed
 from symbiont.genetics.germline import EpigeneticProtocol
-from symbiont_lab.evolution.reproduction import create_offspring_package
 
 
 def _genome_with(genome_id: str, **overrides: float | int) -> SymbiontGenome:

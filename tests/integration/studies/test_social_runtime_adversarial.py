@@ -1,4 +1,4 @@
-from symbiont_lab.studies.social_runtime_adversarial import run_social_runtime_adversarial_study
+from lab.studies.social_runtime_adversarial import run_social_runtime_adversarial_study
 
 
 def test_runtime_adversarial_study_is_bounded_and_deterministic() -> None:

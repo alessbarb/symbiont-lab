@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from symbiont_lab.studies.learning.prospective_agency_controls import (
+from lab.studies.learning.prospective_agency_controls import (
     run_prospective_agency_controls_study,
 )
 

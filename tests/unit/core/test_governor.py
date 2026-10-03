@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import pytest
-from symbiont.core.governor import (
+
+from symbiont.core.orchestration.governor import (
     ConsentRevokedError,
     GovernedOrganism,
     RateLimitedError,
     TickBudgetExhaustedError,
 )
-from symbiont.core.runtime import OrganismRuntime
+from symbiont.core.orchestration.runtime import OrganismRuntime
 
 
 def _runtime() -> OrganismRuntime:

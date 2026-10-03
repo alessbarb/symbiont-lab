@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import inspect
 
-from symbiont.core.runtime import OrganismRuntime, _canonical_hash
+from symbiont.core.orchestration.runtime import OrganismRuntime, _canonical_hash
 
 
 def _fresh(organism_id: str = "continuity-subject") -> OrganismRuntime:
@@ -182,7 +182,7 @@ def test_reproduction_preserves_lineage_across_checkpoint_without_experience():
     """Genealogy (spec §29): a born child's generation/lineage survive a
     checkpoint round-trip, and it never inherits the parent's acquired
     cognitive experience."""
-    from symbiont_lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
+    from lab.reproduction import HabitatBirthAuthority, materialize_clonal_bud
 
     authority = HabitatBirthAuthority(habitat_id="continuity", capacity=2)
     parent = OrganismRuntime(

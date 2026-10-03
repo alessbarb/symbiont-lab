@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from symbiont_lab.physics3d.telemetry.tools import (
+from lab.physics3d.telemetry.tools import (
     benchmark_run,
     compare_runs,
     convert_run,
     evaluate_acceptance_gates,
 )
-from symbiont_lab.physics3d.telemetry.v4 import TelemetryV4Writer
-from symbiont_lab.physics3d.telemetry.v41 import TelemetryV41Reader
+from lab.physics3d.telemetry.v4 import TelemetryV4Writer
+from lab.physics3d.telemetry.v41 import TelemetryV41Reader
 
 
 def _state(tick: int):

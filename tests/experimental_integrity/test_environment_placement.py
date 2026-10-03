@@ -1,7 +1,7 @@
 """ADR-0060 §5: the organism package gains no new environment-side class.
 
 The habitats and the synthetic host-event package already live under
-``src/symbiont`` and are tolerated as a closed list. Anything new that models
+``symbiont/src/symbiont`` and are tolerated as a closed list. Anything new that models
 the external side of the boundary belongs in the World kernel or in the Lab.
 """
 
@@ -12,7 +12,7 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-ORGANISM = ROOT / "src" / "symbiont"
+ORGANISM = ROOT / "symbiont" / "src" / "symbiont"
 ENVIRONMENT_NAME = re.compile(r"World|Habitat|Environment")
 TOLERATED = {
     ("core/host/local_habitat.py", "LocalHabitat"),
@@ -37,8 +37,3 @@ def _environment_classes() -> set[tuple[str, str]]:
 
 def test_environment_side_classes_in_the_organism_package_are_a_closed_list() -> None:
     assert _environment_classes() == TOLERATED
-
-
-def test_the_tolerated_legacy_environment_package_has_not_grown() -> None:
-    modules = {path.name for path in (ORGANISM / TOLERATED_PACKAGE).glob("*.py")}
-    assert modules == {"__init__.py", "regimes.py", "rng.py", "world.py"}

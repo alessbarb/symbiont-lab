@@ -57,7 +57,7 @@ _EXCLUDED_FILES = {
     # suffix as two deleted docs/design sources. They are not design-path
     # references, so excluding this index avoids a false positive while the
     # consolidation sweep remains strict everywhere else.
-    "research/studies/culture/README.md",
+    "lab/research/studies/culture/README.md",
 }
 
 

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from symbiont_lab.physics3d.effects import PhysicalState, physical_consequence
-from symbiont_lab.studies.physics3d.causal_effects import (
+from lab.physics3d.effects import PhysicalState, physical_consequence
+from lab.studies.physics3d.causal_effects import (
     MatchedControlTrial,
     analyze_matched_controls,
 )

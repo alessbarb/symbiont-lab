@@ -1,6 +1,6 @@
 import pytest
 
-from symbiont_lab.studies.prediction_promotion import run_prediction_promotion_study
+from lab.studies.prediction_promotion import run_prediction_promotion_study
 
 
 def test_shadow_promotion_requires_longitudinal_gain() -> None:

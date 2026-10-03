@@ -1,4 +1,4 @@
-from symbiont_lab.studies.learning.cultural_foundation import run_cultural_foundation_study
+from lab.studies.learning.cultural_foundation import run_cultural_foundation_study
 
 
 def test_preregistered_cultural_foundation_protocol_is_replayable():

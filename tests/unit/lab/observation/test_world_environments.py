@@ -4,14 +4,14 @@ from types import SimpleNamespace
 
 import pytest
 
-from symbiont_lab.physics3d.bodies import DEFAULT_BODY_REGISTRY
-from symbiont_lab.physics3d.environments import (
+from lab.physics3d.bodies import DEFAULT_BODY_REGISTRY
+from lab.physics3d.environments import (
     build_environment,
     environment_recipe,
     resolve_environment,
 )
-from symbiont_lab.physics3d.resource import PhysicalResource
-from symbiont_lab.physics3d.world_observation import PhysicsWorldObserver
+from lab.physics3d.resource import PhysicalResource
+from lab.physics3d.world_observation import PhysicsWorldObserver
 
 
 def test_recipe_resume_is_exact_and_cannot_silently_change_world():
@@ -78,7 +78,7 @@ def test_uncontacted_objects_are_invisible_but_contact_changes_opaque_receptors(
 @pytest.mark.slow
 def test_runtime_restores_environment_without_putting_world_in_organism():
     pytest.importorskip("pybullet")
-    from symbiont_lab.physics3d.runtime import PyBulletEmbodimentRuntime
+    from lab.physics3d.runtime import PyBulletEmbodimentRuntime
 
     runtime = PyBulletEmbodimentRuntime(
         gui=False, environment="contact-garden-v1", physics_substeps_per_tick=1, seed=42
@@ -108,7 +108,7 @@ def test_runtime_restores_environment_without_putting_world_in_organism():
 
 
 def test_home_launch_keeps_environment_in_laboratory_run(tmp_path):
-    from symbiont_lab.app.physics3d.runs import Physics3DRunStore
+    from lab.app.physics3d.runs import Physics3DRunStore
 
     store = Physics3DRunStore(tmp_path)
     launch = store.prepare({"environment": "contact-garden-v1"})

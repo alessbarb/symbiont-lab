@@ -5,10 +5,10 @@ from pathlib import Path
 
 import pytest
 
-from symbiont_lab.evaluation.holdout import SeedLedger
-from symbiont_lab.studies.learning.predictive_discovery import run_predictive_discovery_study
+from lab.evaluation.holdout import SeedLedger
+from lab.studies.learning.predictive_discovery import run_predictive_discovery_study
 
-SOURCE = Path("src/symbiont_lab/studies/learning/predictive_discovery.py")
+SOURCE = Path("lab/src/lab/studies/learning/predictive_discovery.py")
 
 
 def test_preregistered_discovery_study_passes_all_gates(tmp_path) -> None:

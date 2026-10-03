@@ -1,4 +1,4 @@
-from symbiont_lab.studies.social_runtime_context_replay import (
+from lab.studies.social_runtime_context_replay import (
     run_social_runtime_context_replay_study,
 )
 

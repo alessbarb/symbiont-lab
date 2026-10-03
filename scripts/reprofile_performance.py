@@ -27,8 +27,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+from lab.studies.learning.agency_acquisition_body import CausalBody, build_subject
 from symbiont.core.orchestration.runtime import OrganismRuntime
-from symbiont_lab.studies.learning.agency_acquisition_body import CausalBody, build_subject
 
 ROOT = Path(__file__).resolve().parents[1]
 

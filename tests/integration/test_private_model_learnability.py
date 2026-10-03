@@ -13,6 +13,14 @@ pytest.importorskip("torch")
 
 import torch
 
+from lab.modeling import TrainingConfig, encode_corpus, train_private_model
+from lab.modeling.outcome_metrics import evaluate_outcome_model
+from lab.modeling.trainer import TrainingProbe
+from lab.studies.learning.private_model_learnability import (
+    GRID,
+    classify,
+    corpus_from_payload,
+)
 from symbiont.modeling import (
     ArchitectureId,
     EpistemicStatus,
@@ -27,14 +35,6 @@ from symbiont.modeling import (
 )
 from symbiont.modeling.ledger import ExperienceLedger, HistoricalExperienceArchive
 from symbiont.modeling.runtime import private_causal_records
-from symbiont_lab.modeling import TrainingConfig, encode_corpus, train_private_model
-from symbiont_lab.modeling.outcome_metrics import evaluate_outcome_model
-from symbiont_lab.modeling.trainer import TrainingProbe
-from symbiont_lab.studies.learning.private_model_learnability import (
-    GRID,
-    classify,
-    corpus_from_payload,
-)
 
 ORGANISM = "organism-learnability"
 

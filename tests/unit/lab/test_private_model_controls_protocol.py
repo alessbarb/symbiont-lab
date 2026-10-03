@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from symbiont_lab.experiments.registry import get_protocol
-from symbiont_lab.experiments.runner import ExperimentRunner
-from symbiont_lab.experiments.spec import ExperimentSpec
-from symbiont_lab.studies.learning.private_model_controls import _history, _normalize_seeds
+from lab.experiments.registry import get_protocol
+from lab.experiments.runner import ExperimentRunner
+from lab.experiments.spec import ExperimentSpec
+from lab.studies.learning.private_model_controls import _history, _normalize_seeds
 
 
 def test_private_model_controls_accept_declarative_seed_list():
@@ -77,8 +77,8 @@ def test_private_model_protocols_bind_world_steps_to_ticks(monkeypatch, tmp_path
         captured.append((tuple(seeds), ticks))
         return Result()
 
-    monkeypatch.setattr("symbiont_lab.experiments.runner.get_protocol", lambda _name: protocol)
-    monkeypatch.setattr("symbiont_lab.experiments.runner.get_git_info", lambda: ("a" * 40, False))
+    monkeypatch.setattr("lab.experiments.runner.get_protocol", lambda _name: protocol)
+    monkeypatch.setattr("lab.experiments.runner.get_git_info", lambda: ("a" * 40, False))
 
     for name in ("learning.private-model-utility", "learning.private-model-controls"):
         ExperimentRunner(tmp_path / name).run(

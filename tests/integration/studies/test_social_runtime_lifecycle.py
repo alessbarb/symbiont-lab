@@ -1,4 +1,4 @@
-from symbiont_lab.studies.social_runtime_lifecycle import run_social_runtime_lifecycle_study
+from lab.studies.social_runtime_lifecycle import run_social_runtime_lifecycle_study
 
 
 def test_social_runtime_lifecycle_preserves_identity_lineage_and_death_boundary() -> None:

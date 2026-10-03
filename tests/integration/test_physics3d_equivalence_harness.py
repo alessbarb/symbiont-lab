@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pytest
 
+from lab.physics3d.engine import run
+from lab.physics3d.equivalence import equivalent, first_divergence, run_digests
 from symbiont.modeling.runtime import ModeledOrganismRuntime
-from symbiont_lab.physics3d.engine import run
-from symbiont_lab.physics3d.equivalence import equivalent, first_divergence, run_digests
 
 
 def _snapshot(tmp_path: Path) -> Path:

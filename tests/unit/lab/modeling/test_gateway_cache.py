@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-import symbiont_lab.modeling.gateway as gateway_module
-from symbiont_lab.modeling.gateway import ArtifactInferenceGateway
+import lab.modeling.gateway as gateway_module
+from lab.modeling.gateway import ArtifactInferenceGateway
 
 
 class _FakeStore:

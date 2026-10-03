@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from symbiont.core.runtime import OrganismRuntime
-
 from symbiont.cognition.graph import CognitiveGraph, PlasticNode
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.types import NodeKind
+from symbiont.core.orchestration.runtime import OrganismRuntime
 from tests.bodies import test_body_kwargs
 from tests.checkpoints import as_legacy
 

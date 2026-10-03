@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from symbiont_lab.physics3d.telemetry.compaction import canonical_json_bytes
-from symbiont_lab.physics3d.telemetry.numeric import (
+from lab.physics3d.telemetry.compaction import canonical_json_bytes
+from lab.physics3d.telemetry.numeric import (
     FrameSchemaRegistryReader,
     FrameSchemaRegistryWriter,
     FrameStreamReader,

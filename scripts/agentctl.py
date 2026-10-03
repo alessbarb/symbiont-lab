@@ -22,7 +22,14 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 _BOOTSTRAP_ROOT = Path(__file__).resolve().parents[1]
-for _bootstrap_path in (_BOOTSTRAP_ROOT / "scripts", _BOOTSTRAP_ROOT / "src"):
+for _bootstrap_path in (
+    _BOOTSTRAP_ROOT / "scripts",
+    _BOOTSTRAP_ROOT / "symbiont" / "src",
+    _BOOTSTRAP_ROOT / "environment" / "src",
+    _BOOTSTRAP_ROOT / "modality" / "src",
+    _BOOTSTRAP_ROOT / "embodiment" / "src",
+    _BOOTSTRAP_ROOT / "lab" / "src",
+):
     bootstrap = str(_bootstrap_path)
     if bootstrap not in sys.path:
         sys.path.insert(0, bootstrap)
@@ -31,21 +38,21 @@ from governance.classify import ChangeClass
 from governance.classify import assess as assess_change
 from governance.publish import publish as publish_changes
 
-from symbiont_lab.experiments.execution_workspace import pinned_worktree
-from symbiont_lab.experiments.generations import GenerationStore
-from symbiont_lab.experiments.resource_guard import ResourceRequest, assess_resources
-from symbiont_lab.experiments.snapshot_archive import (
+from lab.experiments.execution_workspace import pinned_worktree
+from lab.experiments.generations import GenerationStore
+from lab.experiments.resource_guard import ResourceRequest, assess_resources
+from lab.experiments.snapshot_archive import (
     archive_snapshot,
     inspect_snapshot_source,
     verify_snapshot,
 )
-from symbiont_lab.physics3d.equivalence_suite import (
+from lab.physics3d.equivalence_suite import (
     load_suite as load_equivalence_suite,
 )
-from symbiont_lab.physics3d.equivalence_suite import (
+from lab.physics3d.equivalence_suite import (
     run_once as run_equivalence_once,
 )
-from symbiont_lab.physics3d.equivalence_suite import (
+from lab.physics3d.equivalence_suite import (
     suite_status as equivalence_suite_status,
 )
 
@@ -1040,7 +1047,10 @@ def run_pinned(
                 )
             scientific_python = _scientific_python(environment)
             env = _scientific_environment(home=run_home)
-            env["PYTHONPATH"] = str(worktree / "src")
+            env["PYTHONPATH"] = os.pathsep.join(
+                str(worktree / domain / "src")
+                for domain in ("symbiont", "environment", "modality", "embodiment", "lab")
+            )
             env["UV_PROJECT_ENVIRONMENT"] = str(environment)
             if input_dir is not None:
                 env["SYMBIONT_RUN_INPUT"] = str(input_dir)
@@ -1069,7 +1079,7 @@ def run_pinned(
                 [
                     str(scientific_python),
                     "-m",
-                    "symbiont_lab.experiments.verified_child",
+                    "lab.experiments.verified_child",
                     "--capture",
                     str(worktree),
                     effective_config,
@@ -1098,7 +1108,7 @@ def run_pinned(
             child_argv = [
                 str(scientific_python),
                 "-m",
-                "symbiont_lab.experiments.verified_child",
+                "lab.experiments.verified_child",
                 target[0],
                 target[1],
                 *target[2],
@@ -1480,11 +1490,11 @@ def main() -> int:
     equivalence_sub = p_equivalence.add_subparsers(dest="equivalence_command", required=True)
     p_eq_status = equivalence_sub.add_parser("status")
     p_eq_status.add_argument(
-        "--suite", type=Path, default=ROOT / "experiments/equivalence/suite-v1/suite.toml"
+        "--suite", type=Path, default=ROOT / "lab/experiments/equivalence/suite-v1/suite.toml"
     )
     p_eq_run = equivalence_sub.add_parser("run")
     p_eq_run.add_argument(
-        "--suite", type=Path, default=ROOT / "experiments/equivalence/suite-v1/suite.toml"
+        "--suite", type=Path, default=ROOT / "lab/experiments/equivalence/suite-v1/suite.toml"
     )
     p_eq_run.add_argument("--scenario", action="append", default=[])
 

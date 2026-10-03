@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from symbiont_lab.experiments.registry import get_protocol
-from symbiont_lab.studies.embodiment.temporal_causality_challenge import (
+from lab.experiments.registry import get_protocol
+from lab.studies.embodiment.temporal_causality_challenge import (
     run_temporal_causality_challenge_study,
 )
 

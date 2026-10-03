@@ -1,4 +1,4 @@
-from symbiont_lab.studies.social_runtime_specialization import (
+from lab.studies.social_runtime_specialization import (
     run_social_runtime_specialization_study,
 )
 

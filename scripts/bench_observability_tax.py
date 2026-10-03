@@ -13,8 +13,8 @@ import json
 import statistics
 import time
 
+from lab.studies.learning.agency_acquisition_body import CausalBody, build_subject
 from symbiont.core.orchestration.runtime import OrganismRuntime
-from symbiont_lab.studies.learning.agency_acquisition_body import CausalBody, build_subject
 
 
 def _subject(seed: int) -> tuple[OrganismRuntime, CausalBody]:

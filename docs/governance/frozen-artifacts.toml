@@ -76,7 +76,7 @@ class = "governance-control-plane"
 rule = "external-review-required"
 
 [[artifact]]
-path_glob = "experiments/**/results.json"
+path_glob = "lab/experiments/**/results.json"
 class = "scientific-result"
 rule = "append-or-supersede; never rewrite completed evidence"
 

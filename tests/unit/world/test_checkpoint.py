@@ -1,7 +1,7 @@
-from symbiont_world.checkpoint import restore, take_checkpoint
-from symbiont_world.rng import derive_world_rng
-from symbiont_world.state import WorldState
-from symbiont_world.topology import BodyPlacement, HexCoord
+from environment.checkpoint import restore, take_checkpoint
+from environment.rng import derive_world_rng
+from environment.state import WorldState
+from environment.topology import BodyPlacement, HexCoord
 
 
 def _seed_state() -> WorldState:

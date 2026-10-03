@@ -5,12 +5,12 @@ import random
 import time
 
 import pytest
-from symbiont.core.development import DevelopmentalTracker
-from symbiont.core.homeostasis import HomeostaticController
-from symbiont.core.runtime import OrganismRuntime
-from symbiont.core.signal_identity import SignalIdentity
-from symbiont.core.signal_knowledge_types import SignalObservation, SignalObservationBatch
 
+from symbiont.core.embodiment.development import DevelopmentalTracker
+from symbiont.core.embodiment.homeostasis import HomeostaticController
+from symbiont.core.orchestration.runtime import OrganismRuntime
+from symbiont.core.signals.identity import SignalIdentity
+from symbiont.core.signals.knowledge_types import SignalObservation, SignalObservationBatch
 from symbiont.host.checkpoint import CheckpointError
 from symbiont.host.percepts import DEFAULT_PERCEPT_NAMES
 from tests.bodies import SIGNALS, test_body_kwargs
@@ -456,8 +456,7 @@ def test_fresh_organism_attention_allocations_unaffected_by_empty_self_model():
 def test_established_but_persistently_unhealthy_sense_is_skipped_for_second_look():
     from types import SimpleNamespace
 
-    from symbiont.core.selfmodel import MIN_SELF_MODEL_ATTEMPTS, SelfModel
-
+    from symbiont.core.cognition.host_self_model import MIN_SELF_MODEL_ATTEMPTS, SelfModel
     from symbiont.host.acclimation import CapabilityBaseline, HostAcclimation
     from symbiont.host.adaptive import AdaptiveSenseModel
     from symbiont.host.contracts import Capability, CapabilityKind, HostManifest
@@ -649,8 +648,7 @@ def test_one_failing_provider_only_degrades_its_own_capabilities_health():
 
 
 def test_health_without_current_tick_stays_undecayed_from_the_perspective_of_runtime():
-    from symbiont.core.selfmodel import IDLE_GRACE_TICKS, SelfModel
-
+    from symbiont.core.cognition.host_self_model import IDLE_GRACE_TICKS, SelfModel
     from symbiont.host.readings import (
         CapabilitySamplingOutcome,
         ReadingQuality,
@@ -1132,7 +1130,7 @@ def test_p8_low_reliability_sense_cannot_create_a_one_shot_trace():
     the other four dimensions alone would already clear the score
     threshold -- proving the explicit reliability gate does real work beyond
     what the weighted score already enforces."""
-    from symbiont.core.consolidation import ConsolidationSignal, MemoryKind
+    from symbiont.core.cognition.consolidation import ConsolidationSignal, MemoryKind
 
     runtime = OrganismRuntime(discover_senses=False, bootstrap_semantic_senses=True, min_samples=1)
     borderline_unreliable = ConsolidationSignal(
@@ -1344,7 +1342,7 @@ def test_p10_memory_stays_bounded_over_a_long_real_residence():
     """P10 end to end: candidates, salient traces and all durable
     projections respect kernel limits under a long real run, not just the
     standalone consolidator (already covered in PR1)."""
-    from symbiont.core.physiology import LivingBodyState
+    from symbiont.core.embodiment.physiology import LivingBodyState
 
     runtime = OrganismRuntime(
         discover_senses=False,
@@ -1369,8 +1367,8 @@ def test_p10_memory_stays_bounded_over_a_long_real_residence():
 
 
 def test_runtime_degradation_queue_ages_excretes_and_replays() -> None:
-    from symbiont.core.degradation import DegradationQueue, RetentionState
-    from symbiont.core.runtime import OrganismRuntime
+    from symbiont.core.embodiment.degradation import DegradationQueue, RetentionState
+    from symbiont.core.orchestration.runtime import OrganismRuntime
 
     queue = DegradationQueue(aging_ticks=1, waste_ticks=1)
     queue.retain("stale-memory", 0.25)
@@ -1404,7 +1402,7 @@ def test_runtime_discovers_and_updates_interoception() -> None:
 
 
 def test_runtime_explicit_metabolism_tracks_finite_reserve() -> None:
-    from symbiont.core.metabolism import MetabolicLedger
+    from symbiont.core.embodiment.metabolism import MetabolicLedger
 
     metabolism = MetabolicLedger(
         reserve={"observation": 0.5, "cognition": 0.5, "persistence": 0.5, "maintenance": 0.5},
@@ -1438,7 +1436,7 @@ def test_explicit_metabolism_never_gains_reserve_from_cognitive_success() -> Non
     decrease over ticks that involve no physical resource intake
     (``request_resource_intake``/habitat consumption).
     """
-    from symbiont.core.metabolism import MetabolicLedger
+    from symbiont.core.embodiment.metabolism import MetabolicLedger
 
     metabolism = MetabolicLedger(
         reserve={"observation": 0.9, "cognition": 0.9, "persistence": 0.9, "maintenance": 0.9},
@@ -1470,8 +1468,8 @@ def test_explicit_metabolism_never_gains_reserve_from_cognitive_success() -> Non
 
 
 def test_autonomous_rest_regulation_when_pressure_is_severe() -> None:
-    from symbiont.core.metabolism import MetabolicLedger
-    from symbiont.core.physiology import VitalState
+    from symbiont.core.embodiment.metabolism import MetabolicLedger
+    from symbiont.core.embodiment.physiology import VitalState
 
     metabolism = MetabolicLedger(
         reserve={"observation": 0.05, "cognition": 0.05, "persistence": 0.05, "maintenance": 0.05},

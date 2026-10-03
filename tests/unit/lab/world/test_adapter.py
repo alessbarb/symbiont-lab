@@ -1,8 +1,8 @@
 import pytest
 
-from symbiont_lab.world.adapter import SingleOrganismGenesisRuntime
-from symbiont_lab.world.genesis_v1 import build_ground_truth
-from symbiont_world.topology import HexCoord, HexTopology
+from environment.topology import HexCoord, HexTopology
+from lab.world.adapter import SingleOrganismGenesisRuntime
+from lab.world.genesis_v1 import build_ground_truth
 
 
 def _runtime(seed: int = 101) -> SingleOrganismGenesisRuntime:
@@ -64,7 +64,7 @@ def test_run_stops_early_if_organism_dies_mid_run():
 
 
 def test_deferred_resource_effect_fires_after_delay_within_contract_bounds():
-    from symbiont_lab.world.genesis_v1 import RESOURCE_IDS
+    from lab.world.genesis_v1 import RESOURCE_IDS
 
     resource_id = RESOURCE_IDS["resource-immediate-deferred"]
     runtime = SingleOrganismGenesisRuntime(
@@ -93,12 +93,12 @@ def test_no_deferred_config_means_no_deferred_damage():
 
 
 def test_reading_provider_reflects_current_observation_only():
+    from environment.contracts import WorldObservation
+    from lab.world.adapter import WorldReadingProvider
     from symbiont.host.contracts import Capability, CapabilityKind
-    from symbiont_lab.world.adapter import WorldReadingProvider
-    from symbiont_world.contracts import WorldObservation
 
     provider = WorldReadingProvider()
-    cap = Capability(capability_id="abc123", kind=CapabilityKind.SIGNAL, source="symbiont_world")
+    cap = Capability(capability_id="abc123", kind=CapabilityKind.SIGNAL, source="environment")
     assert provider.sample((cap,)) == ()
 
     provider.set_observation(WorldObservation(signals={"abc123": 0.5}))
@@ -109,8 +109,8 @@ def test_reading_provider_reflects_current_observation_only():
 
 
 def test_anonymous_emission_reception_crosses_reading_provider_without_sender_identity():
-    from symbiont_lab.world.adapter import WorldReadingProvider, _capabilities_for
-    from symbiont_world.contracts import ReceivedEmission, WorldObservation
+    from environment.contracts import ReceivedEmission, WorldObservation
+    from lab.world.adapter import WorldReadingProvider, _capabilities_for
 
     provider = WorldReadingProvider()
     capabilities = _capabilities_for(build_ground_truth())
@@ -121,13 +121,13 @@ def test_anonymous_emission_reception_crosses_reading_provider_without_sender_id
     # Three fixed opaque reception channels: presence, symbol, intensity.
     received = [reading for reading in readings if reading.value is not None]
     assert len(received) == 3
-    assert all(reading.source == "symbiont_world" for reading in received)
+    assert all(reading.source == "environment" for reading in received)
     assert all("sender" not in reading.capability_id for reading in received)
 
 
 def test_clean_world_capabilities_are_only_mixed_opaque_receptors():
-    from symbiont_lab.world.adapter import _capabilities_for
-    from symbiont_world.observation import LOCAL_OCCUPANCY_SIGNAL
+    from environment.observation import LOCAL_OCCUPANCY_SIGNAL
+    from lab.world.adapter import _capabilities_for
 
     truth = build_ground_truth()
     capabilities = _capabilities_for(truth, experimental_clean=True)
@@ -142,9 +142,9 @@ def test_clean_world_capabilities_are_only_mixed_opaque_receptors():
 
 
 def test_clean_receptors_mix_material_but_do_not_sense_hazard_probability():
-    from symbiont_lab.world.adapter import physical_receptor_signals
-    from symbiont_world.contracts import WorldObservation
-    from symbiont_world.observation import LOCAL_OCCUPANCY_SIGNAL
+    from environment.contracts import WorldObservation
+    from environment.observation import LOCAL_OCCUPANCY_SIGNAL
+    from lab.world.adapter import physical_receptor_signals
 
     truth = build_ground_truth()
     fields = {field_id: 0.2 for field_id in truth.fields}
@@ -170,7 +170,7 @@ def test_clean_receptors_mix_material_but_do_not_sense_hazard_probability():
 
 
 def test_clean_organism_has_no_semantic_bootstrap_or_autonomous_action_priors():
-    from symbiont_lab.world.adapter import _construct_organism
+    from lab.world.adapter import _construct_organism
 
     rig = _construct_organism(
         organism_id="clean",
@@ -194,7 +194,7 @@ def test_clean_organism_has_no_semantic_bootstrap_or_autonomous_action_priors():
 
 
 def test_clean_founders_do_not_share_signal_identity_namespace():
-    from symbiont_lab.world.adapter import _construct_organism
+    from lab.world.adapter import _construct_organism
 
     kwargs = dict(
         world_id="clean-world",
@@ -221,8 +221,8 @@ def test_clean_founders_do_not_share_signal_identity_namespace():
 
 
 def test_private_receptor_ids_preserve_same_constitutional_transfer_geometry():
-    from symbiont_lab.world.adapter import physical_receptor_ids, physical_receptor_signals
-    from symbiont_world.contracts import WorldObservation
+    from environment.contracts import WorldObservation
+    from lab.world.adapter import physical_receptor_ids, physical_receptor_signals
 
     truth = build_ground_truth()
     signals = {
@@ -241,10 +241,10 @@ def test_private_receptor_ids_preserve_same_constitutional_transfer_geometry():
 
 
 def test_clean_receptor_transfer_geometry_ignores_source_labels():
-    from symbiont_lab.world.adapter import physical_receptor_signals
-    from symbiont_world.contracts import WorldObservation
-    from symbiont_world.genesis import GroundTruth
-    from symbiont_world.laws import PeriodicFieldLaw
+    from environment.contracts import WorldObservation
+    from environment.genesis import GroundTruth
+    from environment.laws import PeriodicFieldLaw
+    from lab.world.adapter import physical_receptor_signals
 
     laws = (
         PeriodicFieldLaw(amplitude=0.1, bias=0.2, angular_frequency=0.0),
@@ -269,8 +269,8 @@ def test_clean_receptor_transfer_geometry_ignores_source_labels():
 
 
 def test_clean_observation_strips_structured_side_channels_after_mixing():
-    from symbiont_lab.world.adapter import clean_world_observation, physical_receptor_ids
-    from symbiont_world.contracts import ReceivedEmission, WorldObservation
+    from environment.contracts import ReceivedEmission, WorldObservation
+    from lab.world.adapter import clean_world_observation, physical_receptor_ids
 
     truth = build_ground_truth()
     raw = WorldObservation(
@@ -289,8 +289,8 @@ def test_clean_observation_strips_structured_side_channels_after_mixing():
 
 
 def test_clean_receptors_transduce_somatic_state_without_exposing_somatic_labels():
-    from symbiont_lab.world.adapter import physical_receptor_ids, physical_receptor_signals
-    from symbiont_world.contracts import WorldObservation
+    from environment.contracts import WorldObservation
+    from lab.world.adapter import physical_receptor_ids, physical_receptor_signals
 
     truth = build_ground_truth()
     receptor_ids = physical_receptor_ids("somatic-subject")
@@ -321,13 +321,13 @@ def test_clean_receptors_transduce_somatic_state_without_exposing_somatic_labels
 
 
 def test_clean_receptor_metadata_is_uniform_and_non_semantic():
-    from symbiont.host.readings import ReadingPrivacyClass, ReadingQuality, Unit
-    from symbiont_lab.world.adapter import (
+    from environment.contracts import WorldObservation
+    from lab.world.adapter import (
         WorldReadingProvider,
         _capabilities_for,
         physical_receptor_ids,
     )
-    from symbiont_world.contracts import WorldObservation
+    from symbiont.host.readings import ReadingPrivacyClass, ReadingQuality, Unit
 
     truth = build_ground_truth()
     receptor_ids = physical_receptor_ids("metadata-subject")
@@ -349,7 +349,7 @@ def test_clean_receptor_metadata_is_uniform_and_non_semantic():
 
 
 def test_clean_world_never_calls_structured_motor_probing():
-    from symbiont_lab.world.population import PopulationGenesisRuntime
+    from lab.world.population import PopulationGenesisRuntime
 
     pop = PopulationGenesisRuntime(
         organism_ids=("clean-probe-guard",),
@@ -370,7 +370,7 @@ def test_clean_world_never_calls_structured_motor_probing():
 
 
 def test_clean_body_has_no_dedicated_acquire_actuator():
-    from symbiont_lab.world.adapter import _construct_organism
+    from lab.world.adapter import _construct_organism
 
     rig = _construct_organism(
         organism_id="clean-no-intake-organ",
@@ -390,7 +390,7 @@ def test_clean_body_has_no_dedicated_acquire_actuator():
 
 
 def test_clean_world_does_not_inject_resource_habitats_or_cognitive_fuel():
-    from symbiont_lab.world.adapter import _construct_organism
+    from lab.world.adapter import _construct_organism
 
     rig = _construct_organism(
         organism_id="isolated-core",
@@ -409,7 +409,7 @@ def test_clean_world_does_not_inject_resource_habitats_or_cognitive_fuel():
 
 
 def test_boundary_guard_rejects_implicit_ambient_metabolism_regardless_of_ledger_values():
-    from symbiont_lab.world.population import PopulationGenesisRuntime
+    from lab.world.population import PopulationGenesisRuntime
 
     pop = PopulationGenesisRuntime(
         organism_ids=("isolated-core",),
@@ -432,7 +432,7 @@ def test_boundary_guard_rejects_implicit_ambient_metabolism_regardless_of_ledger
 
 
 def test_clean_material_exchange_crosses_only_scalar_absorption():
-    from symbiont_lab.world.population import PopulationGenesisRuntime
+    from lab.world.population import PopulationGenesisRuntime
 
     pop = PopulationGenesisRuntime(
         organism_ids=("isolated-core",),
@@ -449,9 +449,9 @@ def test_clean_material_exchange_crosses_only_scalar_absorption():
 
 def test_clean_material_exchange_conserves_mass_with_scarce_resources():
     """NEW-AUD-001: Under scarce resources, World loss must strictly equal Body absorption."""
-    from symbiont_lab.world.population import PopulationGenesisRuntime
-    from symbiont_world.genesis import GroundTruth
-    from symbiont_world.laws import ResourceLaw
+    from environment.genesis import GroundTruth
+    from environment.laws import ResourceLaw
+    from lab.world.population import PopulationGenesisRuntime
 
     scarce_truth = GroundTruth(
         fields=build_ground_truth().fields,
@@ -532,7 +532,7 @@ def test_clean_material_exchange_conserves_mass_with_scarce_resources():
 
 
 def test_clean_organism_identity_is_world_independent():
-    from symbiont_lab.world.adapter import _construct_organism
+    from lab.world.adapter import _construct_organism
 
     common = dict(
         organism_id="same-organism",

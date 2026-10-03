@@ -14,14 +14,14 @@ from types import SimpleNamespace
 
 import pytest
 
+from lab.observation.projection import mind_snapshot_from_rich_state
+from lab.observation.subsystem_status import LIFECYCLES, generative_status
 from symbiont.cognition.generative.budget import GenerativeBudget
 from symbiont.cognition.generative.resident import ResidentGenerativeCognition
 from symbiont.core.orchestration.runtime import OrganismRuntime
-from symbiont_lab.observation.projection import mind_snapshot_from_rich_state
-from symbiont_lab.observation.subsystem_status import LIFECYCLES, generative_status
 
 ROOT = Path(__file__).resolve().parents[3]
-MODULE = ROOT / "src/symbiont_lab/workbench/web/views/shared/observability-state.js"
+MODULE = ROOT / "lab/src/lab/workbench/web/views/shared/observability-state.js"
 LIVE = {"status": "live", "stale": False}
 SNAPSHOT = {"transition_count": 2, "state_count": 3, "hypothesis_count": 1}
 EMPTY_SNAPSHOT = {"transition_count": 0, "state_count": 1, "hypothesis_count": 0}
@@ -187,7 +187,7 @@ console.log(JSON.stringify({{live, waiting, stale, replay, element, applied}}));
 
 
 def test_mind_panels_route_their_empty_states_through_the_contract() -> None:
-    views = ROOT / "src/symbiont_lab/workbench/web/views/mind"
+    views = ROOT / "lab/src/lab/workbench/web/views/mind"
     assert (views / "history.js").read_text(encoding="utf-8").count("applyEmptyState(") == 2
     assert (views / "identity-sensory.js").read_text(encoding="utf-8").count(
         "applyEmptyState("

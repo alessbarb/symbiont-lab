@@ -1,4 +1,4 @@
-from symbiont_lab.studies.learning.canonical_sensorimotor_adaptation import (
+from lab.studies.learning.canonical_sensorimotor_adaptation import (
     AdaptationStudy,
     AdaptationTrial,
 )

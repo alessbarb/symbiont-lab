@@ -1,5 +1,6 @@
 import pytest
-from symbiont.core.assimilation import AssimilationAction, InformationAssimilator
+
+from symbiont.core.embodiment.assimilation import AssimilationAction, InformationAssimilator
 
 
 def test_endogenous_value_actions_and_bound():

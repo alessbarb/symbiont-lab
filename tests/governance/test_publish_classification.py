@@ -15,8 +15,8 @@ def test_private_model_promotion_is_scientific_by_semantics() -> None:
     result = assess(
         ROOT,
         "HEAD",
-        ["src/symbiont_lab/physics3d/private_model_training.py"],
-        "diff --git a/src/symbiont_lab/physics3d/private_model_training.py b/src/symbiont_lab/physics3d/private_model_training.py\n+ activate_private_model(... promotion_authorized=True)",
+        ["lab/src/lab/physics3d/private_model_training.py"],
+        "diff --git a/src/lab/physics3d/private_model_training.py b/src/lab/physics3d/private_model_training.py\n+ activate_private_model(... promotion_authorized=True)",
     )
     assert result.classification == ChangeClass.SCIENTIFIC
     assert "promotion-eligible" in result.equivalence_scenarios
@@ -54,24 +54,24 @@ def test_active_work_conflict_is_detected(monkeypatch) -> None:
                 {
                     "id": "synthetic-running-work",
                     "state": "RUNNING",
-                    "protected_paths": ["src/symbiont_lab/studies/learning/**"],
+                    "protected_paths": ["lab/src/lab/studies/learning/**"],
                 }
             ]
         },
     )
     conflicts = _active_work_conflicts(
-        ["src/symbiont_lab/studies/learning/example.py"],
+        ["lab/src/lab/studies/learning/example.py"],
         "HEAD",
     )
-    assert conflicts == ["synthetic-running-work: src/symbiont_lab/studies/learning/example.py"]
+    assert conflicts == ["synthetic-running-work: lab/src/lab/studies/learning/example.py"]
 
 
 def test_equivalence_control_plane_is_constitutional() -> None:
     result = assess(
         ROOT,
         "HEAD",
-        ["src/symbiont_lab/physics3d/equivalence_suite.py"],
-        "diff --git a/src/symbiont_lab/physics3d/equivalence_suite.py b/src/symbiont_lab/physics3d/equivalence_suite.py\n+ # candidate tweak",
+        ["lab/src/lab/physics3d/equivalence_suite.py"],
+        "diff --git a/src/lab/physics3d/equivalence_suite.py b/src/lab/physics3d/equivalence_suite.py\n+ # candidate tweak",
     )
     assert result.classification == ChangeClass.CONSTITUTIONAL
 
@@ -80,7 +80,7 @@ def test_equivalence_suite_manifest_is_constitutional() -> None:
     result = assess(
         ROOT,
         "HEAD",
-        ["experiments/equivalence/suite-v1/suite.toml"],
+        ["lab/experiments/equivalence/suite-v1/suite.toml"],
         "diff --git a/experiments/equivalence/suite-v1/suite.toml b/experiments/equivalence/suite-v1/suite.toml\n+ ticks = 1",
     )
     assert result.classification == ChangeClass.CONSTITUTIONAL
@@ -90,8 +90,8 @@ def test_physics3d_runtime_is_scientific_even_without_keywords() -> None:
     result = assess(
         ROOT,
         "HEAD",
-        ["src/symbiont_lab/physics3d/runtime.py"],
-        "diff --git a/src/symbiont_lab/physics3d/runtime.py b/src/symbiont_lab/physics3d/runtime.py\n+ value = old_value + 1",
+        ["lab/src/lab/physics3d/runtime.py"],
+        "diff --git a/src/lab/physics3d/runtime.py b/src/lab/physics3d/runtime.py\n+ value = old_value + 1",
     )
     assert result.classification == ChangeClass.SCIENTIFIC
     assert "established-anthropomorphic" in result.equivalence_scenarios
@@ -101,8 +101,8 @@ def test_private_model_file_is_scientific_without_keyword_match() -> None:
     result = assess(
         ROOT,
         "HEAD",
-        ["src/symbiont_lab/physics3d/private_model_training.py"],
-        "diff --git a/src/symbiont_lab/physics3d/private_model_training.py b/src/symbiont_lab/physics3d/private_model_training.py\n+ # harmless-looking refactor",
+        ["lab/src/lab/physics3d/private_model_training.py"],
+        "diff --git a/src/lab/physics3d/private_model_training.py b/src/lab/physics3d/private_model_training.py\n+ # harmless-looking refactor",
     )
     assert result.classification == ChangeClass.SCIENTIFIC
 
@@ -111,8 +111,8 @@ def test_lab_run_controller_is_scientific() -> None:
     result = assess(
         ROOT,
         "HEAD",
-        ["src/symbiont_lab/app/run_controller.py"],
-        "diff --git a/src/symbiont_lab/app/run_controller.py b/src/symbiont_lab/app/run_controller.py\n+ return launch(spec)",
+        ["lab/src/lab/app/run_controller.py"],
+        "diff --git a/src/lab/app/run_controller.py b/src/lab/app/run_controller.py\n+ return launch(spec)",
     )
     assert result.classification == ChangeClass.SCIENTIFIC
 
@@ -121,8 +121,8 @@ def test_workbench_web_presentation_stays_ordinary() -> None:
     result = assess(
         ROOT,
         "HEAD",
-        ["src/symbiont_lab/workbench/web/views/body/viewer.js"],
-        "diff --git a/src/symbiont_lab/workbench/web/views/body/viewer.js b/src/symbiont_lab/workbench/web/views/body/viewer.js\n+ renderPanel()",
+        ["lab/src/lab/workbench/web/views/body/viewer.js"],
+        "diff --git a/src/lab/workbench/web/views/body/viewer.js b/src/lab/workbench/web/views/body/viewer.js\n+ renderPanel()",
     )
     assert result.classification == ChangeClass.ORDINARY
 
@@ -190,8 +190,8 @@ def test_study_code_is_scientific() -> None:
     result = assess(
         ROOT,
         "HEAD",
-        ["src/symbiont_lab/studies/example.py"],
-        "diff --git a/src/symbiont_lab/studies/example.py b/src/symbiont_lab/studies/example.py\n+ def run(): pass",
+        ["lab/src/lab/studies/example.py"],
+        "diff --git a/src/lab/studies/example.py b/src/lab/studies/example.py\n+ def run(): pass",
     )
     assert result.classification == ChangeClass.SCIENTIFIC
 

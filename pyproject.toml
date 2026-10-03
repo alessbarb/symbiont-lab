@@ -1,13 +1,9 @@
-[build-system]
-requires = ["setuptools>=68"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "symbiont-lab"
 version = "0.90.0"
 description = "Safe self-developing local digital organism and scientific research apparatus"
 requires-python = ">=3.12"
-dependencies = ["cryptography>=42", "rich>=15"]
+dependencies = ["lab"]
 
 [project.optional-dependencies]
 dev = [
@@ -22,22 +18,12 @@ dev = [
   "mutmut>=3.3",
   "pre-commit>=4.0",
 ]
-modeling = ["torch>=2.4,<3"]
-physics3d = ["pybullet>=3.2.7,<4", "torch>=2.4,<3", "numpy>=1.26,<3", "pillow>=10,<13"]
-
-[project.scripts]
-symbiont-lab = "symbiont_lab.cli.main:main"
-symbiont-lab-gui = "symbiont_lab.app.main:main"
-symbiont-world = "symbiont_lab.cli.world:main"
-symbiont-body-3d = "symbiont_lab.physics3d.cli:main"
-symbiont-physics-audit = "symbiont_lab.studies.physics3d.constitution_audit:main"
-symbiont-reembodiment-study = "symbiont_lab.studies.embodiment.reembodiment_cli:main"
-symbiont-telemetry-benchmark = "symbiont_lab.physics3d.telemetry.cli:benchmark_main"
-symbiont-telemetry-convert = "symbiont_lab.physics3d.telemetry.cli:convert_main"
+modeling = ["lab[modeling]"]
+physics3d = ["lab[physics3d]"]
 
 [tool.pytest.ini_options]
 norecursedirs = ["backups", ".claude", "archive"]
-testpaths = ["tests"]
+testpaths = ["tests", "lab/src/lab/observatory/tests"]
 addopts = "-m 'not slow'"
 markers = [
   "experiment_contract: mechanical contract for an experiment protocol or runner",
@@ -47,8 +33,9 @@ markers = [
 
 [tool.ruff]
 target-version = "py312"
+src = ["symbiont/src", "environment/src", "modality/src", "embodiment/src", "lab/src"]
 line-length = 100
-extend-exclude = [".claude", "backups", "experiments", "graphify-out", "research"]
+extend-exclude = [".claude", "backups", "lab/experiments", "graphify-out", "lab/research"]
 
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F", "I"]
@@ -63,7 +50,7 @@ line-ending = "lf"
 [tool.coverage.run]
 branch = true
 parallel = true
-source = ["src", "observatory"]
+source = ["symbiont/src", "environment/src", "modality/src", "embodiment/src", "lab/src"]
 omit = [
   "*/__pycache__/*",
   "*/tests/*",
@@ -79,7 +66,7 @@ skip_covered = true
 show_missing = true
 
 [tool.bandit]
-exclude_dirs = ["tests", "experiments", "research", ".claude", "backups"]
+exclude_dirs = ["tests", "lab/experiments", "lab/research", ".claude", "backups"]
 # TODO(security): replace these global skips with per-file or per-line evidence
 # once the affected invariants and cleanup paths have been reviewed. These
 # findings are intentional in this deterministic research runtime: asserts
@@ -87,37 +74,13 @@ exclude_dirs = ["tests", "experiments", "research", ".claude", "backups"]
 # string literals are protocol tokens, and best-effort cleanup is non-critical.
 skips = ["B101", "B105", "B106", "B110", "B112", "B311"]
 
-[tool.setuptools.packages.find]
-where = ["src", "."]
-include = ["symbiont*", "symbiont_lab*", "symbiont_world*", "observatory*"]
-exclude = ["tests*", "observatory.tests*", "research*", "docs*", "scripts*"]
+# Five-domain layout: organism, environment, modality, embodiment and lab are
+# independent distributions. This root is only the workspace that binds them.
+[tool.uv]
+package = false
 
-[tool.setuptools.package-data]
-"symbiont.cognition" = ["defaults/*.json"]
-"symbiont.genetics" = ["defaults/*.json"]
-"symbiont_lab.workbench" = [
-  "web/*.html",
-  "web/*.css",
-  "web/*.js",
-  "web/views/*.js",
-  "web/views/body/*.js",
-  "web/views/world/*.js",
-  "web/views/embodiment/*.js",
-  "web/views/lab/*.js",
-  "web/views/archive/*.js",
-  "web/views/shared/*.js",
-  "web/views/mind/*.js",
-]
-"observatory" = [
-  "*.html",
-  "*.css",
-  "*.js",
-  "*.json",
-  "communication/*.js",
-  "projection/*.js",
-  "render/*.js",
-  "state/*.js",
-  "transport/*.js",
-  "ui/*.js",
-  "schemas/*.json",
-]
+[tool.uv.workspace]
+members = ["symbiont", "environment", "modality", "embodiment", "lab"]
+
+[tool.uv.sources]
+lab = { workspace = true }

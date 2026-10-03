@@ -11,9 +11,9 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from symbiont_lab.kernel_characterization.config import KernelVariant
-from symbiont_lab.kernel_characterization.protocols import DEFAULT_SEEDS
-from symbiont_lab.kernel_characterization.runner import write_run
+from lab.kernel_characterization.config import KernelVariant
+from lab.kernel_characterization.protocols import DEFAULT_SEEDS
+from lab.kernel_characterization.runner import write_run
 
 
 def main() -> int:
@@ -57,7 +57,9 @@ def main() -> int:
     parser.add_argument("--seeds", nargs="+", type=int, default=list(DEFAULT_SEEDS))
     parser.add_argument("--ticks-per-phase", type=int)
     parser.add_argument(
-        "--output-dir", type=Path, default=Path("experiments/kernel-characterization/capacity/runs")
+        "--output-dir",
+        type=Path,
+        default=Path("lab/experiments/kernel-characterization/capacity/runs"),
     )
     args = parser.parse_args()
     if args.arm == "k2":

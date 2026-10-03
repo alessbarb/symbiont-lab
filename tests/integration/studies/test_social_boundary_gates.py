@@ -1,4 +1,4 @@
-from symbiont_lab.studies.social_boundary_gates import run_social_boundary_gate_study
+from lab.studies.social_boundary_gates import run_social_boundary_gate_study
 
 
 def test_social_boundary_gate_matrix_passes_without_runtime_labels() -> None:

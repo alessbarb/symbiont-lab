@@ -11,7 +11,7 @@ last_reviewed: null
 
 > **Status:** IMPLEMENTED  
 > **Type:** HEURISTIC POLICY AND RESOURCE ALLOCATION  
-> **Related modules:** [`symbiont.core.attention`](../../../src/symbiont/core/cognition/attention.py)
+> **Related modules:** [`symbiont.core.attention`](../../../symbiont/src/symbiont/core/cognition/attention.py)
 
 ---
 
@@ -19,7 +19,7 @@ last_reviewed: null
 
 In any biological or computational system that interacts with a high-dimensional environment, perceptual bandwidth is a strictly limited resource. An organism cannot sample all observation surfaces at every tick with high resolution.
 
-The Symbiont attention subsystem ([`symbiont.core.attention`](../../../src/symbiont/core/cognition/attention.py)) formalizes capability selection under four guiding principles:
+The Symbiont attention subsystem ([`symbiont.core.attention`](../../../symbiont/src/symbiont/core/cognition/attention.py)) formalizes capability selection under four guiding principles:
 
 1. **Strict Causality:** Attention selection at tick $t$ is performed using exclusively the information known before making any new observation at $t$. There is no lookahead, threat labels, or future rewards.
 2. **Hard and Inviolable Budget:** There is a scalar budget $B > 0$ per tick. The sum of the costs of the selected observations cannot exceed $B$.
@@ -54,7 +54,7 @@ Therefore, Symbiont adopts a **single-pass greedy heuristic policy** in $O(N \lo
 
 ## 3. Quantification of Relative Dispersion: Coefficient of Variation
 
-The statistical dispersion $u(c_i)$ is calculated in [`uncertainty_from_baseline`](../../../src/symbiont/core/cognition/attention.py#L86-L104) from $(\mu_i, \sigma_i, n_i)$:
+The statistical dispersion $u(c_i)$ is calculated in [`uncertainty_from_baseline`](../../../symbiont/src/symbiont/core/cognition/attention.py#L86-L104) from $(\mu_i, \sigma_i, n_i)$:
 
 $$u(c_i) = \begin{cases}
 +\infty & \text{if the capability is not acclimated } (n_i < N_{\text{min}}) \\

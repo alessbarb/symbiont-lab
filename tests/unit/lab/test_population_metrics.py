@@ -1,6 +1,6 @@
 import pytest
 
-from symbiont_lab.studies.population_metrics import PopulationMetrics
+from lab.studies.population_metrics import PopulationMetrics
 
 
 def test_population_metrics_are_bounded_and_evaluator_side() -> None:

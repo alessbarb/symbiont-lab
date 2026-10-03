@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-WEB_ROOT = REPO_ROOT / "src" / "symbiont_lab" / "workbench" / "web"
+WEB_ROOT = REPO_ROOT / "lab" / "src" / "lab" / "workbench" / "web"
 
 
 def _read(relative: str) -> str:
@@ -73,7 +73,7 @@ def test_body_camera_controls_are_outside_three_renderer():
 
 
 def test_package_data_contains_nested_workbench_modules():
-    pyproject = (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    pyproject = (REPO_ROOT / "lab" / "pyproject.toml").read_text(encoding="utf-8")
     for pattern in (
         '"web/views/body/*.js"',
         '"web/views/world/*.js"',
@@ -87,7 +87,7 @@ def test_package_data_contains_nested_workbench_modules():
 
 
 def test_server_sets_browser_security_headers():
-    api = (REPO_ROOT / "src" / "symbiont_lab" / "server" / "api.py").read_text(encoding="utf-8")
+    api = (REPO_ROOT / "lab" / "src" / "lab" / "server" / "api.py").read_text(encoding="utf-8")
     assert '"Content-Security-Policy"' in api
     assert '"X-Frame-Options", "DENY"' in api
     assert "\"frame-ancestors 'none'\"" in api
@@ -175,10 +175,10 @@ def test_mind_generative_cognition_is_separate_from_atlas_topology():
     layout = _read("views/mind/layout.js")
     controller = _read("views/mind/cognition-controller.js")
     css = _read("mind.css")
-    physics_runtime = (REPO_ROOT / "src" / "symbiont_lab" / "physics3d" / "runtime.py").read_text(
+    physics_runtime = (REPO_ROOT / "lab" / "src" / "lab" / "physics3d" / "runtime.py").read_text(
         encoding="utf-8"
     )
-    projection = (REPO_ROOT / "src" / "symbiont_lab" / "observation" / "projection.py").read_text(
+    projection = (REPO_ROOT / "lab" / "src" / "lab" / "observation" / "projection.py").read_text(
         encoding="utf-8"
     )
 

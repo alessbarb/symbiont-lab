@@ -99,7 +99,7 @@ def test_signature_can_reference_temporal_pattern():
 
 
 def test_signature_does_not_require_action_dimension():
-    source = Path("src/symbiont/actuation/intervention.py").read_text(encoding="utf-8")
+    source = Path("symbiont/src/symbiont/actuation/intervention.py").read_text(encoding="utf-8")
     imported = {
         node.module
         for node in ast.walk(ast.parse(source))

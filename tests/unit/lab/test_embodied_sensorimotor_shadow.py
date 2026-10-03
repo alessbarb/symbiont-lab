@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from symbiont_lab.studies.learning.embodied_sensorimotor_shadow import (
+from lab.studies.learning.embodied_sensorimotor_shadow import (
     _condition_actions,
     run_embodied_sensorimotor_shadow,
 )

@@ -3,7 +3,7 @@ from pathlib import Path
 
 def test_live_delta_protocol_stays_outside_organism_runtime() -> None:
     root = Path(__file__).resolve().parents[2]
-    core = root / "src" / "symbiont"
+    core = root / "symbiont" / "src" / "symbiont"
     mentions = []
     for path in core.rglob("*.py"):
         text = path.read_text(encoding="utf-8")
@@ -16,10 +16,10 @@ def test_live_delta_protocol_stays_outside_organism_runtime() -> None:
 def test_web_consumers_decode_before_dispatch() -> None:
     root = Path(__file__).resolve().parents[2]
     mind = (
-        root / "src" / "symbiont_lab" / "workbench" / "web" / "views" / "mind" / "streams.js"
+        root / "lab" / "src" / "lab" / "workbench" / "web" / "views" / "mind" / "streams.js"
     ).read_text(encoding="utf-8")
     body = (
-        root / "src" / "symbiont_lab" / "workbench" / "web" / "views" / "body" / "viewer.js"
+        root / "lab" / "src" / "lab" / "workbench" / "web" / "views" / "body" / "viewer.js"
     ).read_text(encoding="utf-8")
 
     for source in (mind, body):
@@ -29,7 +29,7 @@ def test_web_consumers_decode_before_dispatch() -> None:
 
 def test_domain_specific_high_frequency_streams_are_not_generic_delta_channels() -> None:
     root = Path(__file__).resolve().parents[2]
-    protocol = (root / "src" / "symbiont_lab" / "observation" / "delta.py").read_text(
+    protocol = (root / "lab" / "src" / "lab" / "observation" / "delta.py").read_text(
         encoding="utf-8"
     )
 

@@ -4,8 +4,8 @@ import json
 import time
 from pathlib import Path
 
-from symbiont.core.capsule import CapsuleKeyPair, create_capsule
-from symbiont.core.local_habitat import LocalHabitat
+from symbiont.core.host.local_habitat import LocalHabitat
+from symbiont.core.social.capsule import CapsuleKeyPair, create_capsule
 
 
 def test_publish_and_poll_capsules(tmp_path: Path):

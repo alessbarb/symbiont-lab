@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from symbiont_lab.studies.learning.predictive_utility import (
+from lab.studies.learning.predictive_utility import (
     PredictiveUtilityOutcome,
     PredictiveUtilityStudyResult,
     run_predictive_utility_study,

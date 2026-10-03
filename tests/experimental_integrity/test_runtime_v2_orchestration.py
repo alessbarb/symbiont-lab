@@ -5,9 +5,9 @@ from pathlib import Path
 
 def test_runtime_tick_is_domain_orchestration_not_algorithm_ownership() -> None:
     root = Path(__file__).resolve().parents[2]
-    source = (root / "src" / "symbiont" / "core" / "orchestration" / "runtime.py").read_text(
-        encoding="utf-8"
-    )
+    source = (
+        root / "symbiont" / "src" / "symbiont" / "core" / "orchestration" / "runtime.py"
+    ).read_text(encoding="utf-8")
 
     required_domain_calls = (
         "self._physiology_domain.preflight(",
@@ -50,9 +50,9 @@ def test_runtime_tick_is_domain_orchestration_not_algorithm_ownership() -> None:
 
 def test_runtime_surfaces_real_action_domain_execution_result() -> None:
     root = Path(__file__).resolve().parents[2]
-    source = (root / "src" / "symbiont" / "core" / "orchestration" / "runtime.py").read_text(
-        encoding="utf-8"
-    )
+    source = (
+        root / "symbiont" / "src" / "symbiont" / "core" / "orchestration" / "runtime.py"
+    ).read_text(encoding="utf-8")
     tick = source[
         source.index("    def tick(") : source.index(
             "\n    def run(", source.index("    def tick(")
@@ -65,9 +65,9 @@ def test_runtime_surfaces_real_action_domain_execution_result() -> None:
 def test_runtime_reconciles_previous_action_before_new_cognition() -> None:
     """Agency Acquisition v1 §76: T1-T3 precede T4 cognition; T5-T11 follow it."""
     root = Path(__file__).resolve().parents[2]
-    source = (root / "src" / "symbiont" / "core" / "orchestration" / "runtime.py").read_text(
-        encoding="utf-8"
-    )
+    source = (
+        root / "symbiont" / "src" / "symbiont" / "core" / "orchestration" / "runtime.py"
+    ).read_text(encoding="utf-8")
     tick = source[
         source.index("    def tick(") : source.index(
             "\n    def run(", source.index("    def tick(")
@@ -85,9 +85,9 @@ def test_runtime_reconciles_previous_action_before_new_cognition() -> None:
 
 def test_runtime_does_not_inspect_cognition_graph_or_action_evidence_in_tick() -> None:
     root = Path(__file__).resolve().parents[2]
-    source = (root / "src" / "symbiont" / "core" / "orchestration" / "runtime.py").read_text(
-        encoding="utf-8"
-    )
+    source = (
+        root / "symbiont" / "src" / "symbiont" / "core" / "orchestration" / "runtime.py"
+    ).read_text(encoding="utf-8")
     tick = source[
         source.index("    def tick(") : source.index(
             "\n    def run(", source.index("    def tick(")

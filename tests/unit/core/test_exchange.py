@@ -1,5 +1,6 @@
 import pytest
-from symbiont.core.exchange import ExchangeEnvelope, ExchangeReplayGuard
+
+from symbiont.core.social.exchange import ExchangeEnvelope, ExchangeReplayGuard
 
 
 def test_exchange_is_bounded_and_replay_protected() -> None:

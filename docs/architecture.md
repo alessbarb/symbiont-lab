@@ -84,7 +84,7 @@ flowchart TD
 
 1. **Aislamiento Estricto de la Verdad Fundamental (*Zero Downward Knowledge*):**  
    El organismo jamás tiene acceso a la "verdad fundamental" (*ground truth*). No conoce etiquetas externas de amenaza, clasificación de intrusiones ni estados ocultos del simulador. Sus procesos cognitivos operan únicamente a partir de:
-   - Lecturas sensoriales agregadas y no identificables ([`SensorReading`](../src/symbiont/host/readings.py#L30-L37)).
+   - Lecturas sensoriales agregadas y no identificables ([`SensorReading`](../symbiont/src/symbiont/host/readings.py#L30-L37)).
    - Memoria estadística consolidada y firmas locales.
    - Reportes distribuidos de pares y confianza derivada empíricamente.
 2. **Desacoplamiento Estructural Unidireccional:**  
@@ -92,13 +92,13 @@ flowchart TD
    $$\text{symbiont\_lab} \longrightarrow \text{symbiont} \quad [\text{PERMITIDO}]$$
    $$\text{symbiont} \longrightarrow \text{symbiont\_lab} \quad [\text{ESTRICTAMENTE PROHIBIDO}]$$
 3. **Plasticidad de Datos bajo un Kernel Inmutable:**  
-   Symbiont **no genera código dinámico**, no ejecuta cadenas mediante `eval`, no compila ejecutables ni escala privilegios. Toda su adaptación ontogenética y filogenética opera como **plasticidad de datos sobre un kernel matemático estricto y cerrado** ([`KernelLimits`](../src/symbiont/cognition/limits.py#L7-L34)).
+   Symbiont **no genera código dinámico**, no ejecuta cadenas mediante `eval`, no compila ejecutables ni escala privilegios. Toda su adaptación ontogenética y filogenética opera como **plasticidad de datos sobre un kernel matemático estricto y cerrado** ([`KernelLimits`](../symbiont/src/symbiont/cognition/limits.py#L7-L34)).
 4. **Analogía Funcional frente a Metáfora Decorativa:**  
    Cada término biológico empleado en el código corresponde a un invariante computacional con consecuencias mensurables:
    - *Metabolismo:* Balance estricto de consumo de ciclos y mantenimiento de memoria bajo recursos finitos; no simple uso de CPU.
    - *Homeostasis:* Modulación dinámica de la actividad y congelación de plasticidad para preservar integridad estructural ante escasez.
    - *Excreción:* Destrucción irreversible de estado de bajo valor epistemológico para evitar acumulación infinita de memoria.
-   - *Muerte:* Cierre irreversible de la continuidad de identidad de un organismo ([`OrganismDeadError`](../src/symbiont/core/orchestration/runtime.py#L117-L119)) con liberación atómica de recursos.
+   - *Muerte:* Cierre irreversible de la continuidad de identidad de un organismo ([`OrganismDeadError`](../symbiont/src/symbiont/core/orchestration/runtime.py#L117-L119)) con liberación atómica de recursos.
 
 ---
 
@@ -135,9 +135,9 @@ El subsistema de percepción garantiza la recolección no invasiva y no identifi
 
 #### Contratos y Clases de Privacidad
 
-En [`contracts.py`](../src/symbiont/host/contracts.py#L37-L60) y [`readings.py`](../src/symbiont/host/readings.py#L30-L37):
+En [`contracts.py`](../symbiont/src/symbiont/host/contracts.py#L37-L60) y [`readings.py`](../symbiont/src/symbiont/host/readings.py#L30-L37):
 
-- [`Capability`](../src/symbiont/host/contracts.py#L37-L60) prohíbe explícitamente cualquier metadato que contenga claves de identidad del sistema:
+- [`Capability`](../symbiont/src/symbiont/host/contracts.py#L37-L60) prohíbe explícitamente cualquier metadato que contenga claves de identidad del sistema:
 
   ```python
   forbidden = {"hostname", "username", "user", "home", "cwd", "ip", "mac"}
@@ -145,35 +145,35 @@ En [`contracts.py`](../src/symbiont/host/contracts.py#L37-L60) y [`readings.py`]
       raise ValueError("capability detail must not contain host identity")
   ```
 
-- [`ReadingPrivacyClass`](../src/symbiont/host/readings.py#L32) está restringido a `AGGREGATE` y `NON_IDENTIFYING`. Por diseño, **no existe ninguna variante que permita telemetría identificable**.
+- [`ReadingPrivacyClass`](../symbiont/src/symbiont/host/readings.py#L32) está restringido a `AGGREGATE` y `NON_IDENTIFYING`. Por diseño, **no existe ninguna variante que permita telemetría identificable**.
 
 #### Aclimatación Estadística de Welford en Línea
 
-Para construir líneas base sin almacenar historial de muestras brutas ($O(1)$ en memoria), [`RunningStats`](../src/symbiont/host/acclimation.py#L51-L76) implementa el algoritmo de Welford:
+Para construir líneas base sin almacenar historial de muestras brutas ($O(1)$ en memoria), [`RunningStats`](../symbiont/src/symbiont/host/acclimation.py#L51-L76) implementa el algoritmo de Welford:
 
 $$\mu_n = \mu_{n-1} + \frac{x_n - \mu_{n-1}}{n}$$
 $$M_{2, n} = M_{2, n-1} + (x_n - \mu_{n-1})(x_n - \mu_n)$$
 $$\sigma_n^2 = \frac{M_{2, n}}{n} \quad (n > 1)$$
 
-La clase [`CapabilityBaseline`](../src/symbiont/host/acclimation.py#L12-L48) expone únicamente `count`, `mean`, `variance` y `stdev`. Oculta cualquier indicador de anomalía para evitar que la percepción usurpe funciones de juicio cognitivo.
+La clase [`CapabilityBaseline`](../symbiont/src/symbiont/host/acclimation.py#L12-L48) expone únicamente `count`, `mean`, `variance` y `stdev`. Oculta cualquier indicador de anomalía para evitar que la percepción usurpe funciones de juicio cognitivo.
 
 #### Detección de Rupturas de Régimen y Arrastre Lento (*Creep*)
 
-El módulo [`DriftAwareBaseline`](../src/symbiont/host/drift.py#L28-L93) resuelve fallos empíricos de los filtros adaptativos continuos:
+El módulo [`DriftAwareBaseline`](../symbiont/src/symbiont/host/drift.py#L28-L93) resuelve fallos empíricos de los filtros adaptativos continuos:
 
 1. **Cuarentena de Picos Aislados (*Spike Buffering*):**  
    Si una señal se desvía más allá del umbral $z_{\text{regime}} = 2.0$, las observaciones no se mezclan de inmediato con la media. Se almacenan en un búfer temporal. Solo si la desviación se mantiene durante $K_{\text{regime}} = 3$ ticks consecutivos en la misma dirección, se confirma un `REGIME_SHIFT` y se recalcula la media exclusivamente desde el búfer. Si la racha se interrumpe, las muestras se descartan sin contaminar la línea base.
 2. **Detección de Arrastre Lento (*Slow Creep*) con Suelo de Ruido Congelado:**  
-   Una deriva incremental constante puede pasar por debajo de $z_{\text{regime}}$ en cada tick individual. Si se utiliza la varianza móvil tradicional, esta se infla al mismo ritmo que la rampa de deriva, haciendo indetectable el cambio. Para resolverlo, [`DriftAwareBaseline`](../src/symbiont/host/drift.py#L65-L76) mantiene un EWMA rápido ($\lambda_{\text{fast}} = 0.30$) contrastado contra la media comprometida, pero normalizado contra una desviación estándar congelada ($\sigma_{\text{frozen}}$) fijada en el momento de aclimatación. Tras $K_{\text{creep}} = 8$ ticks superando $z_{\text{creep}} = 1.0$, se confirma `DriftKind.CREEP`.
+   Una deriva incremental constante puede pasar por debajo de $z_{\text{regime}}$ en cada tick individual. Si se utiliza la varianza móvil tradicional, esta se infla al mismo ritmo que la rampa de deriva, haciendo indetectable el cambio. Para resolverlo, [`DriftAwareBaseline`](../symbiont/src/symbiont/host/drift.py#L65-L76) mantiene un EWMA rápido ($\lambda_{\text{fast}} = 0.30$) contrastado contra la media comprometida, pero normalizado contra una desviación estándar congelada ($\sigma_{\text{frozen}}$) fijada en el momento de aclimatación. Tras $K_{\text{creep}} = 8$ ticks superando $z_{\text{creep}} = 1.0$, se confirma `DriftKind.CREEP`.
 
 #### Selección Adaptativa y Poda de Colinealidad Sensorial
 
-En [`AdaptiveSenseModel`](../src/symbiont/host/adaptive.py#L28-L701):
+En [`AdaptiveSenseModel`](../symbiont/src/symbiont/host/adaptive.py#L28-L701):
 
 - **Función de Utilidad Dinámica:** Evalúa si un sensor aporta información variable frente a un costo de muestreo:
   $$U = A \cdot (0.65 \cdot V + 0.35 \cdot M)$$
   donde $A$ es la disponibilidad, $V = \frac{\sigma}{\text{escala}}$ es la variabilidad y $M = \frac{\Delta_{\text{ewma}}}{\text{escala}}$ es el movimiento medio.
-- **Poda por Colinealidad de Pearson:** [`PairAccumulator`](../src/symbiont/host/adaptive.py#L114-L140) acumula co-momentos en línea mediante Welford bivariado:
+- **Poda por Colinealidad de Pearson:** [`PairAccumulator`](../symbiont/src/symbiont/host/adaptive.py#L114-L140) acumula co-momentos en línea mediante Welford bivariado:
   $$C_{xy, n} = C_{xy, n-1} + (x_n - \mu_{x, n-1})(y_n - \mu_{y, n})$$
   $$r_{xy} = \frac{C_{xy}}{\sqrt{M_{2, x} \cdot M_{2, y}}}$$
   Si $|r_{xy}| \ge 0.97$, se declara redundancia colineal y uno de los sensores se desactiva para ahorrar presupuesto.
@@ -230,7 +230,7 @@ flowchart TD
     Knapsack --> Alloc["Sensores Seleccionados en el Tick"]
 ```
 
-En [`attention.py`](../src/symbiont/core/cognition/attention.py#L49-L97):
+En [`attention.py`](../symbiont/src/symbiont/core/cognition/attention.py#L49-L97):
 
 - **Cálculo de Incertidumbre:** Emplea el coeficiente de variación adimensional:
   $$c_v = \frac{\sigma}{|\mu|}$$
@@ -267,19 +267,19 @@ flowchart LR
 
 #### Tipos Cerrados y Límites Inmutables
 
-- [`NodeKind`](../src/symbiont/cognition/types.py#L6-L17): `SENSE`, `CONCEPT`, `STATE`, `PREDICTOR`, `GATE`, `READOUT`.  
+- [`NodeKind`](../symbiont/src/symbiont/cognition/types.py#L6-L17): `SENSE`, `CONCEPT`, `STATE`, `PREDICTOR`, `GATE`, `READOUT`.  
   *Nota de diseño:* **No existe un nodo `ACTION`**. Las lecturas de `READOUT` alimentan circuitos deliberativos externos; el grafo neuronal jamás ejecuta acciones de sistema de forma autónoma.
-- [`EdgeKind`](../src/symbiont/cognition/types.py#L19-L26): `EXCITATORY`, `INHIBITORY`, `PREDICTIVE`, `GATING`.
+- [`EdgeKind`](../symbiont/src/symbiont/cognition/types.py#L19-L26): `EXCITATORY`, `INHIBITORY`, `PREDICTIVE`, `GATING`.
 - Rangos canónicos:
   - Pesos: $w \in [-2.0, 2.0]$
   - Plasticidad: $\eta_{\text{edge}} \in [0.0, 1.0]$
   - Escala de tiempo de nodo: $\tau \in [0.1, 10.0]$
   - Retardo temporal: $\delta \in \{0, 1\}$ (el retardo $\delta=0$ solo se autoriza si la fuente es de tipo `SENSE`).
-- [`KernelLimits`](../src/symbiont/cognition/limits.py#L7-L34): Fija topes infranqueables (máximo 128 nodos, 32 conceptos, 1024 aristas, 8 mutaciones estructurales por consolidación).
+- [`KernelLimits`](../symbiont/src/symbiont/cognition/limits.py#L7-L34): Fija topes infranqueables (máximo 128 nodos, 32 conceptos, 1024 aristas, 8 mutaciones estructurales por consolidación).
 
 #### Dinámica de Activación Síncrona de Doble Búfer
 
-En [`CognitiveGraph.activate()`](../src/symbiont/cognition/graph.py#L150-L195):
+En [`CognitiveGraph.activate()`](../symbiont/src/symbiont/cognition/graph.py#L150-L195):
 Para evitar dependencias circulares y variabilidad dependiente del orden de cálculo, cada nodo lee exclusivamente de las entradas sensoriales del tick actual ($t$) o del marco previo congelado ($t-1$):
 
 1. **Modulación por Compuerta (*Gating*):**
@@ -291,7 +291,7 @@ Para evitar dependencias circulares y variabilidad dependiente del orden de cál
 
 #### Aprendizaje Plástico Libre de Etiquetas
 
-En [`learning.py`](../src/symbiont/cognition/learning.py#L1-L100):
+En [`learning.py`](../symbiont/src/symbiont/cognition/learning.py#L1-L100):
 
 - **Pérdida de Huber para Predictores:**  
   Para calcular el error entre la predicción previa $p_i(t-1)$ y el valor real del nodo objetivo $y_j(t)$:
@@ -304,18 +304,18 @@ En [`learning.py`](../src/symbiont/cognition/learning.py#L1-L100):
   $$\Delta w_e = \eta \cdot m \cdot \left(a_{\text{source}} \cdot a_{\text{target}} - a_{\text{target}}^2 \cdot w_e\right)$$
   donde $m = \text{disponibilidad} \cdot \text{salud} \in [0, 1]$ modula el aprendizaje según la integridad sensorial.
 - **Predicciones en la Sombra (*Shadow Predictions*, Hito J):**  
-  [`ShadowPrediction`](../src/symbiont/cognition/learning.py#L71-L100) evalúa candidatos predictivos fuera del grafo activo. Compara la pérdida del modelo contra una línea base de persistencia trivial ($y_t \approx y_{t-1}$):
+  [`ShadowPrediction`](../symbiont/src/symbiont/cognition/learning.py#L71-L100) evalúa candidatos predictivos fuera del grafo activo. Compara la pérdida del modelo contra una línea base de persistencia trivial ($y_t \approx y_{t-1}$):
   $$\text{Ganancia} = \frac{L_{\text{persistencia}} - L_{\text{modelo}}}{N}$$
   Un candidato pasa a estado `supported` solo si acumula $\ge 8$ muestras con ganancia estrictamente positiva. Si tras 16 muestras su desempeño es inferior a la persistencia, pasa a `retired`. **Nunca se promueve un predictor automáticamente sin una decisión explícita y acotada del runtime.**
 
 #### Metaplasticidad y Optimización de Pareto
 
-[`metaplasticity.py`](../src/symbiont/cognition/metaplasticity.py#L10-L82) evalúa adaptaciones mediante un vector de 5 objetivos ([`LearningObjective`](../src/symbiont/cognition/metaplasticity.py#L10-L23)):
+[`metaplasticity.py`](../symbiont/src/symbiont/cognition/metaplasticity.py#L10-L82) evalúa adaptaciones mediante un vector de 5 objetivos ([`LearningObjective`](../symbiont/src/symbiont/cognition/metaplasticity.py#L10-L23)):
 
 - A minimizar: `prediction_error`, `representation_cost`, `instability`.
 - A maximizar: `information_retained`, `calibration`.
 
-Una mutación metaplástica solo se consolida si domina en sentido de Pareto a la ventana anterior. Si se registran 3 fallos consecutivos, [`SafetyState.frozen`](../src/symbiont/cognition/metaplasticity.py#L66-L82) se activa en modo seguro, congelando cualquier cambio en hiperparámetros.
+Una mutación metaplástica solo se consolida si domina en sentido de Pareto a la ventana anterior. Si se registran 3 fallos consecutivos, [`SafetyState.frozen`](../symbiont/src/symbiont/cognition/metaplasticity.py#L66-L82) se activa en modo seguro, congelando cualquier cambio en hiperparámetros.
 
 ---
 
@@ -323,7 +323,7 @@ Una mutación metaplástica solo se consolida si domina en sentido de Pareto a l
 
 #### Actualización Bayesiana con Pseudo-Observaciones
 
-En [`BeliefModel`](../src/symbiont/core/cognition/beliefs.py#L36-L113), las creencias sobre patrones de entrada se modelan como probabilidades revisables:
+En `BeliefModel`, las creencias sobre patrones de entrada se modelan como probabilidades revisables:
 
 $$P_{\text{posterior}} = \frac{P_{\text{prior}} \cdot E + P_{\text{obs}} \cdot w}{E + w}, \quad w = \max(0.05, c)$$
 $$E \leftarrow \min(E_{\max}, E + w) \quad (E_{\max} = 32.0)$$
@@ -336,9 +336,9 @@ $$\text{Certeza} = \left(1 - e^{-E / 4.0}\right) \cdot (1 - 0.60 \cdot C)$$
 
 #### Preservación de la Disidencia
 
-En [`EvidenceRevisionLedger`](../src/symbiont/core/cognition/evidence.py#L29-L137), cuando un lote de lecturas sensoriales discrepa significativamente de la línea base previa ($|Z| \ge \theta_{\text{conflict}} = 2.0$):
+En [`EvidenceRevisionLedger`](../symbiont/src/symbiont/core/cognition/evidence.py#L29-L137), cuando un lote de lecturas sensoriales discrepa significativamente de la línea base previa ($|Z| \ge \theta_{\text{conflict}} = 2.0$):
 
-- Se genera un registro inmutable [`DissentRecord`](../src/symbiont/core/cognition/evidence.py#L11-L20).
+- Se genera un registro inmutable [`DissentRecord`](../symbiont/src/symbiont/core/cognition/evidence.py#L11-L20).
 - La contradicción **no se suaviza ni se descarta**.
 - En checkpoints persistentes entre reinicios, se almacenan únicamente los contadores acotados de conflictos por capacidad. Esto previene que los valores numéricos históricos se filtren fuera de la frontera de privacidad del anfitrión, conservando a la vez el hecho epistémico de que la creencia fue refutada.
 
@@ -346,7 +346,7 @@ En [`EvidenceRevisionLedger`](../src/symbiont/core/cognition/evidence.py#L29-L13
 
 ### 3.5 Consolidación Biológica de Memoria (`symbiont.core.consolidation`)
 
-Inspirado en los principios neurobiológicos de consolidación sináptica y de sistemas, [`MemoryConsolidator`](../src/symbiont/core/cognition/consolidation.py#L1-L140) sustituye la simple serialización de estados en memoria RAM por una arquitectura de doble vía:
+Inspirado en los principios neurobiológicos de consolidación sináptica y de sistemas, [`MemoryConsolidator`](../symbiont/src/symbiont/core/cognition/consolidation.py#L1-L140) sustituye la simple serialización de estados en memoria RAM por una arquitectura de doble vía:
 
 ```mermaid
 flowchart TD
@@ -361,8 +361,8 @@ flowchart TD
 - **Cuantización Antidiferenciación:** Para impedir ataques de inferencia que reconstruyan la telemetría exacta a partir del diferencial entre dos checkpoints sucesivos, los pesos y estadísticas se guardan en clases logarítmicas gruesas y escalonadas:
   - 8 clases de madurez de épocas.
   - 16 clases discretas de traza y fuerza.
-  - 5 clases de recencia en el automodelo ([`RecencyClass`](../src/symbiont/core/cognition/self_model.py#L12-L21): `CURRENT`, `SHORT_IDLE`, `IDLE`, `LONG_IDLE`, `DORMANT`).
-- **Invariante Atómico por Nodo:** En [`WeightStabilityTracker`](../src/symbiont/core/foundation/weight_stability.py), todas las aristas entrantes a un nodo se consolidan juntas tras demostrar estabilidad sostenida, o ninguna lo hace.
+  - 5 clases de recencia en el automodelo ([`RecencyClass`](../symbiont/src/symbiont/core/cognition/self_model.py#L12-L21): `CURRENT`, `SHORT_IDLE`, `IDLE`, `LONG_IDLE`, `DORMANT`).
+- **Invariante Atómico por Nodo:** En [`WeightStabilityTracker`](../symbiont/src/symbiont/core/foundation/weight_stability.py), todas las aristas entrantes a un nodo se consolidan juntas tras demostrar estabilidad sostenida, o ninguna lo hace.
 
 ---
 
@@ -385,7 +385,7 @@ stateDiagram-v2
 
 #### Contabilidad Metabólica (`MetabolicLedger`)
 
-En [`metabolism.py`](../src/symbiont/core/embodiment/metabolism.py#L34-L145), se gestionan 4 recursos vitales finitos:
+En [`metabolism.py`](../symbiont/src/symbiont/core/embodiment/metabolism.py#L34-L145), se gestionan 4 recursos vitales finitos:
 
 1. `observation`: Consumo por lectura de sensores externos e interoceptivos.
 2. `cognition`: Gasto por activación y aprendizaje del grafo recurrente.
@@ -402,17 +402,17 @@ $$\text{ratio} = \min_{k} \left(\frac{\text{reserva}[k]}{\text{capacidad}[k]}\ri
 
 #### Estados Vitales y Muerte Irreversible (`PhysiologyController`)
 
-En [`physiology.py`](../src/symbiont/core/embodiment/physiology.py#L7-L58):
+En [`physiology.py`](../symbiont/src/symbiont/core/embodiment/physiology.py#L7-L58):
 
-- La muerte (`VitalState.DEAD`) es terminal e irreversible. Si el runtime intenta ejecutar un tick tras la muerte, lanza [`OrganismDeadError`](../src/symbiont/core/orchestration/runtime.py#L117-L119).
+- La muerte (`VitalState.DEAD`) es terminal e irreversible. Si el runtime intenta ejecutar un tick tras la muerte, lanza [`OrganismDeadError`](../symbiont/src/symbiont/core/orchestration/runtime.py#L117-L119).
 - En el momento de la muerte, el runtime libera atómicamente y una sola vez:
-  - Asignaciones en el hábitat compartido ecológico ([`SharedHabitat.release`](../src/symbiont/core/social/ecology.py#L52-L56)).
-  - Cupo de membresía en el hábitat social ([`SocialHabitat.release`](../src/symbiont/core/social/relations.py#L1-L100)).
-- La autoridad poblacional pertenece a Lab: el aparato observa la muerte y libera el registro de linaje de forma idempotente mediante [`HabitatBirthAuthority.observe_death`](../src/symbiont_lab/reproduction/authority.py). El organismo no conserva ni invoca esta autoridad.
+  - Asignaciones en el hábitat compartido ecológico ([`SharedHabitat.release`](../symbiont/src/symbiont/core/social/ecology.py#L52-L56)).
+  - Cupo de membresía en el hábitat social ([`SocialHabitat.release`](../symbiont/src/symbiont/core/social/relations.py#L1-L100)).
+- La autoridad poblacional pertenece a Lab: el aparato observa la muerte y libera el registro de linaje de forma idempotente mediante [`HabitatBirthAuthority.observe_death`](../lab/src/lab/reproduction/authority.py). El organismo no conserva ni invoca esta autoridad.
 
 #### Regulación Homeostática y Reparación (`HomeostaticController`)
 
-En [`homeostasis.py`](../src/symbiont/core/embodiment/homeostasis.py#L27-L105):
+En [`homeostasis.py`](../symbiont/src/symbiont/core/embodiment/homeostasis.py#L27-L105):
 
 - Presión `ELEVATED`: Reduce la escala de actividad al 90% (mínimo 0.5).
 - Presión `SEVERE`: Reduce la actividad al 75% (mínimo 0.2) y **deshabilita la plasticidad cognitiva** (`plasticity_enabled = False`).
@@ -421,7 +421,7 @@ En [`homeostasis.py`](../src/symbiont/core/embodiment/homeostasis.py#L27-L105):
 
 #### Cola de Degradación y Excreción Irreversible (`DegradationQueue`)
 
-En [`degradation.py`](../src/symbiont/core/embodiment/degradation.py#L24-L70):
+En [`degradation.py`](../symbiont/src/symbiont/core/embodiment/degradation.py#L24-L70):
 El estado retenido de bajo valor pasa por el ciclo:
 $$\text{ACTIVE} \xrightarrow{16\text{ ticks}} \text{AGING} \xrightarrow{8\text{ ticks}} \text{WASTE} \xrightarrow{\text{age\_tick()}} \text{EXCRETED}$$
 Al alcanzar `EXCRETED`, el elemento se purga definitivamente de la memoria y se incrementa el contador `excreted_units`.
@@ -484,7 +484,7 @@ misma conservación física y separación germinal.
 
 ### 3.8 Sociabilidad Emergente y Evidencia Contextual (Hito K)
 
-El Hito K dota al organismo de capacidades para interactuar en un hábitat multi-residente ([`SocialHabitat`](../src/symbiont/core/social/relations.py#L1-L100)) sin imponer objetivos sociales ni funciones de recompensa colectiva centralizadas.
+El Hito K dota al organismo de capacidades para interactuar en un hábitat multi-residente ([`SocialHabitat`](../symbiont/src/symbiont/core/social/relations.py#L1-L100)) sin imponer objetivos sociales ni funciones de recompensa colectiva centralizadas.
 
 ```mermaid
 flowchart TD
@@ -496,7 +496,7 @@ flowchart TD
 
 #### Memoria Relacional Direccional (`RelationLedger`)
 
-Cada organismo mantiene su propio registro [`SocialRelation`](../src/symbiont/core/social/relations.py#L13-L48) por cada par y por cada canal opaco:
+Cada organismo mantiene su propio registro [`SocialRelation`](../symbiont/src/symbiont/core/social/relations.py#L13-L48) por cada par y por cada canal opaco:
 
 - **Valencia:**
   $$\text{Valencia} = \begin{cases} \text{POSITIVE} & \text{si } \text{soporte} - \text{daño} \ge 0.1 \\ \text{NEGATIVE} & \text{si } \text{daño} - \text{soporte} \ge 0.1 \\ \text{UNKNOWN} & \text{en caso de equilibrio o sin observaciones} \end{cases}$$
@@ -507,7 +507,7 @@ Cada organismo mantiene su propio registro [`SocialRelation`](../src/symbiont/co
 
 #### Evidencia de Recursos Opacos (`ResourceEvidenceLedger`)
 
-En [`ResourceEvidenceLedger`](../src/symbiont/core/social/relations.py#L75-L156):
+En [`ResourceEvidenceLedger`](../symbiont/src/symbiont/core/social/relations.py#L75-L156):
 
 - Al competir por recursos finitos o intercambiar tokens, el organismo evalúa la disponibilidad local:
   $$\text{score} = \text{disponibilidad} \cdot \text{frescura} - \min(0.75, 0.15 \cdot \text{denegaciones\_consecutivas}) + \frac{0.25}{1 + \text{observaciones}}$$
@@ -541,7 +541,7 @@ y su estado persistente vive únicamente en `LivingBodyState`.
 
 ## 4. El Ciclo Vital Unificado: Anatomía de un Tick en `OrganismRuntime`
 
-El método [`OrganismRuntime.tick()`](../src/symbiont/core/orchestration/runtime.py#L1399-L1955) constituye el latido cognitivo y fisiológico del organismo. La secuencia causal exacta es la siguiente:
+El método [`OrganismRuntime.tick()`](../symbiont/src/symbiont/core/orchestration/runtime.py#L1399-L1955) constituye el latido cognitivo y fisiológico del organismo. La secuencia causal exacta es la siguiente:
 
 ```mermaid
 sequenceDiagram
@@ -578,18 +578,18 @@ sequenceDiagram
 
 | Parámetro / Límite | Valor Canónico | Módulo de Definición | Significado y Propósito Epistémico |
 | :--- | :--- | :--- | :--- |
-| `KernelLimits.max_nodes` | `192` | [`limits.py`](../src/symbiont/cognition/limits.py#L13) | Límite estricto al tamaño del cerebro neuronal. |
-| `KernelLimits.max_concepts` | `32` | [`limits.py`](../src/symbiont/cognition/limits.py#L14) | Techo a la creación de abstracciones latentes. |
-| `KernelLimits.max_edges` | `1536` | [`limits.py`](../src/symbiont/cognition/limits.py#L15) | Techo de conectividad sináptica plástica. |
-| `WEIGHT_RANGE` | `[-2.0, 2.0]` | [`types.py`](../src/symbiont/cognition/types.py#L28) | Rango cerrado de saturación de pesos en Oja. |
-| `TAU_RANGE` | `[0.1, 10.0]` | [`types.py`](../src/symbiont/cognition/types.py#L32) | Constantes temporales de integración neuronal. |
-| `ELIGIBILITY_BOUND` | `10.0` | [`learning.py`](../src/symbiont/cognition/learning.py#L9) | Cota estricta para evitar divergencia en trazas de elegibilidad. |
-| `AttentionBudget.budget` | `1.0` | [`attention.py`](../src/symbiont/core/cognition/attention.py#L131) | Presupuesto físico duro por ciclo de atención. |
-| `BeliefModel.max_evidence` | `32.0` | [`beliefs.py`](../src/symbiont/core/cognition/beliefs.py#L44) | Saturación para evitar fosilización bayesiana. |
-| `conflict_z` | `2.0` | [`evidence.py`](../src/symbiont/core/cognition/evidence.py#L40) | Desviación $Z$ para registrar una disidencia. |
-| `Collinearity Threshold` | `0.97` | [`adaptive.py`](../src/symbiont/host/adaptive.py#L114) | Umbral de correlación de Pearson para podar sensores idénticos. |
-| `IDLE_GRACE_TICKS` | `20` | [`selfmodel.py`](../src/symbiont/core/cognition/self_model.py#L47) | Margen antes del decaimiento temporal de confianza. |
-| `Reproductive Threshold` | `8` ticks | [`reproduction.py`](../src/symbiont/core/orchestration/canonical_birth.py#L18) | Persistencia de estrés necesaria para inducir brote clonal. |
+| `KernelLimits.max_nodes` | `192` | [`limits.py`](../symbiont/src/symbiont/cognition/limits.py#L13) | Límite estricto al tamaño del cerebro neuronal. |
+| `KernelLimits.max_concepts` | `32` | [`limits.py`](../symbiont/src/symbiont/cognition/limits.py#L14) | Techo a la creación de abstracciones latentes. |
+| `KernelLimits.max_edges` | `1536` | [`limits.py`](../symbiont/src/symbiont/cognition/limits.py#L15) | Techo de conectividad sináptica plástica. |
+| `WEIGHT_RANGE` | `[-2.0, 2.0]` | [`types.py`](../symbiont/src/symbiont/cognition/types.py#L28) | Rango cerrado de saturación de pesos en Oja. |
+| `TAU_RANGE` | `[0.1, 10.0]` | [`types.py`](../symbiont/src/symbiont/cognition/types.py#L32) | Constantes temporales de integración neuronal. |
+| `ELIGIBILITY_BOUND` | `10.0` | [`learning.py`](../symbiont/src/symbiont/cognition/learning.py#L9) | Cota estricta para evitar divergencia en trazas de elegibilidad. |
+| `AttentionBudget.budget` | `1.0` | [`attention.py`](../symbiont/src/symbiont/core/cognition/attention.py#L131) | Presupuesto físico duro por ciclo de atención. |
+| `BeliefModel.max_evidence` | `32.0` | `beliefs.py` | Saturación para evitar fosilización bayesiana. |
+| `conflict_z` | `2.0` | [`evidence.py`](../symbiont/src/symbiont/core/cognition/evidence.py#L40) | Desviación $Z$ para registrar una disidencia. |
+| `Collinearity Threshold` | `0.97` | [`adaptive.py`](../symbiont/src/symbiont/host/adaptive.py#L114) | Umbral de correlación de Pearson para podar sensores idénticos. |
+| `IDLE_GRACE_TICKS` | `20` | [`selfmodel.py`](../symbiont/src/symbiont/core/cognition/self_model.py#L47) | Margen antes del decaimiento temporal de confianza. |
+| `Reproductive Threshold` | `8` ticks | [`reproduction.py`](../symbiont/src/symbiont/core/orchestration/canonical_birth.py#L18) | Persistencia de estrés necesaria para inducir brote clonal. |
 
 ---
 

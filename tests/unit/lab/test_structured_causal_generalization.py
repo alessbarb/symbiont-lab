@@ -1,9 +1,9 @@
-from symbiont.modeling import NativeTokenizer, build_training_corpus
-from symbiont_lab.experiments.registry import get_protocol
-from symbiont_lab.studies.learning.structured_causal_generalization import (
+from lab.experiments.registry import get_protocol
+from lab.studies.learning.structured_causal_generalization import (
     _motor_trace,
     _records,
 )
+from symbiont.modeling import NativeTokenizer, build_training_corpus
 
 
 def test_structured_causal_generalization_protocol_registered():

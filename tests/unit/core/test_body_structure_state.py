@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import pytest
-from symbiont.core.physiology import BodyStructureState, LivingBodyState
+
+from symbiont.core.embodiment.physiology import BodyStructureState, LivingBodyState
 
 
 def _uniform_body(n: int = 3) -> LivingBodyState:
@@ -27,7 +28,7 @@ def test_uniform_structures_aggregate_matches_scalar_behavior():
 
 
 def test_repair_and_damage_stay_in_sync_via_homeostasis_setter():
-    from symbiont.core.homeostasis import HomeostaticController
+    from symbiont.core.embodiment.homeostasis import HomeostaticController
 
     body = _uniform_body()
     controller = HomeostaticController(body_state=body)
@@ -93,9 +94,8 @@ def test_apply_wear_kills_body_when_all_structures_destroyed():
 
 
 def test_organism_runtime_populates_structures_from_actuator_slots():
-    from symbiont.core.runtime import OrganismRuntime
-
     from symbiont.actuation.constitution import ActuatorConstitution, MotorSlot
+    from symbiont.core.orchestration.runtime import OrganismRuntime
 
     constitution = ActuatorConstitution(
         channels=(

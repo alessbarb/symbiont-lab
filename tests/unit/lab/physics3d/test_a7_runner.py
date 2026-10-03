@@ -3,12 +3,12 @@ from dataclasses import dataclass
 
 import pytest
 
-from symbiont_lab.studies.physics3d.a7_artifacts import (
+from lab.studies.physics3d.a7_artifacts import (
     verify_execution_artifacts,
     write_execution_artifacts,
 )
-from symbiont_lab.studies.physics3d.a7_campaign import A7Run
-from symbiont_lab.studies.physics3d.a7_runner import _validate_records, run_campaign, run_execution
+from lab.studies.physics3d.a7_campaign import A7Run
+from lab.studies.physics3d.a7_runner import _validate_records, run_campaign, run_execution
 
 
 @dataclass(frozen=True)
@@ -301,9 +301,7 @@ def test_a7_campaign_indexes_exact_264_runs_and_replay_gates(tmp_path, monkeypat
         )
         return destination
 
-    monkeypatch.setattr(
-        "symbiont_lab.studies.physics3d.a7_runner.run_execution", fake_run_execution
-    )
+    monkeypatch.setattr("lab.studies.physics3d.a7_runner.run_execution", fake_run_execution)
     index = run_campaign(
         tmp_path,
         runner_validated=True,
@@ -341,7 +339,7 @@ def test_a7_interrupted_campaign_writes_full_index_with_inconclusive_missing_run
         )
         return destination
 
-    monkeypatch.setattr("symbiont_lab.studies.physics3d.a7_runner.run_execution", interrupted_run)
+    monkeypatch.setattr("lab.studies.physics3d.a7_runner.run_execution", interrupted_run)
     index = run_campaign(
         tmp_path,
         runner_validated=True,

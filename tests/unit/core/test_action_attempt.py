@@ -6,12 +6,12 @@ import dataclasses
 
 import pytest
 
+from lab.studies.learning.agency_acquisition_body import CausalBody, build_subject
 from symbiont.actuation.acquisition import AgencyAcquisition
 from symbiont.actuation.action import MotorCommand
 from symbiont.actuation.attempt import ActionAttempt
 from symbiont.actuation.commitment import ActionCommitment
 from symbiont.actuation.surface import derive_actuator_constitution
-from symbiont_lab.studies.learning.agency_acquisition_body import CausalBody, build_subject
 
 
 def _runtime_with_command():

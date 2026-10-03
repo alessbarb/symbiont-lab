@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from symbiont_lab.studies.learning.generative_model_correction import (
+from lab.studies.learning.generative_model_correction import (
     run_generative_model_correction_study,
 )
 

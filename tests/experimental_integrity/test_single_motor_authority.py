@@ -4,7 +4,7 @@ import ast
 from pathlib import Path
 
 _ALLOWED_COMMAND_AUTHORITY = {
-    "src/symbiont/core/domains/action.py",
+    "symbiont/src/symbiont/core/domains/action.py",
 }
 
 
@@ -21,7 +21,7 @@ def _call_name(node: ast.Call) -> str | None:
 
 def test_production_has_single_motor_command_authority() -> None:
     root = Path(__file__).resolve().parents[2]
-    src = root / "src" / "symbiont"
+    src = root / "symbiont" / "src" / "symbiont"
     violations: list[str] = []
     for path in src.rglob("*.py"):
         rel = path.relative_to(root).as_posix()
@@ -50,9 +50,9 @@ def test_production_has_single_motor_command_authority() -> None:
 
 def test_runtime_does_not_cross_physical_actuator_boundary() -> None:
     root = Path(__file__).resolve().parents[2]
-    runtime = (root / "src" / "symbiont" / "core" / "orchestration" / "runtime.py").read_text(
-        encoding="utf-8"
-    )
+    runtime = (
+        root / "symbiont" / "src" / "symbiont" / "core" / "orchestration" / "runtime.py"
+    ).read_text(encoding="utf-8")
     assert ".execute_command(" not in runtime
     assert "ActuatorSystem(" not in runtime
     assert "MotorCommand.from_mapping(" not in runtime

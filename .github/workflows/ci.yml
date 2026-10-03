@@ -102,9 +102,9 @@ jobs:
             BASE="$(git rev-parse "$HEAD^")"
           fi
           uv run --no-sync python scripts/agentctl.py ci-check --base "$BASE" --head "$HEAD"
-      - run: uv run --no-sync ruff check src/ observatory/ tests/ scripts/governance/ci_plan.py
-      - run: uv run --no-sync ruff format --check src/ observatory/ tests/ scripts/governance/ci_plan.py
-      - run: uv run --no-sync bandit -r src/ -ll
+      - run: uv run --no-sync ruff check symbiont/src/ environment/src/ modality/src/ embodiment/src/ lab/src/ tests/ scripts/governance/ci_plan.py
+      - run: uv run --no-sync ruff format --check symbiont/src/ environment/src/ modality/src/ embodiment/src/ lab/src/ tests/ scripts/governance/ci_plan.py
+      - run: uv run --no-sync bandit -r symbiont/src/ environment/src/ modality/src/ embodiment/src/ lab/src/ -ll
 
   governance-docs:
     name: governance-and-docs-tests
@@ -246,7 +246,7 @@ jobs:
             uv.lock
             pyproject.toml
       - run: uv sync --frozen --extra dev
-      - run: uv run --no-sync pytest observatory tests/unit/observatory tests/unit/workbench -q
+      - run: uv run --no-sync pytest lab/src/lab/observatory tests/unit/observatory tests/unit/workbench -q
 
   architecture-integrity:
     name: architecture-integrity
@@ -335,7 +335,7 @@ jobs:
             pyproject.toml
       - run: uv sync --frozen --extra dev --extra physics3d
       - run: uv run --no-sync pytest -o addopts= tests -q
-      - run: uv run --no-sync pytest observatory -q
+      - run: uv run --no-sync pytest lab/src/lab/observatory -q
 
   python-compatibility:
     name: python-compatibility (py${{ matrix.python-version }})
@@ -363,7 +363,7 @@ jobs:
       - run: uv sync --frozen --extra dev
       - run: uv run --no-sync pytest -o addopts= tests/contract tests/compatibility tests/experimental_integrity -q
       - run: uv run --no-sync pytest tests/smoke -q
-      - run: uv run --no-sync symbiont-lab audit verify
+      - run: uv run --no-sync symbiont-lab --help
 
   host-portability:
     name: host-portability (${{ matrix.os }})

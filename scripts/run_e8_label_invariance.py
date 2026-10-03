@@ -10,9 +10,10 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
+for _domain in ("symbiont", "environment", "modality", "embodiment", "lab"):
+    sys.path.insert(0, str(ROOT / _domain / "src"))
 
-from symbiont_lab.studies.embodiment.label_invariance import run_label_invariance_study
+from lab.studies.embodiment.label_invariance import run_label_invariance_study
 
 
 def main() -> int:

@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 
 import pytest
+from tests.checkpoints import as_legacy, edited
 
 from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont.host.checkpoint import (
@@ -20,7 +21,6 @@ from symbiont.host.checkpoint import (
     verify_checkpoint_identity,
 )
 from symbiont.modeling.private_runtime import PrivateModelOrganismRuntime
-from tests.checkpoints import as_legacy, edited
 
 RUNTIME_KWARGS = dict(bootstrap_semantic_senses=True, discover_senses=False, min_samples=1)
 

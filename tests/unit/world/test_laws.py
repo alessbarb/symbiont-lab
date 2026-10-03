@@ -2,7 +2,7 @@ import math
 
 import pytest
 
-from symbiont_world.laws import HazardLaw, PeriodicFieldLaw, ResourceLaw
+from environment.laws import HazardLaw, PeriodicFieldLaw, ResourceLaw
 
 
 def test_periodic_field_law_is_deterministic_for_the_same_tick():

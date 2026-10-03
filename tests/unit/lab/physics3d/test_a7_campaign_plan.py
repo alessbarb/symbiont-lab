@@ -1,4 +1,4 @@
-from symbiont_lab.studies.physics3d.a7_campaign import (
+from lab.studies.physics3d.a7_campaign import (
     CANONICAL_BODIES,
     REEMBODIMENT_TRANSITIONS,
     campaign_index_payload,

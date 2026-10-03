@@ -18,7 +18,7 @@ language: en
 ## 1. Purpose
 
 The
-[current-state audit](../../../research/audits/current/2026-10-02-current-state-architecture-audit.md)
+[current-state audit](../../../lab/research/audits/current/2026-10-02-current-state-architecture-audit.md)
 (F-09) found that "World" names a family of environments rather than one runtime
 authority. This map records, from the code, every environment an organism can be
 placed in: what it is responsible for, which layer owns it, who consumes it and

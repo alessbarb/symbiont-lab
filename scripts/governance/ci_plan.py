@@ -143,9 +143,9 @@ def build_plan(base: str, head: str) -> CIPlan:
             _matches_prefix(
                 path,
                 (
-                    "src/symbiont/host/",
+                    "symbiont/src/symbiont/host/",
                     "tests/unit/host/",
-                    "src/symbiont_lab/physics3d/",
+                    "lab/src/lab/physics3d/",
                 ),
             )
             for path in paths
@@ -157,7 +157,7 @@ def build_plan(base: str, head: str) -> CIPlan:
             _matches_prefix(
                 path,
                 (
-                    "src/symbiont_lab/physics3d/",
+                    "lab/src/lab/physics3d/",
                     "tests/unit/lab/physics3d/",
                     "tests/integration/test_physics3d",
                 ),
@@ -171,7 +171,7 @@ def build_plan(base: str, head: str) -> CIPlan:
             _matches_prefix(
                 path,
                 (
-                    "src/symbiont_lab/modeling/",
+                    "lab/src/lab/modeling/",
                     "tests/unit/modeling/",
                     "tests/unit/lab/modeling/",
                     "tests/integration/test_private_model",
@@ -188,11 +188,11 @@ def build_plan(base: str, head: str) -> CIPlan:
             _matches_prefix(
                 path,
                 (
-                    "src/symbiont/",
-                    "src/symbiont_lab/physics3d/",
-                    "src/symbiont_lab/modeling/",
+                    "symbiont/src/symbiont/",
+                    "lab/src/lab/physics3d/",
+                    "lab/src/lab/modeling/",
                     "observatory/",
-                    "src/symbiont_lab/workbench/",
+                    "lab/src/lab/workbench/",
                 ),
             )
             for path in paths

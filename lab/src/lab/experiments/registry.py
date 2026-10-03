@@ -1,0 +1,267 @@
+from __future__ import annotations
+
+from typing import Any, Callable
+
+from lab.studies.continuity.recurrent_restoration import run_recurrent_restoration_study
+from lab.studies.embodiment.causal_revision_sequence import (
+    run_causal_revision_sequence_study,
+)
+from lab.studies.embodiment.heredity_leakage_challenge import (
+    run_heredity_leakage_challenge_study,
+)
+from lab.studies.embodiment.hidden_common_cause import run_hidden_common_cause_study
+from lab.studies.embodiment.label_invariance import run_label_invariance_study
+from lab.studies.embodiment.somatic_correlation_trap import (
+    run_somatic_correlation_trap_study,
+)
+from lab.studies.embodiment.temporal_causality_challenge import (
+    run_temporal_causality_challenge_study,
+)
+from lab.studies.embodiment.tool_body_distinction import run_tool_body_distinction_study
+from lab.studies.embodiment.yoked_external_causation import (
+    run_yoked_external_causation_study,
+)
+from lab.studies.learning.adaptive_replay_matched_control import (
+    run_adaptive_replay_matched_control_study,
+)
+from lab.studies.learning.agency_acquisition import (
+    run_acquisition_reuse_closure_study,
+    run_agency_acquisition_ablation_study,
+    run_consolidated_causal_intervention_study,
+    run_embodied_causal_intervention_study,
+    run_executive_bridge_ablation_study,
+    run_high_dimensional_acquisition_study,
+    run_intent_persistence_study,
+    run_intentional_causal_advantage_study,
+)
+from lab.studies.learning.autonomous_cultural_agency import (
+    run_autonomous_cultural_agency_study,
+)
+from lab.studies.learning.autonomous_replay_stopping import (
+    run_autonomous_replay_stopping_study,
+)
+from lab.studies.learning.binding_degradation import run_binding_degradation_study
+from lab.studies.learning.canonical_sensorimotor_adaptation import (
+    run_sensorimotor_adaptation_study,
+)
+from lab.studies.learning.canonical_sensorimotor_agency import (
+    run_sensorimotor_agency_study,
+)
+from lab.studies.learning.canonical_sensorimotor_counterfactual import (
+    run_counterfactual_replay_study,
+)
+from lab.studies.learning.cognitive_ecology_embodiment import (
+    run_cognitive_ecology_embodiment_study,
+)
+from lab.studies.learning.cognitive_graph_causal_composition import (
+    run_cognitive_graph_causal_composition_study,
+)
+from lab.studies.learning.continuous_temporal_challenge import (
+    run_continuous_temporal_challenge,
+)
+from lab.studies.learning.continuous_temporal_controls import (
+    run_continuous_temporal_controls,
+)
+from lab.studies.learning.cultural_foundation import run_cultural_foundation_study
+from lab.studies.learning.cumulative_culture import run_cumulative_culture_study
+from lab.studies.learning.embodied_behavioral_ablation import (
+    run_embodied_behavioral_ablation,
+)
+from lab.studies.learning.emergent_structured_communication import (
+    run_emergent_structured_communication_study,
+)
+from lab.studies.learning.emergent_symbol_grounding import (
+    run_emergent_symbol_grounding_study,
+)
+from lab.studies.learning.episodic_memory_utility import run_episodic_memory_utility_study
+from lab.studies.learning.footprint_precision import run_footprint_precision_study
+from lab.studies.learning.generative_cognition_release import (
+    run_generative_cognition_release_gates,
+)
+from lab.studies.learning.generative_consolidation_gates import (
+    run_generative_consolidation_gates_study,
+)
+from lab.studies.learning.generative_counterfactual_utility import (
+    run_generative_counterfactual_utility_study,
+)
+from lab.studies.learning.generative_depth_calibration import (
+    run_generative_depth_calibration_study,
+)
+from lab.studies.learning.generative_model_correction import (
+    run_generative_model_correction_study,
+)
+from lab.studies.learning.generative_planning_utility import (
+    run_generative_planning_utility_study,
+)
+from lab.studies.learning.generative_predictive_utility import (
+    run_generative_predictive_utility_study,
+)
+from lab.studies.learning.generative_recombination_construction import (
+    run_generative_recombination_construction_study,
+)
+from lab.studies.learning.generative_replay_utility import (
+    run_generative_replay_utility_study,
+)
+from lab.studies.learning.independent_symbol_grounding import (
+    run_independent_symbol_grounding_study,
+)
+from lab.studies.learning.internal_learning_progress import (
+    run_internal_learning_progress_study,
+)
+from lab.studies.learning.predictive_discovery import run_predictive_discovery_study
+from lab.studies.learning.predictive_utility import run_predictive_utility_study
+from lab.studies.learning.private_model_adaptation import (
+    run_private_model_adaptation_study,
+)
+from lab.studies.learning.private_model_controls import run_private_model_controls_study
+from lab.studies.learning.private_model_learnability import (
+    run_private_model_learnability_study,
+)
+from lab.studies.learning.private_model_regime_shift import (
+    run_private_model_symmetric_regime_study,
+)
+from lab.studies.learning.private_model_utility import run_private_model_utility_study
+from lab.studies.learning.replay_efficiency import run_replay_efficiency_study
+from lab.studies.learning.replay_pressure_curve import run_replay_pressure_curve_study
+from lab.studies.learning.structural_producer_fairness import (
+    run_structural_producer_fairness_study,
+)
+from lab.studies.learning.structured_causal_experience import (
+    run_structured_causal_experience_study,
+)
+from lab.studies.learning.structured_causal_generalization import (
+    run_structured_causal_generalization_study,
+)
+from lab.studies.learning.structured_communication_characterization import (
+    run_structured_communication_characterization,
+)
+from lab.studies.learning.temporal_private_model_controls import (
+    run_temporal_private_model_controls_study,
+)
+from lab.studies.observability.population_communication import (
+    run_population_communication_study,
+)
+from lab.studies.perception.autonomous_selection import (
+    run_autonomous_sensory_selection_study,
+    run_experience_conditioned_phenotype_study,
+    run_sensory_null_selection_study,
+    run_sensory_regime_reversal_study,
+)
+from lab.studies.perception.sensory_specialisation import (
+    run_adaptive_delta_discovery_study,
+    run_duplication_divergence_study,
+    run_identity_equivalence_study,
+    run_modality_specialisation_study,
+    run_multisource_specialisation_study,
+    run_same_world_phenotype_divergence_study,
+    run_sensory_ablation_study,
+    run_temporal_scale_specialisation_study,
+)
+from lab.studies.world.genesis_viability import run_genesis_viability_characterization
+
+
+def run_visual_acquisition_study(*args: Any, **kwargs: Any) -> Any:
+    """Import the active visual-acquisition study only when that protocol runs."""
+    from lab.studies.learning.visual_acquisition import (
+        run_visual_acquisition_study as implementation,
+    )
+
+    return implementation(*args, **kwargs)
+
+
+def run_visual_predictor_audit(*args: Any, **kwargs: Any) -> Any:
+    """Import the visual predictor audit only when that protocol runs."""
+    from lab.studies.learning.visual_predictor_audit import (
+        run_visual_predictor_audit as implementation,
+    )
+
+    return implementation(*args, **kwargs)
+
+
+PROTOCOLS: dict[str, Callable[..., Any]] = {
+    "learning.predictive-utility": run_predictive_utility_study,
+    "learning.episodic-memory-utility": run_episodic_memory_utility_study,
+    "learning.generative-cognition-release-gates": run_generative_cognition_release_gates,
+    "learning.generative-cognition-counterfactual-utility": run_generative_counterfactual_utility_study,
+    "learning.generative-cognition-recombination-construction": run_generative_recombination_construction_study,
+    "learning.generative-cognition-predictive-utility": run_generative_predictive_utility_study,
+    "learning.generative-cognition-model-correction": run_generative_model_correction_study,
+    "learning.generative-cognition-depth-calibration": run_generative_depth_calibration_study,
+    "learning.generative-cognition-replay-utility": run_generative_replay_utility_study,
+    "learning.generative-cognition-consolidation-gates": run_generative_consolidation_gates_study,
+    "learning.generative-cognition-planning-utility": run_generative_planning_utility_study,
+    "learning.continuous-temporal-challenge": run_continuous_temporal_challenge,
+    "learning.continuous-temporal-controls": run_continuous_temporal_controls,
+    "learning.cognitive-ecology-embodiment": run_cognitive_ecology_embodiment_study,
+    "learning.embodied-behavioral-ablation": run_embodied_behavioral_ablation,
+    "learning.canonical-sensorimotor-agency": run_sensorimotor_agency_study,
+    "learning.canonical-sensorimotor-counterfactual": run_counterfactual_replay_study,
+    "learning.canonical-sensorimotor-adaptation": run_sensorimotor_adaptation_study,
+    "learning.structural-producer-fairness": run_structural_producer_fairness_study,
+    "learning.private-model-utility": run_private_model_utility_study,
+    "learning.private-model-controls": run_private_model_controls_study,
+    "learning.temporal-private-model-controls": run_temporal_private_model_controls_study,
+    "learning.private-model-regime-symmetric": run_private_model_symmetric_regime_study,
+    "learning.private-model-adaptation": run_private_model_adaptation_study,
+    "learning.adaptive-replay-matched-control": run_adaptive_replay_matched_control_study,
+    "learning.replay-pressure-curve": run_replay_pressure_curve_study,
+    "learning.replay-efficiency": run_replay_efficiency_study,
+    "learning.internal-learning-progress": run_internal_learning_progress_study,
+    "learning.autonomous-replay-stopping": run_autonomous_replay_stopping_study,
+    "learning.structured-causal-experience": run_structured_causal_experience_study,
+    "learning.structured-causal-generalization": run_structured_causal_generalization_study,
+    "learning.cultural-foundation": run_cultural_foundation_study,
+    "learning.cumulative-culture": run_cumulative_culture_study,
+    "learning.autonomous-cultural-agency": run_autonomous_cultural_agency_study,
+    "learning.emergent-symbol-grounding": run_emergent_symbol_grounding_study,
+    "learning.independent-symbol-grounding": run_independent_symbol_grounding_study,
+    "learning.predictive-discovery": run_predictive_discovery_study,
+    "learning.cognitive-graph-causal-composition": run_cognitive_graph_causal_composition_study,
+    "learning.agency-acquisition-ablation": run_agency_acquisition_ablation_study,
+    "learning.agency-executive-bridge-ablation": run_executive_bridge_ablation_study,
+    "learning.agency-intent-persistence": run_intent_persistence_study,
+    "learning.agency-embodied-causal-intervention": run_embodied_causal_intervention_study,
+    "learning.agency-consolidated-causal-intervention": (
+        run_consolidated_causal_intervention_study
+    ),
+    "learning.agency-intentional-causal-advantage": run_intentional_causal_advantage_study,
+    "learning.agency-acquisition-reuse-closure": run_acquisition_reuse_closure_study,
+    "learning.agency-high-dimensional-acquisition": run_high_dimensional_acquisition_study,
+    "learning.footprint-precision": run_footprint_precision_study,
+    "learning.private-model-learnability": run_private_model_learnability_study,
+    "learning.binding-degradation": run_binding_degradation_study,
+    "learning.visual-acquisition-v1": run_visual_acquisition_study,
+    "learning.visual-predictor-audit": run_visual_predictor_audit,
+    "embodiment.yoked-external-causation": run_yoked_external_causation_study,
+    "embodiment.somatic-correlation-trap": run_somatic_correlation_trap_study,
+    "embodiment.causal-revision-sequence": run_causal_revision_sequence_study,
+    "embodiment.temporal-causality-challenge": run_temporal_causality_challenge_study,
+    "embodiment.tool-body-distinction": run_tool_body_distinction_study,
+    "embodiment.hidden-common-cause": run_hidden_common_cause_study,
+    "embodiment.label-invariance": run_label_invariance_study,
+    "embodiment.heredity-leakage-challenge": run_heredity_leakage_challenge_study,
+    "learning.emergent-structured-communication": run_emergent_structured_communication_study,
+    "learning.structured-communication-characterization": run_structured_communication_characterization,
+    "observability.population-communication": run_population_communication_study,
+    "world.genesis-viability-characterization": run_genesis_viability_characterization,
+    "continuity.recurrent-restoration": run_recurrent_restoration_study,
+    "perception.identity-equivalence": run_identity_equivalence_study,
+    "perception.adaptive-delta-discovery": run_adaptive_delta_discovery_study,
+    "perception.temporal-scale-specialisation": run_temporal_scale_specialisation_study,
+    "perception.modality-specialisation": run_modality_specialisation_study,
+    "perception.sensory-duplication-divergence": run_duplication_divergence_study,
+    "perception.sensory-ablation": run_sensory_ablation_study,
+    "perception.multisource-specialisation": run_multisource_specialisation_study,
+    "perception.same-world-phenotype-divergence": run_same_world_phenotype_divergence_study,
+    "perception.autonomous-sensory-selection": run_autonomous_sensory_selection_study,
+    "perception.sensory-regime-reversal": run_sensory_regime_reversal_study,
+    "perception.sensory-null-selection": run_sensory_null_selection_study,
+    "perception.experience-conditioned-phenotype": run_experience_conditioned_phenotype_study,
+}
+
+
+def get_protocol(name: str) -> Callable[..., Any]:
+    if name not in PROTOCOLS:
+        valid = ", ".join(sorted(PROTOCOLS.keys()))
+        raise ValueError(f"Unknown protocol: '{name}'. Available protocols: {valid}")
+    return PROTOCOLS[name]

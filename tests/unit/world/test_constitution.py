@@ -1,4 +1,4 @@
-from symbiont_world.constitution import WorldConstitution
+from environment.constitution import WorldConstitution
 
 
 def _constitution(**overrides) -> WorldConstitution:

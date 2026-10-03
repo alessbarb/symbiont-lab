@@ -1,6 +1,7 @@
 import pytest
-from symbiont.core.homeostasis import HomeostaticAction, HomeostaticController
-from symbiont.core.metabolism import ResourcePressure
+
+from symbiont.core.embodiment.homeostasis import HomeostaticAction, HomeostaticController
+from symbiont.core.embodiment.metabolism import ResourcePressure
 
 
 def test_pressure_reduces_activity_and_pauses_plasticity():
@@ -20,8 +21,8 @@ def test_homeostatic_checkpoint_preserves_shared_integrity() -> None:
 
 
 def test_constitutive_repair_uses_resources_without_cognitive_request() -> None:
-    from symbiont.core.metabolism import MetabolicLedger
-    from symbiont.core.physiology import LivingBodyState
+    from symbiont.core.embodiment.metabolism import MetabolicLedger
+    from symbiont.core.embodiment.physiology import LivingBodyState
 
     state = LivingBodyState(structural_integrity=0.5)
     metabolism = MetabolicLedger(body_state=state)
@@ -38,8 +39,8 @@ def test_constitutive_repair_uses_resources_without_cognitive_request() -> None:
 
 
 def test_constitutive_repair_stops_when_maintenance_reserve_is_empty() -> None:
-    from symbiont.core.metabolism import MetabolicLedger
-    from symbiont.core.physiology import LivingBodyState
+    from symbiont.core.embodiment.metabolism import MetabolicLedger
+    from symbiont.core.embodiment.physiology import LivingBodyState
 
     state = LivingBodyState(structural_integrity=0.5)
     metabolism = MetabolicLedger(
@@ -56,8 +57,8 @@ def test_constitutive_repair_stops_when_maintenance_reserve_is_empty() -> None:
 
 
 def test_embodied_work_drives_fatigue_heat_and_recovery() -> None:
-    from symbiont.core.metabolism import MetabolicLedger
-    from symbiont.core.physiology import LivingBodyState
+    from symbiont.core.embodiment.metabolism import MetabolicLedger
+    from symbiont.core.embodiment.physiology import LivingBodyState
 
     state = LivingBodyState(temperature=0.5)
     metabolism = MetabolicLedger(body_state=state)
@@ -85,7 +86,7 @@ def test_embodied_work_drives_fatigue_heat_and_recovery() -> None:
 
 
 def test_fatigue_reduces_homeostatic_activity_capacity() -> None:
-    from symbiont.core.physiology import LivingBodyState
+    from symbiont.core.embodiment.physiology import LivingBodyState
 
     state = LivingBodyState(fatigue=1.0)
     controller = HomeostaticController(body_state=state)
@@ -97,8 +98,8 @@ def test_fatigue_reduces_homeostatic_activity_capacity() -> None:
 
 
 def test_constitutive_repair_cannot_exceed_physical_energy_pool() -> None:
-    from symbiont.core.metabolism import MetabolicLedger
-    from symbiont.core.physiology import LivingBodyState
+    from symbiont.core.embodiment.metabolism import MetabolicLedger
+    from symbiont.core.embodiment.physiology import LivingBodyState
 
     state = LivingBodyState(
         energy_reserve=0.005,
@@ -115,8 +116,8 @@ def test_constitutive_repair_cannot_exceed_physical_energy_pool() -> None:
 
 
 def test_homeostatic_deviation_falls_when_internal_energy_recovers():
-    from symbiont.core.homeostasis import HomeostaticController
-    from symbiont.core.physiology import LivingBodyState
+    from symbiont.core.embodiment.homeostasis import HomeostaticController
+    from symbiont.core.embodiment.physiology import LivingBodyState
 
     body = LivingBodyState(
         energy_reserve=0.2,
@@ -135,8 +136,8 @@ def test_homeostatic_deviation_falls_when_internal_energy_recovers():
 
 
 def test_homeostatic_deviation_tracks_worst_internal_viability_error():
-    from symbiont.core.homeostasis import HomeostaticController
-    from symbiont.core.physiology import LivingBodyState
+    from symbiont.core.embodiment.homeostasis import HomeostaticController
+    from symbiont.core.embodiment.physiology import LivingBodyState
 
     body = LivingBodyState(
         energy_reserve=2.0,

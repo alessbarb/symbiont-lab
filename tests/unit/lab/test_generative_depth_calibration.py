@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from symbiont_lab.studies.learning.generative_depth_calibration import (
+from lab.studies.learning.generative_depth_calibration import (
     run_generative_depth_calibration_study,
 )
 

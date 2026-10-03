@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from symbiont_lab.experiments.registry import get_protocol
-from symbiont_lab.studies.learning.internal_learning_progress import _pearson
+from lab.experiments.registry import get_protocol
+from lab.studies.learning.internal_learning_progress import _pearson
 
 
 def test_internal_learning_progress_protocol_registered():

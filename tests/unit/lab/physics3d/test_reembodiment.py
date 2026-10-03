@@ -2,9 +2,8 @@ from __future__ import annotations
 
 from copy import deepcopy
 
-from symbiont.actuation.surface import ActuatorSurface
-from symbiont_lab.physics3d.longitudinal import contract_fingerprint
-from symbiont_lab.physics3d.reembodiment import (
+from lab.physics3d.longitudinal import contract_fingerprint
+from lab.physics3d.reembodiment import (
     PhysicsEmbodimentDescriptor,
     lifecycle_summary,
     migrate_legacy_memory_store,
@@ -12,6 +11,7 @@ from symbiont_lab.physics3d.reembodiment import (
     prepare_fresh_embodiment_checkpoint,
     update_lifecycle_for_checkpoint,
 )
+from symbiont.actuation.surface import ActuatorSurface
 
 
 def _checkpoint(*, vital_state: str = "dead") -> dict:
@@ -947,16 +947,17 @@ def test_canonical_action_domain_reembodiment_preserves_knowledge_not_authority(
 
 def test_reembodiment_carries_learned_dimensions_as_unbound_knowledge() -> None:
     """Agency Acquisition v1 §80-§81: dimensions stay known, never bound by fiat."""
-    from symbiont.actuation.acquisition import AgencyAcquisition
-    from symbiont.actuation.surface import derive_actuator_constitution
-    from symbiont.core.domains.action import ActionDomain
-    from symbiont.core.embodiment.body_schema import BodySchemaEngine
     from tests.unit.actuation.acquisition_support import (
         SURFACE,
         A,
         acquire_agentic_dimension,
         fresh_acquisition,
     )
+
+    from symbiont.actuation.acquisition import AgencyAcquisition
+    from symbiont.actuation.surface import derive_actuator_constitution
+    from symbiont.core.domains.action import ActionDomain
+    from symbiont.core.embodiment.body_schema import BodySchemaEngine
 
     learned = fresh_acquisition()
     acquire_agentic_dimension(learned, channels={A: 0.5}, changes={"signal.a": 0.4})

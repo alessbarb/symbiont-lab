@@ -7,6 +7,16 @@ from pathlib import Path
 
 import pytest
 
+from lab.physics3d.reembodiment import (
+    PhysicsEmbodimentDescriptor,
+    migrate_temporal_domains,
+    prepare_fresh_embodiment_checkpoint,
+)
+from lab.studies.learning.agency_acquisition_body import (
+    CausalBody,
+    build_subject,
+    subject_lifecycle,
+)
 from symbiont.cognition.limits import KernelLimits
 from symbiont.core.orchestration.canonical_birth import restore_resident_with_canonical_cognition
 from symbiont.core.orchestration.runtime import OrganismRuntime
@@ -16,16 +26,6 @@ from symbiont.host.checkpoint import (
     verify_checkpoint_identity,
 )
 from symbiont.modeling.private_runtime import PrivateModelOrganismRuntime
-from symbiont_lab.physics3d.reembodiment import (
-    PhysicsEmbodimentDescriptor,
-    migrate_temporal_domains,
-    prepare_fresh_embodiment_checkpoint,
-)
-from symbiont_lab.studies.learning.agency_acquisition_body import (
-    CausalBody,
-    build_subject,
-    subject_lifecycle,
-)
 
 FIXTURES = Path(__file__).parent
 PLAIN_KWARGS = dict(bootstrap_semantic_senses=False, discover_senses=False, min_samples=1)

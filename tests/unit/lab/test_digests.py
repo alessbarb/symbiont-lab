@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from symbiont_lab.studies.common.digests import compute_world_digest
+from lab.studies.common.digests import compute_world_digest
 
 
 @dataclass(slots=True, frozen=True)

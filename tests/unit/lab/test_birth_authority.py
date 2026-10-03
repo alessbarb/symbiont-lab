@@ -1,4 +1,4 @@
-from symbiont_lab.reproduction.authority import HabitatBirthAuthority
+from lab.reproduction.authority import HabitatBirthAuthority
 
 
 def test_capacity_and_release_are_transactional():

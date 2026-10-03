@@ -1,0 +1,325 @@
+"""PyBullet apparatus adapters for the canonical Symbiont runtime.
+
+PyBullet owns anatomy and physical truth. OrganismRuntime sees only bounded,
+opaque sensory capabilities and its inherited opaque actuator surface.
+"""
+
+from __future__ import annotations
+
+import time
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any
+
+from embodiment.physics3d.humanoid import (
+    interoceptive_receptor_contract_ids,
+)
+from symbiont import __version__ as symbiont_version
+from symbiont.actuation.surface import ActuatorConstitution, derive_actuator_constitution
+from symbiont.cognition.birth import load_base_cognition
+from symbiont.cognition.limits import KernelLimits
+from symbiont.core.embodiment.physiology import LivingBodyState
+from symbiont.host.contracts import (
+    AccessMode,
+    Capability,
+    CapabilityKind,
+    CapabilityScope,
+)
+from symbiont.host.readings import (
+    ReadingPrivacyClass,
+    ReadingQuality,
+    SensorReading,
+    Unit,
+)
+from symbiont.sensory.limits import SensoryLimits
+from symbiont.sensory.system import SensorySystem
+
+
+def _running_version() -> tuple[int, int, int]:
+    parts = (symbiont_version.split(".") + ["0", "0"])[:3]
+    major, minor, patch = parts
+    return int(major), int(minor), int(patch)
+
+
+def physics3d_sensory_system(*, max_active_sensors: int = 256) -> SensorySystem:
+    """Body-sized sensory substrate with an explicit bounded checkpoint budget.
+
+    Anthropomorphic-v2 exposes a 107-channel opaque body surface. The apparatus
+    therefore grants enough active-sensor and checkpoint capacity for every
+    physical/interoceptive channel to remain discoverable without semantic
+    prioritization by the lab.
+    """
+    limits = SensoryLimits(
+        max_active_sensors=max_active_sensors,
+        max_sensor_checkpoint_bytes=1024 * 1024,
+    )
+    return SensorySystem(
+        limits=limits,
+        plasticity_enabled=True,
+    )
+
+
+def physics3d_cognition(*, kernel_limits: KernelLimits | None = None):
+    """Canonical germinal cognition, independent of body morphology."""
+    limits = KernelLimits() if kernel_limits is None else kernel_limits
+    genome, graph = load_base_cognition(
+        kernel_limits=limits,
+        running_version=_running_version(),
+    )
+    return genome, graph, limits
+
+
+def physics3d_actuator_surface(
+    effector_ids: Sequence[str],
+    *,
+    physical_contract: str | None = None,
+) -> ActuatorConstitution:
+    """Build the current body's opaque actuator surface outside the genome."""
+    return derive_actuator_constitution(
+        tuple(str(value) for value in effector_ids),
+        physical_contract=physical_contract,
+    )
+
+
+class OpaqueBodyInteroception:
+    """Apparatus-side transducer from LivingBodyState to anonymous receptor slots.
+
+    Source order is apparatus truth only:
+    reserve ratio, structural integrity, temperature and fatigue.  The organism
+    receives only the receptor ids and bounded values after an optional slot
+    permutation.  No source names, setpoints, valence or action hints cross the
+    reading boundary.
+    """
+
+    SOURCE_COUNT = 4
+
+    def __init__(
+        self,
+        *,
+        receptor_ids: Sequence[str] | None = None,
+        source_ordinals_by_slot: Sequence[int] | None = None,
+    ) -> None:
+        ids = tuple(
+            interoceptive_receptor_contract_ids()
+            if receptor_ids is None
+            else (str(item) for item in receptor_ids)
+        )
+        if len(ids) != self.SOURCE_COUNT or len(set(ids)) != self.SOURCE_COUNT:
+            raise ValueError("body interoception requires four unique opaque receptor ids")
+        permutation = (
+            tuple(range(self.SOURCE_COUNT))
+            if source_ordinals_by_slot is None
+            else tuple(int(item) for item in source_ordinals_by_slot)
+        )
+        if sorted(permutation) != list(range(self.SOURCE_COUNT)):
+            raise ValueError("interoception mapping must be a permutation of source ordinals")
+        self.receptor_ids = ids
+        self._source_ordinals_by_slot = permutation
+
+    @property
+    def source_ordinals_by_slot(self) -> tuple[int, ...]:
+        return self._source_ordinals_by_slot
+
+    def sample(self, state: LivingBodyState) -> dict[str, float]:
+        source_values = (
+            max(0.0, min(1.0, state.energy_reserve / max(state.max_energy, 1e-12))),
+            max(0.0, min(1.0, state.structural_integrity)),
+            max(0.0, min(1.0, state.temperature)),
+            max(0.0, min(1.0, state.fatigue)),
+        )
+        return {
+            receptor_id: float(source_values[source_ordinal])
+            for receptor_id, source_ordinal in zip(self.receptor_ids, self._source_ordinals_by_slot)
+        }
+
+    def checkpoint(self) -> dict[str, object]:
+        # Deliberately ordinal-only: serialized state preserves identity without
+        # embedding physiology labels.
+        return {
+            "schema_version": 1,
+            "source_ordinals_by_slot": list(self._source_ordinals_by_slot),
+        }
+
+    @classmethod
+    def from_checkpoint(
+        cls,
+        payload: Mapping[str, object],
+        *,
+        receptor_ids: Sequence[str] | None = None,
+    ) -> "OpaqueBodyInteroception":
+        if payload.get("schema_version") != 1:
+            raise ValueError("unsupported opaque body interoception checkpoint")
+        raw = payload.get("source_ordinals_by_slot")
+        if not isinstance(raw, (list, tuple)):
+            raise ValueError("opaque body interoception mapping is missing")
+        return cls(receptor_ids=receptor_ids, source_ordinals_by_slot=raw)
+
+
+class PhysicsDiscoveryProvider:
+    """Expose physical receptors as opaque local read-only capabilities."""
+
+    provider_id = "physics3d-body"
+
+    def __init__(self, receptor_ids: Sequence[str]) -> None:
+        self.receptor_ids = tuple(str(item) for item in receptor_ids)
+
+    def discover(self) -> tuple[Capability, ...]:
+        return tuple(
+            Capability(
+                capability_id=receptor_id,
+                kind=CapabilityKind.SIGNAL,
+                source=self.provider_id,
+                access=AccessMode.READ_ONLY,
+                scope=CapabilityScope.LOCAL,
+            )
+            for receptor_id in self.receptor_ids
+        )
+
+
+class PhysicsReadingProvider:
+    """Sample one consistent PyBullet body state for the current runtime tick."""
+
+    provider_id = "physics3d-body"
+
+    def __init__(
+        self,
+        apparatus: Any,
+        *,
+        body_state_getter: Callable[[], LivingBodyState] | None = None,
+        interoception: OpaqueBodyInteroception | None = None,
+        expected_receptor_ids: Sequence[str] | None = None,
+    ) -> None:
+        self.apparatus = apparatus
+        self._body_state_getter = body_state_getter
+        self.interoception = (
+            interoception
+            if interoception is not None
+            else (OpaqueBodyInteroception() if body_state_getter is not None else None)
+        )
+        self.receptor_ids = tuple(apparatus.receptor_ids) + (
+            () if self.interoception is None else self.interoception.receptor_ids
+        )
+        expected = (
+            None
+            if expected_receptor_ids is None
+            else tuple(str(item) for item in expected_receptor_ids)
+        )
+        if expected is not None and self.receptor_ids != expected:
+            raise ValueError("Physics3D receptor surface does not match selected body contract")
+        self.last_values: dict[str, float] = {}
+        # Observer-only union of every provider call in the current tick.
+        self.observed_tick_values: dict[str, float] = {}
+        self.last_monotonic_timestamp_ns: int | None = None
+
+    def sample(
+        self,
+        capabilities: tuple[Capability, ...],
+    ) -> tuple[SensorReading, ...]:
+        values = dict(self.apparatus.sample_receptors())
+        if self.interoception is not None:
+            if self._body_state_getter is None:
+                raise RuntimeError("body-state getter missing for interoceptive surface")
+            values.update(self.interoception.sample(self._body_state_getter()))
+        now = time.monotonic_ns()
+        requested = {capability.capability_id for capability in capabilities}
+        self.last_values = {
+            receptor_id: float(value)
+            for receptor_id, value in sorted(values.items())
+            if receptor_id in requested
+        }
+        self.observed_tick_values.update(self.last_values)
+        self.last_monotonic_timestamp_ns = now
+        return tuple(
+            SensorReading(
+                capability_id=receptor_id,
+                source=self.provider_id,
+                value=float(value),
+                unit=Unit.RATIO,
+                monotonic_timestamp_ns=now,
+                quality=ReadingQuality.NOMINAL,
+                privacy_class=ReadingPrivacyClass.NON_IDENTIFYING,
+            )
+            for receptor_id, value in sorted(values.items())
+            if receptor_id in requested
+        )
+
+
+def actuator_to_effector_map(
+    constitution: ActuatorConstitution,
+    apparatus: Any,
+) -> dict[str, str]:
+    """Bind opaque inherited actuator ordinals to opaque physical ports."""
+    actuator_ids = constitution.actuator_ids
+    effector_ids = apparatus.effector_ids
+    if len(actuator_ids) != len(effector_ids):
+        raise ValueError("physical body effector surface must exactly match motor constitution")
+    return {actuator_id: effector_ids[index] for index, actuator_id in enumerate(actuator_ids)}
+
+
+def actuator_exclusion_groups(
+    constitution: ActuatorConstitution,
+    apparatus: Any,
+) -> tuple[tuple[str, str], ...]:
+    """Project apparatus mutual exclusion into organism-owned opaque ids.
+
+    The apparatus may know which physical ports are opposite directions of one
+    degree of freedom.  The returned contract exposes only opaque actuator ids,
+    never joint names, axes, signs or anatomy.
+    """
+    actuator_ids = constitution.actuator_ids
+    effector_ids = tuple(str(value) for value in apparatus.effector_ids)
+    if len(actuator_ids) != len(effector_ids):
+        raise ValueError("physical body effector surface must exactly match motor constitution")
+    effector_index = {effector_id: index for index, effector_id in enumerate(effector_ids)}
+    groups: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for binding in apparatus.motor_bindings:
+        positive = str(binding.positive_port)
+        negative = str(binding.negative_port)
+        if positive not in effector_index or negative not in effector_index:
+            raise ValueError("physical motor binding references unknown effector port")
+        group = (
+            actuator_ids[effector_index[positive]],
+            actuator_ids[effector_index[negative]],
+        )
+        if group[0] == group[1] or seen.intersection(group):
+            raise ValueError("physical motor bindings must define disjoint directional pairs")
+        seen.update(group)
+        groups.append(group)
+
+    if seen != set(actuator_ids):
+        raise ValueError("physical motor bindings must cover the complete actuator constitution")
+    return tuple(groups)
+
+
+def body_schema_summary(runtime) -> dict[str, float | int]:
+    """Return evaluator-only BodySchema structure without exposing opaque IDs."""
+    representation = runtime.body_schema.export_representation(current_tick=runtime.tick_count)
+    parts = representation.get("parts", ())
+    dependencies = representation.get("dependencies", ())
+    confidence_classes = [
+        int(part.get("existence_confidence_class", 0)) for part in parts if isinstance(part, dict)
+    ]
+    confidence = (
+        sum(confidence_classes) / (15.0 * len(confidence_classes)) if confidence_classes else 0.0
+    )
+    return {
+        "confidence": float(confidence),
+        "parts": len(parts),
+        "sensory_parts": runtime.body_schema.sensory_part_count,
+        "cognitive_regions": runtime.body_schema.cognitive_region_count,
+        "dependency_evidence": runtime.body_schema.dependency_evidence_count,
+        "dependencies": len(dependencies),
+    }
+
+
+__all__ = [
+    "OpaqueBodyInteroception",
+    "PhysicsDiscoveryProvider",
+    "PhysicsReadingProvider",
+    "actuator_to_effector_map",
+    "actuator_exclusion_groups",
+    "body_schema_summary",
+    "physics3d_actuator_surface",
+    "physics3d_cognition",
+    "physics3d_sensory_system",
+]

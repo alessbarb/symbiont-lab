@@ -4,7 +4,7 @@ import json
 import subprocess
 import sys
 
-from symbiont.core.runtime import OrganismRuntime
+from symbiont.core.orchestration.runtime import OrganismRuntime
 
 
 def test_default_organism_run_has_canonical_cognition():
@@ -12,7 +12,7 @@ def test_default_organism_run_has_canonical_cognition():
         [
             sys.executable,
             "-m",
-            "symbiont_lab.cli.main",
+            "lab.cli.main",
             "organism",
             "run",
             "--ticks",
@@ -40,7 +40,7 @@ def test_default_organism_run_adopts_a_legacy_state_file(tmp_path):
         [
             sys.executable,
             "-m",
-            "symbiont_lab.cli.main",
+            "lab.cli.main",
             "organism",
             "run",
             "--ticks",

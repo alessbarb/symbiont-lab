@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from symbiont_lab.studies.perception.sensory_specialisation import (
+from lab.studies.perception.sensory_specialisation import (
     run_adaptive_delta_discovery,
     run_duplication_divergence,
     run_identity_equivalence,

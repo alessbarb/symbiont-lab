@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import pytest
 
-import symbiont_lab.studies.embodiment.reembodiment_functional_transfer as transfer
-import symbiont_lab.studies.learning.competence_establishment as establishment
-import symbiont_lab.studies.learning.metabolic_retention_calibration as study
+import lab.studies.embodiment.reembodiment_functional_transfer as transfer
+import lab.studies.learning.competence_establishment as establishment
+import lab.studies.learning.metabolic_retention_calibration as study
+from lab.experiments.loader import load_experiment_file
 from symbiont.core.domains.memory import MemoryDomain
 from symbiont.core.organism_profile import CANONICAL, HISTORICAL_V0
-from symbiont_lab.experiments.loader import load_experiment_file
 
 pytestmark = pytest.mark.experiment_contract
 
@@ -43,7 +43,7 @@ def test_seed_lists_are_disjoint_from_every_other_study() -> None:
 
 def test_the_record_matches_the_frozen_constants() -> None:
     spec = load_experiment_file(
-        "experiments/learning/metabolic-retention-price-calibration-v1/experiment.toml"
+        "lab/experiments/learning/metabolic-retention-price-calibration-v1/experiment.toml"
     )
     frozen = spec.extra_params["retention"]
     assert spec.protocol == study.PROTOCOL

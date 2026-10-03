@@ -1,6 +1,6 @@
 import pytest
 
-from symbiont_lab.studies.social import run_social_study
+from lab.studies.social import run_social_study
 
 
 def test_social_study_exhibits_exchange_and_competition_without_policy() -> None:

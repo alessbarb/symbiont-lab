@@ -4,10 +4,10 @@ from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
-from symbiont.core.runtime import RuntimeTickResult
 
 from symbiont.actuation.types import Actuation
 from symbiont.cognition.types import NodeKind
+from symbiont.core.orchestration.runtime import RuntimeTickResult
 from symbiont.modeling import (
     EpisodicProjection,
     EpistemicStatus,

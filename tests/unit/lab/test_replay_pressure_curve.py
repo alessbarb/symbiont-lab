@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from lab.experiments.registry import get_protocol
+from lab.studies.learning import replay_pressure_curve as study
 from symbiont.modeling import ModeledOrganismRuntime
-from symbiont_lab.experiments.registry import get_protocol
-from symbiont_lab.studies.learning import replay_pressure_curve as study
 
 
 def test_replay_pressure_curve_registered():

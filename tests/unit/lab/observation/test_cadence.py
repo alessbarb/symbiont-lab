@@ -1,4 +1,4 @@
-from symbiont_lab.observation.cadence import ExecutionRates
+from lab.observation.cadence import ExecutionRates
 
 
 def test_default_rates_resolve_to_independent_exact_clocks():

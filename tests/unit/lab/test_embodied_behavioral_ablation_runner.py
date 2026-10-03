@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from symbiont_lab.experiments.loader import load_experiment_file
-from symbiont_lab.experiments.runner import ExperimentRunner
+from lab.experiments.loader import load_experiment_file
+from lab.experiments.runner import ExperimentRunner
 
 
 @dataclass
@@ -28,16 +28,16 @@ def test_behavioral_ablation_runner_passes_preregistered_horizon(
         return _Result()
 
     monkeypatch.setattr(
-        "symbiont_lab.experiments.runner.get_protocol",
+        "lab.experiments.runner.get_protocol",
         lambda _name: protocol,
     )
     monkeypatch.setattr(
-        "symbiont_lab.experiments.runner.get_git_info",
+        "lab.experiments.runner.get_git_info",
         lambda: ("a" * 40, False),
     )
 
     spec = load_experiment_file(
-        Path("experiments/learning/embodied-behavioral-ablation/experiment.toml")
+        Path("lab/experiments/learning/embodied-behavioral-ablation/experiment.toml")
     )
     ExperimentRunner(tmp_path).run(spec)
 

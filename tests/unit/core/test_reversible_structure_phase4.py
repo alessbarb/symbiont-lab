@@ -2,12 +2,11 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from symbiont.core.cognition_bridge import CognitiveBridge, TopologyHealth
-
 from symbiont.cognition.birth import load_base_cognition
 from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.types import EdgeKind, NodeKind
+from symbiont.core.cognition.bridge import CognitiveBridge, TopologyHealth
 
 
 def _base(*, reacclimation_ticks: int = 32):

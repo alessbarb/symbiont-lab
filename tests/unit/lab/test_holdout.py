@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from symbiont_lab.evaluation.holdout import DevelopmentPhase, FrozenEvaluationPhase, SeedLedger
+from lab.evaluation.holdout import DevelopmentPhase, FrozenEvaluationPhase, SeedLedger
 
 
 def test_development_phase_rejects_empty_or_duplicate_seeds() -> None:

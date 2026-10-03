@@ -12,8 +12,8 @@ import inspect
 from pathlib import Path
 
 import symbiont
-from symbiont_lab.app.physics3d.runs import Physics3DRunStore
-from symbiont_lab.experience import RunGuard, run_definition
+from lab.app.physics3d.runs import Physics3DRunStore
+from lab.experience import RunGuard, run_definition
 
 
 def _flatten(value) -> list[str]:
@@ -61,4 +61,4 @@ def test_symbiont_never_imports_lab_experience() -> None:
                 names = [alias.name for alias in node.names]
             elif isinstance(node, ast.ImportFrom) and node.module:
                 names = [node.module]
-            assert not any(name.startswith("symbiont_lab") for name in names), path
+            assert not any(name.startswith("lab") for name in names), path

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from symbiont_lab.experience import (
+from lab.experience import (
     AcquisitionSafetyPolicy,
     RunGuard,
     RunKind,

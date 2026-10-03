@@ -11,14 +11,14 @@ def _collect_attribute_accesses(node: ast.AST) -> list[ast.Attribute]:
 def test_private_prospective_components_do_not_import_evaluator_telemetry():
     repo_root = Path(__file__).resolve().parents[2]
     private_files = [
-        repo_root / "src" / "symbiont" / "modeling" / "private_runtime.py",
-        repo_root / "src" / "symbiont" / "modeling" / "episodic.py",
+        repo_root / "symbiont" / "src" / "symbiont" / "modeling" / "private_runtime.py",
+        repo_root / "symbiont" / "src" / "symbiont" / "modeling" / "episodic.py",
     ]
 
     forbidden_tokens = {
-        "symbiont_lab.physics3d",
-        "symbiont_lab.world",
-        "symbiont_lab.observation",
+        "lab.physics3d",
+        "lab.world",
+        "lab.observation",
         "evaluator",
         "ground_truth",
         "reward",
@@ -34,7 +34,7 @@ def test_private_prospective_components_do_not_import_evaluator_telemetry():
 
 def test_private_prospective_decision_path_cannot_read_evaluator_metrics():
     repo_root = Path(__file__).resolve().parents[2]
-    modeling_root = repo_root / "src" / "symbiont" / "modeling"
+    modeling_root = repo_root / "symbiont" / "src" / "symbiont" / "modeling"
     forbidden_attributes = {
         "resource_distance",
         "resource_progress",
@@ -56,7 +56,9 @@ def test_private_prospective_decision_path_cannot_read_evaluator_metrics():
 
 def test_private_prospective_selector_receives_no_evaluator_metrics():
     repo_root = Path(__file__).resolve().parents[2]
-    private_runtime = repo_root / "src" / "symbiont" / "modeling" / "private_runtime.py"
+    private_runtime = (
+        repo_root / "symbiont" / "src" / "symbiont" / "modeling" / "private_runtime.py"
+    )
     tree = ast.parse(private_runtime.read_text(encoding="utf-8"), filename=str(private_runtime))
 
     selector = next(
@@ -87,7 +89,9 @@ def test_private_prospective_selector_receives_no_evaluator_metrics():
 
 def test_prospective_choice_cannot_directly_train_outcome_value():
     repo_root = Path(__file__).resolve().parents[2]
-    private_runtime = repo_root / "src" / "symbiont" / "modeling" / "private_runtime.py"
+    private_runtime = (
+        repo_root / "symbiont" / "src" / "symbiont" / "modeling" / "private_runtime.py"
+    )
     source = private_runtime.read_text(encoding="utf-8")
     tree = ast.parse(source, filename=str(private_runtime))
 
@@ -113,7 +117,9 @@ def test_prospective_choice_cannot_directly_train_outcome_value():
 
 def test_outcome_value_credit_is_scheduled_only_from_observed_episode_path():
     repo_root = Path(__file__).resolve().parents[2]
-    private_runtime = repo_root / "src" / "symbiont" / "modeling" / "private_runtime.py"
+    private_runtime = (
+        repo_root / "symbiont" / "src" / "symbiont" / "modeling" / "private_runtime.py"
+    )
     source = private_runtime.read_text(encoding="utf-8")
 
     call = "self._schedule_observed_outcome_value_credit("
@@ -128,7 +134,9 @@ def test_outcome_value_credit_is_scheduled_only_from_observed_episode_path():
 
 def test_private_prospective_selector_source_contains_no_evaluator_metrics():
     repo_root = Path(__file__).resolve().parents[2]
-    private_runtime = repo_root / "src" / "symbiont" / "modeling" / "private_runtime.py"
+    private_runtime = (
+        repo_root / "symbiont" / "src" / "symbiont" / "modeling" / "private_runtime.py"
+    )
     source = private_runtime.read_text(encoding="utf-8")
     tree = ast.parse(source, filename=str(private_runtime))
 

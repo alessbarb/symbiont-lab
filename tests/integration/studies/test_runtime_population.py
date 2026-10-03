@@ -1,4 +1,4 @@
-from symbiont_lab.studies.runtime_population import run_runtime_population_study
+from lab.studies.runtime_population import run_runtime_population_study
 
 
 def test_runtime_population_study_releases_dead_child_once() -> None:

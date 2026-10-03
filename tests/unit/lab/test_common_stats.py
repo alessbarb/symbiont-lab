@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from symbiont_lab.studies.common.statistics import (
+from lab.studies.common.statistics import (
     aggregate_metric,
     mean_delta,
     paired_deltas,

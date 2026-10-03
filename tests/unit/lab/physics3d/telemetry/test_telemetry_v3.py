@@ -4,9 +4,9 @@ from dataclasses import dataclass
 
 import pytest
 
-from symbiont_lab.physics3d.persistence import load_telemetry_records
-from symbiont_lab.physics3d.telemetry.reader import open_telemetry
-from symbiont_lab.physics3d.telemetry.v3 import (
+from lab.physics3d.persistence import load_telemetry_records
+from lab.physics3d.telemetry.reader import open_telemetry
+from lab.physics3d.telemetry.v3 import (
     AsyncTelemetryV3Writer,
     TelemetryV3Writer,
     load_v3_deltas,

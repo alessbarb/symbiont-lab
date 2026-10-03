@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from symbiont_lab.evolution.lineage import LineageArchive, LineageRecord
+from lab.evolution.lineage import LineageArchive, LineageRecord
 
 
 def _record(genome_id: str, parent_ids: tuple[str, ...] = (), generation: int = 0) -> LineageRecord:

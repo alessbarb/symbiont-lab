@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from symbiont_lab.studies.common.pairing import (
+from lab.studies.common.pairing import (
     assert_disjoint_seeds,
     assert_paired_seeds,
     assert_unique_seeds,

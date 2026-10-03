@@ -1,8 +1,8 @@
 import pytest
 
-from symbiont_world.movement import resolve_movement
-from symbiont_world.state import TickAborted, WorldState
-from symbiont_world.topology import BodyPlacement, HexCoord, HexTopology, OccupancyGrid
+from environment.movement import resolve_movement
+from environment.state import TickAborted, WorldState
+from environment.topology import BodyPlacement, HexCoord, HexTopology, OccupancyGrid
 
 
 def _setup(*placements: tuple[str, HexCoord]) -> tuple[HexTopology, OccupancyGrid, dict]:

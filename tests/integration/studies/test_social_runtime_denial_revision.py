@@ -1,6 +1,6 @@
 import pytest
 
-from symbiont_lab.studies.social_runtime_denial_revision import (
+from lab.studies.social_runtime_denial_revision import (
     run_social_runtime_denial_revision_study,
 )
 

@@ -1,4 +1,4 @@
-from symbiont_lab.studies.learning.cumulative_culture import run_cumulative_culture_study
+from lab.studies.learning.cumulative_culture import run_cumulative_culture_study
 
 
 def test_preregistered_cumulative_culture_protocol_replays_and_passes():

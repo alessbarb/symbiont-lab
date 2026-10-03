@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import threading
 
-from symbiont_lab.app.physics3d.runs import Physics3DLaunchSpec
-from symbiont_lab.app.physics3d.session import (
+from lab.app.physics3d.runs import Physics3DLaunchSpec
+from lab.app.physics3d.session import (
     Physics3DSession,
     Physics3DSessionState,
 )
-from symbiont_lab.observation.bus import ObservationBus
+from lab.observation.bus import ObservationBus
 
 
 def test_physics3d_session_supervises_clean_stop_without_pybullet() -> None:
@@ -103,7 +103,7 @@ def test_physics3d_session_passes_managed_launch_to_runner(tmp_path) -> None:
 
 
 def test_session_reports_engine_exit_cause_for_run_kind(tmp_path) -> None:
-    from symbiont_lab.experience import RunKind
+    from lab.experience import RunKind
 
     terminal = threading.Event()
 

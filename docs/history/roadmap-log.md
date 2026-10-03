@@ -954,7 +954,7 @@ aprobación del owner congelan ahora el sustrato en `1.0.0`.
 La auditoría adversaria final v2 no encontró P0 ni P1 materiales: integración
 **A**, replay integrado, equivalencia con telemetría activada/desactivada,
 boundedness y QA interactiva de Observatory pasan. Véase
-[`../research/audits/current/experimental-organism-v1/final-v2.md`](../../research/audits/current/experimental-organism-v1/final-v2.md).
+[`../research/audits/current/experimental-organism-v1/final-v2.md`](../../lab/research/audits/current/experimental-organism-v1/final-v2.md).
 El corte publicado usa el tag anotado `experimental-organism-v1` y la versión
 de paquete `1.0.0`; el tag histórico `v0.80.16` no se modifica. La publicación
 del tag y del release se completa como operación administrativa separada.

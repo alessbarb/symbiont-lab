@@ -10,12 +10,12 @@ import inspect
 import json
 
 import pytest
+from tests.checkpoints import edited
 
 from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont.core.social.relations import RelationLedger
 from symbiont.host.checkpoint import CheckpointError
 from symbiont.modeling.private_runtime import PrivateModelOrganismRuntime
-from tests.checkpoints import edited
 
 RUNTIME_KWARGS = dict(
     bootstrap_semantic_senses=False, discover_senses=False, min_samples=1, investigate_ticks=0

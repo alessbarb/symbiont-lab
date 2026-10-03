@@ -1,4 +1,4 @@
-from symbiont_lab.studies.runtime_physiology_gates import run_runtime_physiology_gate_study
+from lab.studies.runtime_physiology_gates import run_runtime_physiology_gate_study
 
 
 def test_runtime_physiology_gate_study_closes_independent_longitudinal_boundaries() -> None:

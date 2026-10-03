@@ -7,11 +7,11 @@ import sys
 
 import pytest
 
-import symbiont_lab.studies.embodiment.reembodiment_functional_transfer as transfer
-import symbiont_lab.studies.learning.competence_establishment as study
+import lab.studies.embodiment.reembodiment_functional_transfer as transfer
+import lab.studies.learning.competence_establishment as study
+from lab.experiments.loader import load_experiment_file
 from symbiont.actuation.competence import CompetenceEvidence, CompetenceGate, CompetenceMaturity
 from symbiont.core.organism_profile import CANONICAL, HISTORICAL_V0
-from symbiont_lab.experiments.loader import load_experiment_file
 
 pytestmark = pytest.mark.experiment_contract
 
@@ -31,7 +31,7 @@ def test_seed_lists_are_disjoint_from_each_other_and_from_the_transfer_experimen
 
 def test_the_record_matches_the_frozen_constants() -> None:
     spec = load_experiment_file(
-        "experiments/learning/competence-establishment-evidence-v1/experiment.toml"
+        "lab/experiments/learning/competence-establishment-evidence-v1/experiment.toml"
     )
     frozen = spec.extra_params["establishment"]
     assert spec.protocol == study.PROTOCOL

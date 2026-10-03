@@ -47,7 +47,7 @@ cognition.
 ## Study
 
 `learning.structured-communication-characterization` is preregistered in
-[`experiments/learning/structured-communication-characterization/experiment.toml`](../../../experiments/learning/structured-communication-characterization/experiment.toml).
+[`experiments/learning/structured-communication-characterization/experiment.toml`](../../../lab/experiments/learning/structured-communication-characterization/experiment.toml).
 It uses seeds `101, 127, 149`, a 64-tick bounded trace, opaque content tokens,
 and a small non-cartesian pressure matrix: no signal, random signal, baseline,
 high complexity, tight vocabulary, high complexity plus tight vocabulary, high

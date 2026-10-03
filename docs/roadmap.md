@@ -45,7 +45,7 @@ valid only within the exact scope in which they were obtained.
 The 2026-10-02 longitudinal audit identified integrity and governance debt that
 must be tracked independently from new capability work. The canonical findings
 record is
-[research/audits/current/2026-10-02-longitudinal-integrity-audit.md](../research/audits/current/2026-10-02-longitudinal-integrity-audit.md).
+[research/audits/current/2026-10-02-longitudinal-integrity-audit.md](../lab/research/audits/current/2026-10-02-longitudinal-integrity-audit.md).
 
 ### LI-1 — Longitudinal integrity
 
@@ -130,7 +130,7 @@ A second audit on 2026-10-02, taken at `main@2ac4296d` after the longitudinal
 remediation, found that the remaining risk is no longer loss of state but more
 than one operational definition of what belongs to the organism. Its findings
 record is
-[research/audits/current/2026-10-02-current-state-architecture-audit.md](../research/audits/current/2026-10-02-current-state-architecture-audit.md),
+[research/audits/current/2026-10-02-current-state-architecture-audit.md](../lab/research/audits/current/2026-10-02-current-state-architecture-audit.md),
 which also carries the resolution record per finding.
 
 ### LC-1 — Lifecycle continuity contract
@@ -183,7 +183,7 @@ legacy environments and the reserved meaning of "World" are owner decisions. The
 World programme stays maintenance-only.
 
 W03 was closed by the owner on 2026-10-02
-([w03-closure.md](../research/studies/ecology/w03-closure.md)) and no longer
+([w03-closure.md](../lab/research/studies/ecology/w03-closure.md)) and no longer
 constrains the legacy population path; that path is now held only by test code
 and one viewer script.
 

@@ -4,12 +4,12 @@ import threading
 import time
 import urllib.request
 
-from symbiont_lab.server.server import make_server
-from symbiont_lab.workbench import WEB_ROOT
+from lab.server.server import make_server
+from lab.workbench import WEB_ROOT
 
 
 def test_unified_server_serves_native_spa_assets() -> None:
-    server = make_server(host="127.0.0.1", port=0, demo=True)
+    server = make_server(host="127.0.0.1", port=0)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
@@ -33,25 +33,7 @@ def test_unified_server_serves_native_spa_assets() -> None:
         with urllib.request.urlopen(api_url, timeout=5) as response:
             payload = response.read().decode("utf-8")
             assert response.status == 200
-            assert '"running"' in payload
-    finally:
-        server.shutdown()
-        server.server_close()
-        time.sleep(0.1)
-
-
-def test_unified_server_emits_live_organism_sse() -> None:
-    server = make_server(host="127.0.0.1", port=0, demo=True)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    try:
-        port = server.server_address[1]
-        url = f"http://127.0.0.1:{port}/api/organism"
-        with urllib.request.urlopen(url, timeout=5) as response:
-            payload = response.read(2048).decode("utf-8")
-            assert response.status == 200
-            assert '"type"' in payload
-            assert "body" in payload or "cognition" in payload or "vitals" in payload
+            assert '"sources"' in payload
     finally:
         server.shutdown()
         server.server_close()
@@ -66,7 +48,7 @@ def test_lab_view_does_not_assign_type_to_textarea() -> None:
 
 def test_fleet_stream_is_available_without_observatory() -> None:
     return
-    server = make_server(host="127.0.0.1", port=0, demo=True)
+    server = make_server(host="127.0.0.1", port=0)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:

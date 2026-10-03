@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+from lab.experiments.registry import get_protocol
+from lab.studies.learning import adaptive_replay_matched_control as study
 from symbiont.modeling import ModeledOrganismRuntime
-from symbiont_lab.experiments.registry import get_protocol
-from symbiont_lab.studies.learning import adaptive_replay_matched_control as study
 
 
 def test_adaptive_replay_protocol_registered():

@@ -1,6 +1,6 @@
 import pytest
 
-from symbiont_world.events import EventJournal, WorldEvent
+from environment.events import EventJournal, WorldEvent
 
 
 def _event(**overrides) -> WorldEvent:

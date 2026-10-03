@@ -2,7 +2,7 @@ import math
 
 import pytest
 
-from symbiont_lab.studies.social_emergence import run_social_emergence_study
+from lab.studies.social_emergence import run_social_emergence_study
 
 
 def test_seeded_emergence_study_is_replayable_and_has_no_isolated_member() -> None:

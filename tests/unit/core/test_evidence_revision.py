@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import pytest
-from symbiont.core.evidence import EvidenceRevisionLedger
 
+from symbiont.core.cognition.evidence import EvidenceRevisionLedger
 from symbiont.host.acclimation import HostAcclimation
 from symbiont.host.readings import ReadingPrivacyClass, ReadingQuality, SensorReading, Unit
 

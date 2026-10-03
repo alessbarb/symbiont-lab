@@ -2,8 +2,8 @@ import math
 
 import pytest
 
-from symbiont_lab.physics3d.settling import settle_passive_body
-from symbiont_lab.studies.physics3d.constitution_audit import (
+from lab.physics3d.settling import settle_passive_body
+from lab.studies.physics3d.constitution_audit import (
     GRAVITY,
     _connect_world,
     _contact_metrics,

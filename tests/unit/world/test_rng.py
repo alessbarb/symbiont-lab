@@ -1,4 +1,4 @@
-from symbiont_world.rng import derive_world_rng, derive_world_seed
+from environment.rng import derive_world_rng, derive_world_seed
 
 
 def test_same_seed_and_namespace_reproduce_the_same_sequence():

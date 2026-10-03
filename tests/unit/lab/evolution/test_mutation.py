@@ -4,12 +4,12 @@ import json
 import random
 from importlib import resources
 
-from symbiont.cognition.genome import Genome, GenomeCodec
-from symbiont_lab.evolution.mutation import (
+from lab.evolution.mutation import (
     derive_child_genome,
     mutate_continuous_fields,
     mutate_soft_budget,
 )
+from symbiont.cognition.genome import Genome, GenomeCodec
 
 
 def _parent_genome() -> Genome:

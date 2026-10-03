@@ -1,6 +1,6 @@
 import pytest
 
-from symbiont_lab.studies.social_specialization import run_social_specialization_study
+from lab.studies.social_specialization import run_social_specialization_study
 
 
 def test_specialization_study_reports_distinct_resource_niches() -> None:

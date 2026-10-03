@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from symbiont_lab.studies.embodiment.reembodiment_reacclimation import (
+from lab.studies.embodiment.reembodiment_reacclimation import (
     ReacclimationVerdict,
     analyze_reembodiment_reacclimation,
 )

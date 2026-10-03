@@ -13,11 +13,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from symbiont.core.orchestration.runtime import OrganismRuntime, RuntimeTickResult
-from symbiont_lab.studies.learning.agency_acquisition_body import (
+from lab.studies.learning.agency_acquisition_body import (
     CausalBody,
     build_subject,
 )
+from symbiont.core.orchestration.runtime import OrganismRuntime, RuntimeTickResult
 
 
 @dataclass(frozen=True)

@@ -2,10 +2,10 @@ import re
 
 import pytest
 
-from symbiont_world.genesis import GroundTruth, WorldEnvironment
-from symbiont_world.laws import HazardLaw, PeriodicFieldLaw, ResourceLaw
-from symbiont_world.observation import local_observation, opaque_signal_id
-from symbiont_world.topology import BodyPlacement, HexCoord, HexTopology, OccupancyGrid
+from environment.genesis import GroundTruth, WorldEnvironment
+from environment.laws import HazardLaw, PeriodicFieldLaw, ResourceLaw
+from environment.observation import local_observation, opaque_signal_id
+from environment.topology import BodyPlacement, HexCoord, HexTopology, OccupancyGrid
 
 _HEX_ID_PATTERN = re.compile(r"^[0-9a-f]{16}$")
 

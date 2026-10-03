@@ -3,11 +3,11 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from symbiont_lab.studies.learning.independent_symbol_grounding import (
+from lab.studies.learning.independent_symbol_grounding import (
     run_independent_symbol_grounding_study,
 )
 
-SOURCE = Path("src/symbiont_lab/studies/learning/independent_symbol_grounding.py")
+SOURCE = Path("lab/src/lab/studies/learning/independent_symbol_grounding.py")
 
 
 def test_preregistered_study_reports_the_committed_seeds_and_static_checks() -> None:

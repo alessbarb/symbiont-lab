@@ -20,7 +20,7 @@ language: en
 
 > **Status:** PARTIALLY IMPLEMENTED (v0.55/v0.56) / SPECIFIED (v0.57/v0.58)  
 > **Type:** RECURRENT NETWORK ARCHITECTURE AND LEARNING SPECIFICATION  
-> **Related modules:** [`symbiont.cognition.activation`](../../../src/symbiont/cognition/activation.py), [`symbiont.cognition.graph`](../../../src/symbiont/cognition/graph.py), [`symbiont.cognition.genome`](../../../src/symbiont/cognition/genome.py)
+> **Related modules:** [`symbiont.cognition.activation`](../../../symbiont/src/symbiont/cognition/activation.py), [`symbiont.cognition.graph`](../../../symbiont/src/symbiont/cognition/graph.py), [`symbiont.cognition.genome`](../../../symbiont/src/symbiont/cognition/genome.py)
 
 ---
 
@@ -65,7 +65,7 @@ The model is organized into four abstraction layers:
 
 > **Classification:** CODE IDENTITY
 
-Before entering the CognitiveGraph, system readings pass through the normalizer [`SensoryNormalizer`](../../../src/symbiont/cognition/activation.py).
+Before entering the CognitiveGraph, system readings pass through the normalizer [`SensoryNormalizer`](../../../symbiont/src/symbiont/cognition/activation.py).
 
 For a continuous reading $x_t \in \mathbb{R}$, the deviation from the local moving average $\mu_{t-1}$ and its variance $\sigma_{t-1}^2$ is evaluated:
 
@@ -87,7 +87,7 @@ $$a_i(t) = \tanh\left( \frac{z_{\text{clip}}}{s} \right)$$
 
 > **Classification:** CODE IDENTITY / PROPAGATION DETERMINISM
 
-The [`CognitiveGraph`](../../../src/symbiont/cognition/graph.py) operates on a closed catalog of types:
+The [`CognitiveGraph`](../../../symbiont/src/symbiont/cognition/graph.py) operates on a closed catalog of types:
 
 - **Nodes:** `SENSE`, `CONCEPT`, `STATE`, `PREDICTOR`, `GATE`, `READOUT`.
 - **Edges:** `EXCITATORY`, `INHIBITORY`, `PREDICTIVE`, `GATING`.
@@ -96,7 +96,7 @@ The [`CognitiveGraph`](../../../src/symbiont/cognition/graph.py) operates on a c
 
 Let $d_{ij} \in \{0, 1\}$ be the discrete delay of the edge connecting source node $i$ to destination node $j$.
 
-In [`CognitiveGraph`](../../../src/symbiont/cognition/graph.py#L115-L124), the kernel imposes two fundamental topological constraints:
+In [`CognitiveGraph`](../../../symbiont/src/symbiont/cognition/graph.py#L115-L124), the kernel imposes two fundamental topological constraints:
 
 1. **Origin Constraint for Zero Delay:**
    $$d_{ij} = 0 \implies \operatorname{Kind}(i) = \text{SENSE}$$
@@ -104,7 +104,7 @@ In [`CognitiveGraph`](../../../src/symbiont/cognition/graph.py#L115-L124), the k
    $$\operatorname{Kind}(i) \neq \text{SENSE} \implies d_{ij} = 1$$
 
 2. **Prohibition of Incoming Edges to Sensors:**
-   For any node $j$ such that $\operatorname{Kind}(j) = \text{SENSE}$, the kernel explicitly prohibits incoming edges ([`graph.py` L122-L123](../../../src/symbiont/cognition/graph.py#L122-L123)):
+   For any node $j$ such that $\operatorname{Kind}(j) = \text{SENSE}$, the kernel explicitly prohibits incoming edges ([`graph.py` L122-L123](../../../symbiont/src/symbiont/cognition/graph.py#L122-L123)):
    $$\operatorname{deg}^-(j) = 0 \quad \forall j \text{ with } \operatorname{Kind}(j) = \text{SENSE}$$
    Sensor activations are strictly exogenously set from environment readings at each tick and do not depend on any network edge.
 
@@ -198,4 +198,4 @@ To associate previous activations with deferred consequences:
 
 $$q_{ij}(t) = \lambda_{\text{elig}} \cdot q_{ij}(t-1) + a_i(t - d_{ij}) \cdot a_j(t)$$
 
-with $\lambda_{\text{elig}} \in [0.80, 0.98]$ governed by the declarative genome ([`symbiont.cognition.genome`](../../../src/symbiont/cognition/genome.py)).
+with $\lambda_{\text{elig}} \in [0.80, 0.98]$ governed by the declarative genome ([`symbiont.cognition.genome`](../../../symbiont/src/symbiont/cognition/genome.py)).

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from symbiont_lab.studies.learning.generative_recombination_construction import (
+from lab.studies.learning.generative_recombination_construction import (
     run_generative_recombination_construction_study,
 )
 

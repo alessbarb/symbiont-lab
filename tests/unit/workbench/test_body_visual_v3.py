@@ -1,11 +1,11 @@
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-WEB = REPO_ROOT / "src" / "symbiont_lab" / "workbench" / "web"
+WEB = REPO_ROOT / "lab" / "src" / "lab" / "workbench" / "web"
 VIEWER = WEB / "views" / "body" / "viewer.js"
 ANATOMY = WEB / "views" / "body" / "anatomical-visual.js"
-OBSERVATION = REPO_ROOT / "src" / "symbiont_lab" / "observation" / "physics3d.py"
-HUMANOID = REPO_ROOT / "src" / "symbiont_lab" / "physics3d" / "humanoid.py"
+OBSERVATION = REPO_ROOT / "lab" / "src" / "lab" / "observation" / "physics3d.py"
+HUMANOID = REPO_ROOT / "embodiment" / "src" / "embodiment" / "physics3d" / "humanoid.py"
 
 
 def _read(path: Path) -> str:

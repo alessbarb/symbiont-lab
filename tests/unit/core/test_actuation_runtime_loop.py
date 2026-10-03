@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import pytest
-from symbiont.core.physiology import LivingBodyState
-from symbiont.core.runtime import OrganismRuntime
 
 from symbiont.actuation.surface import derive_actuator_constitution
 from symbiont.cognition.birth import load_base_cognition
 from symbiont.cognition.limits import KernelLimits
+from symbiont.core.embodiment.physiology import LivingBodyState
+from symbiont.core.orchestration.runtime import OrganismRuntime
 from tests.checkpoints import as_legacy, edited
 
 

@@ -4,7 +4,7 @@ import ast
 from pathlib import Path
 
 _ALLOWED_COGNITION_GENOME_COMPATIBILITY = {
-    "src/symbiont/cognition/genome.py",
+    "symbiont/src/symbiont/cognition/genome.py",
 }
 
 
@@ -22,8 +22,8 @@ def _imports(path: Path) -> tuple[str, ...]:
 def test_production_genome_access_does_not_route_through_cognition() -> None:
     root = Path(__file__).resolve().parents[2]
     production_roots = (
-        root / "src" / "symbiont",
-        root / "src" / "symbiont_lab",
+        root / "symbiont" / "src" / "symbiont",
+        root / "lab" / "src" / "lab",
         root / "observatory",
     )
     violations: list[str] = []
@@ -43,7 +43,7 @@ def test_production_genome_access_does_not_route_through_cognition() -> None:
 
 def test_runtime_imports_domains_not_extracted_algorithm_helpers() -> None:
     root = Path(__file__).resolve().parents[2]
-    runtime = root / "src" / "symbiont" / "core" / "orchestration" / "runtime.py"
+    runtime = root / "symbiont" / "src" / "symbiont" / "core" / "orchestration" / "runtime.py"
     source = runtime.read_text(encoding="utf-8")
     forbidden = (
         "SecondLookSession",

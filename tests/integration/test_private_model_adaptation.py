@@ -6,6 +6,14 @@ import pytest
 
 torch = pytest.importorskip("torch")
 
+from lab.modeling import (  # noqa: E402
+    FileArtifactStore,
+    TrainingConfig,
+    adapt_private_model,
+    encode_corpus,
+    train_private_model,
+)
+from lab.modeling.gateway import load_artifact_model  # noqa: E402
 from symbiont.modeling import (  # noqa: E402
     ArchitectureId,
     EpistemicStatus,
@@ -18,14 +26,6 @@ from symbiont.modeling import (  # noqa: E402
     TrainingRequest,
     build_training_corpus,
 )
-from symbiont_lab.modeling import (  # noqa: E402
-    FileArtifactStore,
-    TrainingConfig,
-    adapt_private_model,
-    encode_corpus,
-    train_private_model,
-)
-from symbiont_lab.modeling.gateway import load_artifact_model  # noqa: E402
 
 
 def _records(organism: str, *, flipped: bool = False) -> tuple[ExperienceRecord, ...]:

@@ -1,7 +1,8 @@
 import pytest
-from symbiont.core.signal_identity import SignalIdentity, claim_id
-from symbiont.core.signal_knowledge import SignalKnowledgeEngine
-from symbiont.core.signal_knowledge_types import SignalObservation, SignalObservationBatch
+
+from symbiont.core.signals.identity import SignalIdentity, claim_id
+from symbiont.core.signals.knowledge import SignalKnowledgeEngine
+from symbiont.core.signals.knowledge_types import SignalObservation, SignalObservationBatch
 
 
 def obs(identity, name, *, selected=True, value=1.0, quality="nominal"):

@@ -1,15 +1,8 @@
 import inspect
 
 import pytest
-from symbiont.core.physiology import LivingBodyState
 
-from symbiont.cognition.limits import KernelLimits
-from symbiont_lab.physics3d.apparatus import (
-    OpaqueBodyInteroception,
-    physics3d_cognition,
-    physics3d_sensory_system,
-)
-from symbiont_lab.physics3d.humanoid import (
+from embodiment.physics3d.humanoid import (
     BODY_KIND,
     BODY_MATERIAL,
     BODY_STATE_SCHEMA_VERSION,
@@ -31,6 +24,13 @@ from symbiont_lab.physics3d.humanoid import (
     physical_receptor_contract_ids,
     receptor_contract_ids,
 )
+from lab.physics3d.apparatus import (
+    OpaqueBodyInteroception,
+    physics3d_cognition,
+    physics3d_sensory_system,
+)
+from symbiont.cognition.limits import KernelLimits
+from symbiont.core.embodiment.physiology import LivingBodyState
 
 
 def test_physics3d_contract_uses_only_opaque_port_ids():
@@ -118,7 +118,7 @@ def test_effector_contract_rejects_non_positive_motor_count():
 
 
 def test_physics3d_optional_dependency_is_lazy():
-    import symbiont_lab.physics3d.runtime as runtime
+    import lab.physics3d.runtime as runtime
 
     source = inspect.getsource(runtime)
     assert "import pybullet as p" in source
@@ -157,7 +157,7 @@ def test_physics3d_uses_canonical_body_independent_genome():
 
 
 def test_physics3d_runtime_does_not_call_parallel_symbiont_step():
-    import symbiont_lab.physics3d.runtime as runtime
+    import lab.physics3d.runtime as runtime
 
     source = inspect.getsource(runtime)
     assert "PrivateModelOrganismRuntime" in source
@@ -174,7 +174,7 @@ def test_physics3d_grants_body_sized_bounded_sensory_checkpoint_budget():
 
 
 def test_physics3d_opts_into_autonomous_validated_predictor_promotion():
-    import symbiont_lab.physics3d.runtime as runtime
+    import lab.physics3d.runtime as runtime
     from symbiont.core.organism_profile import CANONICAL
 
     # Promotion comes from the canonical profile, not from a launcher override.
@@ -233,7 +233,7 @@ def test_humanoid_configures_all_self_collision_pairs_explicitly():
 
 
 def test_new_physics3d_subjects_do_not_reuse_one_fixed_organism_identity():
-    import symbiont_lab.physics3d.runtime as runtime
+    import lab.physics3d.runtime as runtime
 
     source = inspect.getsource(runtime)
     assert 'organism_id="symbiont:3d-subject"' not in source
@@ -241,7 +241,7 @@ def test_new_physics3d_subjects_do_not_reuse_one_fixed_organism_identity():
 
 
 def test_unified_viewer_mode_keeps_pybullet_native_gui_disabled():
-    import symbiont_lab.physics3d.cli as cli
+    import lab.physics3d.cli as cli
 
     source = inspect.getsource(cli.run)
     assert "gui=(not headless and not show_monitor)" in source
@@ -249,7 +249,7 @@ def test_unified_viewer_mode_keeps_pybullet_native_gui_disabled():
 
 
 def test_passive_camera_render_does_not_enter_organism_contract():
-    import symbiont_lab.physics3d.runtime as runtime
+    import lab.physics3d.runtime as runtime
 
     source = inspect.getsource(runtime.PyBulletEmbodimentRuntime.render_camera_frame)
     assert "getCameraImage" in source
@@ -259,7 +259,7 @@ def test_passive_camera_render_does_not_enter_organism_contract():
 
 
 def test_unified_viewer_rendering_is_not_in_canonical_runtime_loop():
-    import symbiont_lab.physics3d.cli as cli
+    import lab.physics3d.cli as cli
 
     source = inspect.getsource(cli.run)
     assert "render_camera_frame(" not in source
@@ -296,7 +296,7 @@ def test_humanoid_configures_joint_velocity_ceilings_in_bullet():
         assert kwargs["physicsClientId"] == 9
         assert kwargs["maxJointVelocity"] == pytest.approx(
             __import__(
-                "symbiont_lab.physics3d.humanoid",
+                "embodiment.physics3d.humanoid",
                 fromlist=["JOINT_SPECS"],
             )
             .JOINT_SPECS[link_index]
@@ -404,20 +404,20 @@ def test_body_and_ground_have_nonzero_friction_without_semantic_specialization()
 def test_runtime_module_source_compiles():
     import pathlib
 
-    import symbiont_lab.physics3d.runtime as runtime
+    import lab.physics3d.runtime as runtime
 
     source = pathlib.Path(runtime.__file__).read_text(encoding="utf-8")
     compile(source, runtime.__file__, "exec")
 
 
 def test_runtime_imports_canonical_solver_configuration():
-    import symbiont_lab.physics3d.runtime as runtime
+    import lab.physics3d.runtime as runtime
 
     assert runtime.configure_physics_solver is not None
 
 
 def test_runtime_reapplies_motor_command_each_physics_substep():
-    import symbiont_lab.physics3d.runtime as runtime
+    import lab.physics3d.runtime as runtime
 
     source = inspect.getsource(runtime.PyBulletEmbodimentRuntime.step)
     assert "self.apparatus.prepare_physics_substep()" in source
@@ -425,7 +425,7 @@ def test_runtime_reapplies_motor_command_each_physics_substep():
 
 
 def test_physics3d_locomotion_constitution_uses_explicit_metabolism():
-    import symbiont_lab.physics3d.runtime as runtime
+    import lab.physics3d.runtime as runtime
 
     source = inspect.getsource(runtime.PyBulletEmbodimentRuntime.__init__)
     assert "explicit_metabolism=True" in source
@@ -582,7 +582,7 @@ def test_l3_checkpoint_preserves_only_opaque_ordinal_mapping():
 
 
 def test_resource_ground_truth_is_evaluator_only():
-    import symbiont_lab.physics3d.runtime as runtime
+    import lab.physics3d.runtime as runtime
 
     source = inspect.getsource(runtime.PyBulletEmbodimentRuntime.step)
     assert "resource_distance" in source
@@ -595,8 +595,8 @@ def test_resource_ground_truth_is_evaluator_only():
 def test_physics3d_applies_all_concurrent_actuations_in_one_tick():
     from types import SimpleNamespace
 
+    from lab.physics3d.runtime import PyBulletEmbodimentRuntime
     from symbiont.actuation.types import Actuation
-    from symbiont_lab.physics3d.runtime import PyBulletEmbodimentRuntime
 
     applied = {}
 
@@ -634,7 +634,7 @@ def test_physics3d_external_physical_actuation_override_is_bounded_and_complete(
 
     import pytest
 
-    from symbiont_lab.physics3d.runtime import PyBulletEmbodimentRuntime
+    from lab.physics3d.runtime import PyBulletEmbodimentRuntime
 
     applied = {}
 
@@ -662,8 +662,8 @@ def test_physics3d_external_physical_actuation_override_is_bounded_and_complete(
 def test_physics3d_resume_projects_solver_penetration_but_direct_restore_stays_strict():
     import inspect
 
-    import symbiont_lab.physics3d.runtime as runtime
-    from symbiont_lab.physics3d.humanoid import HumanoidPhysics
+    import lab.physics3d.runtime as runtime
+    from embodiment.physics3d.humanoid import HumanoidPhysics
 
     source = inspect.getsource(runtime.PyBulletEmbodimentRuntime.__init__)
     assert "strict_anatomical_limits=False" in source
@@ -673,8 +673,8 @@ def test_physics3d_resume_projects_solver_penetration_but_direct_restore_stays_s
 
 
 def test_physics3d_newborns_use_mode_free_sensorimotor_constitution():
-    import symbiont_lab.physics3d.apparatus as apparatus
-    import symbiont_lab.physics3d.runtime as runtime
+    import lab.physics3d.apparatus as apparatus
+    import lab.physics3d.runtime as runtime
 
     runtime_source = inspect.getsource(runtime.PyBulletEmbodimentRuntime.__init__)
     exclusion_source = inspect.getsource(apparatus.actuator_exclusion_groups)
@@ -755,7 +755,7 @@ def test_v5_hard_limited_body_exposes_multiple_rotational_axes():
 
 
 def test_physics3d_l4_uses_one_physical_energy_pool_for_all_metabolism() -> None:
-    import symbiont_lab.physics3d.runtime as runtime
+    import lab.physics3d.runtime as runtime
 
     source = inspect.getsource(runtime.PyBulletEmbodimentRuntime.__init__)
     assert "physical_energy_capacity = sum(metabolic_capacity.values())" in source
@@ -860,14 +860,14 @@ def test_visual_body_restore_projects_large_solver_excursion_without_mutating_so
 
 
 def test_monitor_uses_visual_only_non_strict_body_projection():
-    import symbiont_lab.physics3d.monitor as monitor
+    import lab.app.physics3d.monitor.viewer as monitor
 
     source = inspect.getsource(monitor._viewer_main)
     assert "strict_anatomical_limits=False" in source
 
 
 def test_passive_postural_tone_is_body_owned_and_bounded():
-    from symbiont_lab.physics3d.humanoid import (
+    from embodiment.physics3d.humanoid import (
         PASSIVE_TONE_TORQUE_CAP_FRACTION,
         _neutral_rest_position,
         _passive_postural_tone,
@@ -893,7 +893,7 @@ def test_passive_postural_tone_is_body_owned_and_bounded():
 
 
 def test_passive_tone_is_elastic_and_damping_is_separate() -> None:
-    from symbiont_lab.physics3d.humanoid import (
+    from embodiment.physics3d.humanoid import (
         _neutral_rest_position,
         _passive_damping_force,
         _passive_postural_tone,
@@ -923,7 +923,7 @@ def test_passive_tone_is_elastic_and_damping_is_separate() -> None:
 def test_physics_substep_installs_damping_before_active_torque() -> None:
     import inspect
 
-    from symbiont_lab.physics3d.humanoid import HumanoidPhysics
+    from embodiment.physics3d.humanoid import HumanoidPhysics
 
     source = inspect.getsource(HumanoidPhysics.prepare_physics_substep)
     velocity_at = source.index("self.p.VELOCITY_CONTROL")
@@ -935,7 +935,7 @@ def test_physics_substep_installs_damping_before_active_torque() -> None:
 
 
 def test_actuator_work_decomposition_keeps_absolute_effort_distinct_from_net():
-    from symbiont_lab.physics3d.humanoid import ActuatorWork
+    from embodiment.physics3d.humanoid import ActuatorWork
 
     work = ActuatorWork(
         positive_j=4.0,
@@ -948,7 +948,7 @@ def test_actuator_work_decomposition_keeps_absolute_effort_distinct_from_net():
 
 
 def test_runtime_physics_trace_initializes_joint_payload_before_append():
-    import symbiont_lab.physics3d.runtime as runtime
+    import lab.physics3d.runtime as runtime
 
     source = inspect.getsource(runtime.PyBulletEmbodimentRuntime._physics_trace_sample)
     assert "joints: list[dict[str, object]] = []" in source
@@ -956,7 +956,7 @@ def test_runtime_physics_trace_initializes_joint_payload_before_append():
 
 
 def test_runtime_settling_fails_closed_instead_of_treating_timeout_as_success():
-    from symbiont_lab.physics3d.runtime import PyBulletEmbodimentRuntime
+    from lab.physics3d.runtime import PyBulletEmbodimentRuntime
 
     class NeverSettlesBullet:
         def stepSimulation(self, **_kwargs):
@@ -997,7 +997,7 @@ def test_runtime_settling_fails_closed_instead_of_treating_timeout_as_success():
 
 
 def test_engine_rejects_pre_v9_motor_evidence_without_explicit_reembodiment():
-    from symbiont_lab.physics3d.engine import _require_current_motor_evidence
+    from lab.physics3d.engine import _require_current_motor_evidence
 
     legacy = {
         "actuation": {
@@ -1040,8 +1040,8 @@ def test_engine_reads_motor_evidence_schema_from_the_action_domain():
     """Regression: since ActionDomain owns motor state, the schema lives under
     actuation.action_domain.competence_development; the guard rejected every
     checkpoint written after that move."""
-    from symbiont_lab.physics3d.engine import _require_current_motor_evidence
-    from symbiont_lab.studies.learning.agency_acquisition_body import CausalBody, build_subject
+    from lab.physics3d.engine import _require_current_motor_evidence
+    from lab.studies.learning.agency_acquisition_body import CausalBody, build_subject
 
     body = CausalBody(actuator_count=3, seed=1)
     runtime = build_subject(body, organism_id="physics3d-guard")
@@ -1086,7 +1086,7 @@ def test_action_domain_applies_exclusion_before_execution_and_credit():
 def test_apparatus_projects_directional_pairs_to_opaque_actuator_groups():
     from types import SimpleNamespace
 
-    from symbiont_lab.physics3d.apparatus import actuator_exclusion_groups
+    from lab.physics3d.apparatus import actuator_exclusion_groups
 
     constitution = SimpleNamespace(
         actuator_ids=("a0", "a1", "a2", "a3"),
@@ -1108,7 +1108,7 @@ def test_apparatus_projects_directional_pairs_to_opaque_actuator_groups():
 def test_apparatus_motor_unit_contract_requires_complete_disjoint_coverage():
     from types import SimpleNamespace
 
-    from symbiont_lab.physics3d.apparatus import actuator_exclusion_groups
+    from lab.physics3d.apparatus import actuator_exclusion_groups
 
     constitution = SimpleNamespace(
         actuator_ids=("a0", "a1", "a2", "a3"),
@@ -1132,7 +1132,7 @@ def test_apparatus_motor_unit_contract_requires_complete_disjoint_coverage():
 
 
 def test_actuator_work_metabolic_conversion_is_proportional_without_cap():
-    from symbiont_lab.physics3d.runtime import metabolic_cost_from_actuator_work
+    from lab.physics3d.runtime import metabolic_cost_from_actuator_work
 
     assert metabolic_cost_from_actuator_work(100.0, 0.1) == pytest.approx(10.0)
     assert metabolic_cost_from_actuator_work(1000.0, 0.001) == pytest.approx(1.0)
@@ -1148,7 +1148,7 @@ def test_actuator_work_metabolic_conversion_is_proportional_without_cap():
 
 
 def test_articulated_body_reports_signed_and_absolute_actuator_work():
-    from symbiont_lab.physics3d.articulated import ArticulatedPhysics
+    from lab.physics3d.articulated import ArticulatedPhysics
 
     class Bullet:
         def getJointStates(self, _body_id, indices, **_kwargs):

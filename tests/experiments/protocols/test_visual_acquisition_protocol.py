@@ -10,9 +10,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from symbiont.cognition.learning import huber_loss
-from symbiont_lab.experiments.loader import load_experiment_file
-from symbiont_lab.studies.learning.visual_acquisition import (
+from lab.experiments.loader import load_experiment_file
+from lab.studies.learning.visual_acquisition import (
     ARM_B_ABLATION,
     MIN_VISUAL_TARGETS,
     a_beats_b_on_intersection,
@@ -23,6 +22,7 @@ from symbiont_lab.studies.learning.visual_acquisition import (
     summarize,
     visual_targets,
 )
+from symbiont.cognition.learning import huber_loss
 
 pytestmark = pytest.mark.experiment_contract
 
@@ -131,7 +131,7 @@ def test_performance_requires_a_single_frozen_horizon() -> None:
 
 def test_development_stage_never_computes_performance() -> None:
     spec = load_experiment_file(
-        "experiments/learning/visual-acquisition-v1/development/experiment.toml"
+        "lab/experiments/learning/visual-acquisition-v1/development/experiment.toml"
     )
     assert spec.protocol == "learning.visual-acquisition-v1"
     assert list(spec.seeds) == [101, 127, 149]
@@ -140,7 +140,7 @@ def test_development_stage_never_computes_performance() -> None:
 
 
 def test_d1_v2_changes_only_the_protected_environment() -> None:
-    from symbiont_lab.physics3d.environments import environment_recipe, nursery_support_amount
+    from lab.physics3d.environments import environment_recipe, nursery_support_amount
 
     v1 = environment_recipe("vision-nursery-d1-v1")
     v2 = environment_recipe("vision-nursery-d1-v2")
@@ -160,7 +160,7 @@ def test_d1_v2_changes_only_the_protected_environment() -> None:
 def test_runner_applies_the_acquisition_guard_every_tick() -> None:
     import inspect
 
-    from symbiont_lab.studies.learning import visual_acquisition as va
+    from lab.studies.learning import visual_acquisition as va
 
     for fn in (va.make_state_x, va.run_arm):
         source = inspect.getsource(fn)
@@ -170,7 +170,7 @@ def test_runner_applies_the_acquisition_guard_every_tick() -> None:
 
 def test_d1_v2_development_spec() -> None:
     spec = load_experiment_file(
-        "experiments/learning/visual-acquisition-v1/d1-v2-development/experiment.toml"
+        "lab/experiments/learning/visual-acquisition-v1/d1-v2-development/experiment.toml"
     )
     vision = spec.extra_params["vision"]
     assert vision["environment"] == "vision-nursery-d1-v2"

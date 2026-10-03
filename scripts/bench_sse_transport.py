@@ -7,8 +7,8 @@ import argparse
 import json
 import time
 
-from symbiont_lab.observation.bus import ObservationMessage
-from symbiont_lab.server.sse import _drain_observation_batch
+from lab.observation.bus import ObservationMessage
+from lab.server.sse import _drain_observation_batch
 
 
 class _Queue:

@@ -1,3 +1,4 @@
+from lab.modeling.dataset import encode_corpus
 from symbiont.modeling import (
     EpistemicStatus,
     ExperienceRecord,
@@ -5,7 +6,6 @@ from symbiont.modeling import (
     SourceKind,
     build_training_corpus,
 )
-from symbiont_lab.modeling.dataset import encode_corpus
 
 
 def _embodied_record(index: int) -> ExperienceRecord:

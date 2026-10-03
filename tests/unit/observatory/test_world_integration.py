@@ -6,8 +6,8 @@ import urllib.request
 
 import pytest
 
-from observatory.server import ObservatoryServer
-from symbiont_lab.world.runtime import WorldRuntimeState
+from lab.observatory.server import ObservatoryServer
+from lab.world.runtime import WorldRuntimeState
 
 
 @pytest.fixture
@@ -118,7 +118,7 @@ def test_unknown_path_returns_404(running_server):
 def test_server_has_no_post_handler():
     """No control surface: the handler class must not define do_POST or
     any other mutating verb (docs/design/archive/symbiont-world-v2.md §8)."""
-    from observatory.server import _Handler
+    from lab.observatory.server import _Handler
 
     for verb in ("do_POST", "do_PUT", "do_DELETE", "do_PATCH"):
         assert not hasattr(_Handler, verb)
@@ -132,7 +132,7 @@ def test_world_runtime_stops_when_all_organisms_die():
         rig.individual.body.physiology.alive = False
         rig.individual.body.physiology.structural_integrity = 0.0
     else:
-        from symbiont.core.physiology import VitalState
+        from symbiont.core.embodiment.physiology import VitalState
 
         physiology = rig.runtime._physiology
         physiology._state = VitalState.DEAD
@@ -146,7 +146,7 @@ def test_world_runtime_stops_when_all_organisms_die():
 
 
 def test_world_runtime_saves_checkpoint_to_storage(tmp_path):
-    from symbiont_lab.world.persistence import WorldStorage
+    from lab.world.persistence import WorldStorage
 
     storage = WorldStorage(tmp_path / "world")
     state = WorldRuntimeState(
@@ -214,9 +214,9 @@ def test_api_state_does_not_invent_prediction_confidence(running_server):
 
 
 def test_runtime_uses_restored_population_topology_for_constitution():
-    from symbiont_lab.world.genesis_v1 import build_ground_truth
-    from symbiont_lab.world.population import PopulationGenesisRuntime, founder_placement
-    from symbiont_world.topology import HexTopology
+    from environment.topology import HexTopology
+    from lab.world.genesis_v1 import build_ground_truth
+    from lab.world.population import PopulationGenesisRuntime, founder_placement
 
     topology = HexTopology(width=6, height=5)
     truth = build_ground_truth()
@@ -284,9 +284,9 @@ def test_canonical_world_starts_in_decontaminated_embodied_mode():
 
 
 def test_canonical_runtime_rejects_legacy_population():
-    from symbiont_lab.world.genesis_v1 import build_ground_truth
-    from symbiont_lab.world.population import PopulationGenesisRuntime
-    from symbiont_world.topology import HexCoord, HexTopology
+    from environment.topology import HexCoord, HexTopology
+    from lab.world.genesis_v1 import build_ground_truth
+    from lab.world.population import PopulationGenesisRuntime
 
     population = PopulationGenesisRuntime(
         organism_ids=("legacy",),

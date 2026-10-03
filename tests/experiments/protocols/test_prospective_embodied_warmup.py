@@ -6,8 +6,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from symbiont_lab.physics3d.runtime import Tick3D
-from symbiont_lab.studies.learning import prospective_agency_embodied as study
+from lab.physics3d.runtime import Tick3D
+from lab.studies.learning import prospective_agency_embodied as study
 
 pytestmark = pytest.mark.experiment_contract
 

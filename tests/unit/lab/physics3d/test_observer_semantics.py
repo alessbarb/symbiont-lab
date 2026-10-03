@@ -1,13 +1,13 @@
 from types import SimpleNamespace
 
-from symbiont.actuation.intervention import opaque_channel_ref
-from symbiont_lab.physics3d.bodies import ANTHROPOMORPHIC_V6
-from symbiont_lab.physics3d.observer_semantics import (
+from lab.physics3d.bodies import ANTHROPOMORPHIC_V6
+from lab.physics3d.observer_semantics import (
     action_dimension_semantics,
     motor_semantics,
     receptor_ground_truth,
     sensory_semantics,
 )
+from symbiont.actuation.intervention import opaque_channel_ref
 
 
 def test_physics3d_receptor_ground_truth_is_complete_and_external() -> None:

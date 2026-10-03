@@ -26,7 +26,7 @@ _CLOCK_NAMES = {
     "today",
     "utcnow",
 }
-# path relative to src/symbiont -> (exact number of clock reads, reason).
+# path relative to symbiont/src/symbiont -> (exact number of clock reads, reason).
 # Exact counts, not whole-file exemptions: a new read anywhere in an
 # allowlisted file (e.g. perception, where the leak lived) fails the test.
 DECLARED_EXCEPTIONS = {

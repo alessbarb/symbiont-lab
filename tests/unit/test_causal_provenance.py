@@ -6,6 +6,7 @@ import json
 
 import pytest
 
+from lab.observation.provenance_journal import ProvenanceJournal
 from symbiont.actuation.footprint import (
     AtomEstimate,
     FootprintRegistry,
@@ -14,7 +15,6 @@ from symbiont.actuation.footprint import (
     version_ref,
 )
 from symbiont.provenance import CausalEvent, CausalRef, ProvenanceLog
-from symbiont_lab.observation.provenance_journal import ProvenanceJournal
 
 CAUSED = "effect.atom.caused"
 OTHER = "effect.atom.other"

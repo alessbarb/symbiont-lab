@@ -3,13 +3,6 @@
 from __future__ import annotations
 
 import pytest
-from symbiont.core.body import (
-    Body,
-    EffectorPort,
-    ReceptorPort,
-    create_standard_body,
-)
-from symbiont.core.individual import Individual, create_individual
 
 from symbiont.core.embodiment import implant
 
@@ -20,7 +13,14 @@ from symbiont.core.embodiment.agency import (
     InferredBodySchema,
     PerceptualStructure,
 )
+from symbiont.core.embodiment.body import (
+    Body,
+    EffectorPort,
+    ReceptorPort,
+    create_standard_body,
+)
 from symbiont.core.orchestration.clean_embodiment_seed import CleanEmbodimentSeed
+from symbiont.core.orchestration.individual import Individual, create_individual
 
 
 def test_body_physical_substrate_and_causal_metabolism():

@@ -33,15 +33,15 @@ def _self_model_source() -> str:
 
 import json
 
-from symbiont_lab.observation.bus import ObservationBus
-from symbiont_lab.observation.delta import ObservationDeltaDecoder
-from symbiont_lab.observation.physics3d import Physics3DObservationBridge
-from symbiont_lab.observation.projection import (
+from lab.observation.bus import ObservationBus
+from lab.observation.delta import ObservationDeltaDecoder
+from lab.observation.physics3d import Physics3DObservationBridge
+from lab.observation.projection import (
     mind_snapshot_from_rich_state,
     runtime_tick_events,
 )
-from symbiont_lab.server.sse import _encode_sse
-from symbiont_lab.workbench import WEB_ROOT
+from lab.server.sse import _encode_sse
+from lab.workbench import WEB_ROOT
 
 
 def _decoded_queue_events(queue) -> list[dict]:
@@ -808,7 +808,7 @@ def test_physics3d_bridge_publishes_rich_mind_snapshot() -> None:
 def test_physics3d_topology_projection_keeps_nodes_beyond_128() -> None:
     from types import SimpleNamespace
 
-    from symbiont_lab.physics3d.runtime import PyBulletEmbodimentRuntime
+    from lab.physics3d.runtime import PyBulletEmbodimentRuntime
 
     nodes = [
         SimpleNamespace(node_id=f"sensor.{index}", kind=SimpleNamespace(value="sense"))

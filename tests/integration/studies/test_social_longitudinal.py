@@ -1,6 +1,6 @@
 import pytest
 
-from symbiont_lab.studies.social_longitudinal import run_social_longitudinal_study
+from lab.studies.social_longitudinal import run_social_longitudinal_study
 
 
 def test_social_longitudinal_study_covers_suspend_resume_and_evidence() -> None:

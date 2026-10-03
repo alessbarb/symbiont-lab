@@ -1,6 +1,7 @@
 import pytest
-from symbiont.core.lifecycle import LifeState, ViabilityController
-from symbiont.core.metabolism import ResourcePressure
+
+from symbiont.core.embodiment.lifecycle import LifeState, ViabilityController
+from symbiont.core.embodiment.metabolism import ResourcePressure
 
 
 def test_viability_states_and_irreversible_death():

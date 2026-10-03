@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-WEB = Path(__file__).resolve().parents[3] / "src/symbiont_lab/workbench/web"
+WEB = Path(__file__).resolve().parents[3] / "lab/src/lab/workbench/web"
 
 
 def run_js(body: str) -> None:

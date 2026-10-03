@@ -1,8 +1,8 @@
 import pytest
 
-from symbiont_world.genesis import GroundTruth, WorldEnvironment
-from symbiont_world.laws import HazardLaw, PeriodicFieldLaw, ResourceLaw
-from symbiont_world.topology import HexCoord
+from environment.genesis import GroundTruth, WorldEnvironment
+from environment.laws import HazardLaw, PeriodicFieldLaw, ResourceLaw
+from environment.topology import HexCoord
 
 FIELD_ID = "f01a4b7eb3833241"
 RESOURCE_ID = "r7c2e9a1b4d80556"

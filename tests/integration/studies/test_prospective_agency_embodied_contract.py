@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from symbiont_lab.studies.learning.prospective_agency_embodied import (
+from lab.studies.learning.prospective_agency_embodied import (
     ProspectiveEmbodiedCondition,
     ProspectiveEmbodiedStudy,
     ProspectiveEmbodiedTrial,

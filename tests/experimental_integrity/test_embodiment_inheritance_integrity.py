@@ -19,14 +19,8 @@ import inspect
 from pathlib import Path
 
 import pytest
-from symbiont.core.body import Body
-from symbiont.core.germline import (
-    GermlineState,
-    InheritancePackage,
-    create_standard_genome,
-)
-from symbiont.core.individual import create_individual
 
+from lab.evolution.reproduction import create_offspring_package
 from symbiont.actuation.model import AgencyModel as CanonicalAgencyModel
 from symbiont.core.embodiment.agency import (
     AgencyModel as LegacyAgencyModel,
@@ -34,19 +28,31 @@ from symbiont.core.embodiment.agency import (
 from symbiont.core.embodiment.agency import (
     InferredBodySchema,
 )
+from symbiont.core.embodiment.body import Body
 from symbiont.core.embodiment.body_schema import BodySchemaEngine
+from symbiont.core.lineage.germline import (
+    GermlineState,
+    InheritancePackage,
+    create_standard_genome,
+)
 from symbiont.core.orchestration.clean_embodiment_seed import CleanEmbodimentSeed
-from symbiont_lab.evolution.reproduction import create_offspring_package
+from symbiont.core.orchestration.individual import create_individual
 
 
 def test_ast_body_morphology_and_names_never_enter_cognition():
     """Invariant A: Cognition must not contain body part names, morphology, or anatomy (AUD-017)."""
     repo_root = Path(__file__).resolve().parents[2]
-    cognition_dir = repo_root / "src" / "symbiont" / "cognition"
+    cognition_dir = repo_root / "symbiont" / "src" / "symbiont" / "cognition"
     target_files = list(cognition_dir.rglob("*.py")) + [
-        repo_root / "src" / "symbiont" / "core" / "embodiment" / "agency.py",
-        repo_root / "src" / "symbiont" / "core" / "orchestration" / "clean_embodiment_seed.py",
-        repo_root / "src" / "symbiont" / "core" / "lineage" / "germline.py",
+        repo_root / "symbiont" / "src" / "symbiont" / "core" / "embodiment" / "agency.py",
+        repo_root
+        / "symbiont"
+        / "src"
+        / "symbiont"
+        / "core"
+        / "orchestration"
+        / "clean_embodiment_seed.py",
+        repo_root / "symbiont" / "src" / "symbiont" / "core" / "lineage" / "germline.py",
     ]
 
     forbidden_terms = {
@@ -137,7 +143,7 @@ def test_world_cannot_write_body_schema_or_agency_model():
     This half of the invariant is unconditional: no exemption exists for World.
     """
     repo_root = Path(__file__).resolve().parents[2]
-    world_src = repo_root / "src" / "symbiont_world"
+    world_src = repo_root / "environment" / "src" / "environment"
 
     violations: list[str] = []
     for py_file in world_src.rglob("*.py"):
@@ -166,11 +172,11 @@ def test_lab_body_schema_access_confined_to_marked_falsification_specimens():
     BodySchemaEngine. Even inside a marked module, this test structurally verifies:
       - no live Symbiont/Individual is imported or constructed;
       - no `.agency_model` / `.body_schema` attribute (the attributes a real
-        Symbiont owns, per src/symbiont/core/symbiont.py) is ever assigned to;
+        Symbiont owns, per symbiont/src/symbiont/core/symbiont.py) is ever assigned to;
       - no checkpoint/restore function is called on anything in the module.
     """
     repo_root = Path(__file__).resolve().parents[2]
-    lab_src = repo_root / "src" / "symbiont_lab"
+    lab_src = repo_root / "lab" / "src" / "lab"
 
     violations: list[str] = []
 
@@ -252,13 +258,13 @@ def test_lab_body_schema_access_confined_to_marked_falsification_specimens():
 def test_falsification_specimen_marker_confined_to_study_harnesses():
     """The `__falsification_specimen__` marker itself must be confined to
     component-falsification study harnesses under
-    src/symbiont_lab/studies/embodiment/. It must never appear on
+    lab/src/lab/studies/embodiment/. It must never appear on
     production/runtime Lab code (world/, cli/, dashboard/, modeling/,
     archive/, experiments/, ...), since that would let any Lab module grant
     itself the narrow exemption checked above.
     """
     repo_root = Path(__file__).resolve().parents[2]
-    lab_src = repo_root / "src" / "symbiont_lab"
+    lab_src = repo_root / "lab" / "src" / "lab"
     allowed_dir = lab_src / "studies" / "embodiment"
 
     marked: list[Path] = []
@@ -273,7 +279,7 @@ def test_falsification_specimen_marker_confined_to_study_harnesses():
     assert not stray, (
         "Integrity violation: __falsification_specimen__ may only appear on "
         "component-falsification study harnesses under "
-        f"src/symbiont_lab/studies/embodiment/, not production/runtime Lab code: {stray}"
+        f"lab/src/lab/studies/embodiment/, not production/runtime Lab code: {stray}"
     )
 
 
@@ -290,16 +296,15 @@ def test_falsification_specimen_not_reachable_from_a_real_symbiont():
     place; this test only proves nothing organism-shaped leaks out through
     the result.)
     """
-    from symbiont.core.individual import Individual
-
-    from symbiont.core.embodiment import EmbodimentSession
-    from symbiont.core.orchestration.clean_embodiment_seed import CleanEmbodimentSeed
-    from symbiont_lab.studies.embodiment.hidden_common_cause import (
+    from lab.studies.embodiment.hidden_common_cause import (
         run_hidden_common_cause_study,
     )
-    from symbiont_lab.studies.embodiment.tool_body_distinction import (
+    from lab.studies.embodiment.tool_body_distinction import (
         run_tool_body_distinction_study,
     )
+    from symbiont.core.embodiment import EmbodimentSession
+    from symbiont.core.orchestration.clean_embodiment_seed import CleanEmbodimentSeed
+    from symbiont.core.orchestration.individual import Individual
 
     escaped_types = (
         LegacyAgencyModel,
@@ -339,7 +344,7 @@ def test_falsification_specimen_not_reachable_from_a_real_symbiont():
 
     # A real Symbiont/Individual constructed independently in this test must also
     # never have had a specimen object attached to it by either study above.
-    from symbiont.core.individual import create_individual
+    from symbiont.core.orchestration.individual import create_individual
 
     real = create_individual("real_sym_test", "real_body_test", num_receptors=2, num_effectors=1)
     assert isinstance(real.symbiont.agency_model, CanonicalAgencyModel)
@@ -402,10 +407,10 @@ def test_cognitive_success_cannot_create_physical_reserve():
 
 def test_clean_world_executes_without_legacy_runtime_monkeypatched(monkeypatch):
     """Dynamic proof: ModeledOrganismRuntime.tick raises RuntimeError, but clean World runs cleanly."""
-    from symbiont_lab.world.adapter import ModeledOrganismRuntime
-    from symbiont_lab.world.genesis_v1 import build_ground_truth
-    from symbiont_lab.world.population import PopulationGenesisRuntime
-    from symbiont_world.topology import HexCoord, HexTopology
+    from environment.topology import HexCoord, HexTopology
+    from lab.world.adapter import ModeledOrganismRuntime
+    from lab.world.genesis_v1 import build_ground_truth
+    from lab.world.population import PopulationGenesisRuntime
 
     def _forbidden_legacy_tick(*args, **kwargs):
         raise RuntimeError("legacy ModeledOrganismRuntime ticked in clean World")
@@ -438,8 +443,8 @@ def test_clean_world_executes_without_legacy_runtime_monkeypatched(monkeypatch):
 
 def test_clean_world_architecture_has_zero_legacy_runtime_dependency():
     """Architectural proof: In clean mode, rigs have None for runtime and actuation_adapter, and 0 legacy actions."""
-    from symbiont_lab.world.adapter import _construct_organism
-    from symbiont_lab.world.genesis_v1 import build_ground_truth
+    from lab.world.adapter import _construct_organism
+    from lab.world.genesis_v1 import build_ground_truth
 
     rig = _construct_organism(
         organism_id="clean-arch-check",

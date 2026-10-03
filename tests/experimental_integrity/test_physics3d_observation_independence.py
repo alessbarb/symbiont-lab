@@ -6,7 +6,7 @@ import pytest
 
 pytest.importorskip("pybullet")
 
-from symbiont_lab.physics3d.runtime import PyBulletEmbodimentRuntime
+from lab.physics3d.runtime import PyBulletEmbodimentRuntime
 
 
 def _matched_runtimes(

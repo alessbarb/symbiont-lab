@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from symbiont.modeling import ArchitectureId
-from symbiont_lab.modeling.architectures import (
+from lab.modeling.architectures import (
     _gru_parameter_count,
     architecture_spec,
     resolve_architecture_spec,
 )
+from symbiont.modeling import ArchitectureId
 
 
 def test_gru_family_shrinks_to_fit_vocab_under_fixed_budget():

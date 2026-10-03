@@ -6,14 +6,14 @@ import copy
 
 import pytest
 
-from symbiont.actuation.binding import BindingStatus, StalenessReason
-from symbiont.cognition.limits import KernelLimits
-from symbiont.core.orchestration.runtime import OrganismRuntime
-from symbiont_lab.studies.learning.agency_acquisition_body import (
+from lab.studies.learning.agency_acquisition_body import (
     CausalBody,
     build_subject,
     subject_lifecycle,
 )
+from symbiont.actuation.binding import BindingStatus, StalenessReason
+from symbiont.cognition.limits import KernelLimits
+from symbiont.core.orchestration.runtime import OrganismRuntime
 
 
 def _states(runtime):
@@ -86,7 +86,7 @@ def test_surface_change_is_traced_and_projection_survives_restore():
 
 
 def test_footprint_membership_options_survive_restore():
-    from symbiont_lab.studies.learning.footprint_precision import apply_membership
+    from lab.studies.learning.footprint_precision import apply_membership
 
     body = CausalBody(actuator_count=4, seed=127)
     runtime = build_subject(body, organism_id="membership-restore", factorized_effects=True)

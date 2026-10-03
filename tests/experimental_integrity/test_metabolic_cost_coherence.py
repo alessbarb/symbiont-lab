@@ -11,11 +11,11 @@ declared, and fixing the prices forces this marker to be removed.
 from __future__ import annotations
 
 import pytest
-from symbiont.core.runtime import OrganismRuntime
+from tests.bodies import test_body_kwargs
 
 from symbiont.core.domains.memory import MemoryDomain
+from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont.sensory.limits import SensoryLimits
-from tests.bodies import test_body_kwargs
 
 TICKS = 20
 

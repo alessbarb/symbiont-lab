@@ -1,4 +1,4 @@
-from symbiont_lab.studies.social_runtime_adaptation import run_social_runtime_adaptation_study
+from lab.studies.social_runtime_adaptation import run_social_runtime_adaptation_study
 
 
 def test_runtime_social_choice_revises_after_contradictory_evidence() -> None:

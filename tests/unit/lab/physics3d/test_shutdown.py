@@ -4,8 +4,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from symbiont_lab.physics3d import cli, engine
-from symbiont_lab.physics3d.runtime import PyBulletEmbodimentRuntime
+from lab.physics3d import cli, engine
+from lab.physics3d.runtime import PyBulletEmbodimentRuntime
 
 
 class _FakeSignalKnowledge:

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from symbiont_lab.experiments.registry import get_protocol
-from symbiont_lab.studies.embodiment.yoked_external_causation import (
+from lab.experiments.registry import get_protocol
+from lab.studies.embodiment.yoked_external_causation import (
     run_yoked_external_causation_study,
 )
 

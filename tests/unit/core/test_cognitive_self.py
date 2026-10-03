@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import pytest
-from symbiont.core.cognitive_self import (
+
+from symbiont.core.cognition.self_model import (
     MAX_COGNITIVE_CHANNELS_PER_TICK,
     derive_cognitive_self_namespace,
     project_cognitive_self_observation,

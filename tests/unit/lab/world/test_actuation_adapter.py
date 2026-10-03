@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import pytest
 
-from symbiont.actuation.constitution import derive_actuator_constitution
-from symbiont.actuation.types import Actuation
-from symbiont_lab.world.adapter import (
+from lab.world.adapter import (
     ActuationAdapter,
     ActuationBinding,
     ActuationBindingConstitution,
     local_substrate_signals,
 )
+from symbiont.actuation.constitution import derive_actuator_constitution
+from symbiont.actuation.types import Actuation
 
 
 def _constitution():
@@ -91,8 +91,8 @@ def test_binding_rejects_invalid_world_arguments(binding):
 
 
 def test_local_substrate_signals_are_opaque_and_causally_change_after_impulse():
-    from symbiont_lab.world.terrain import DynamicGeography
-    from symbiont_world.topology import HexCoord, HexTopology
+    from environment.topology import HexCoord, HexTopology
+    from lab.world.terrain import DynamicGeography
 
     topo = HexTopology(width=4, height=4)
     geo = DynamicGeography(topo, 1201)

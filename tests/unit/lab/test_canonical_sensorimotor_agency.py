@@ -1,4 +1,4 @@
-from symbiont_lab.studies.learning.canonical_sensorimotor_agency import (
+from lab.studies.learning.canonical_sensorimotor_agency import (
     SensorimotorAgencyStudy,
     SensorimotorAgencyTrial,
 )

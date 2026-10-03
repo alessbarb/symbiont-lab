@@ -13,16 +13,17 @@ import importlib
 from pathlib import Path
 
 import pytest
+from tests.layout import package_relative, source_files
 
+from lab.experiments.manifest import RunManifest
+from lab.experiments.registry import get_protocol
+from lab.experiments.runner import longitudinal_contract_of, subject_architecture_of
 from symbiont.core.orchestration.clean_embodiment_seed import CleanEmbodimentSeed
 from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont.host.continuity import LongitudinalContract
-from symbiont_lab.experiments.manifest import RunManifest
-from symbiont_lab.experiments.registry import get_protocol
-from symbiont_lab.experiments.runner import longitudinal_contract_of, subject_architecture_of
 
 ROOT = Path(__file__).resolve().parents[2]
-SRC = ROOT / "src"
+SRC = ROOT / "symbiont" / "src"
 REDUCED = {"CleanEmbodimentSeed", "Individual", "create_individual"}
 CANONICAL = {"prepare_fresh_embodiment_checkpoint"}
 # The package that defines the seed and re-exports it is not a study.
@@ -43,7 +44,7 @@ def _imported_names(path: Path) -> set[str]:
 
 def _users() -> list[tuple[Path, LongitudinalContract]]:
     found = []
-    for path in sorted(SRC.rglob("*.py")):
+    for path in source_files():
         if path in DEFINING:
             continue
         names = _imported_names(path)
@@ -57,7 +58,7 @@ def _users() -> list[tuple[Path, LongitudinalContract]]:
 
 
 def _module(path: Path):
-    return importlib.import_module(".".join(path.relative_to(SRC).with_suffix("").parts))
+    return importlib.import_module(".".join(package_relative(path).with_suffix("").parts))
 
 
 def test_the_two_subject_classes_name_different_contracts() -> None:

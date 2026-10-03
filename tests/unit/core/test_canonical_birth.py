@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from symbiont.core.runtime import OrganismRuntime
-
 from symbiont.cognition.birth import load_base_genome
 from symbiont.cognition.graph import CognitiveGraph, PlasticNode
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.types import NodeKind
-from symbiont.core.canonical_birth import restore_resident_with_canonical_cognition
+from symbiont.core.orchestration.canonical_birth import restore_resident_with_canonical_cognition
+from symbiont.core.orchestration.runtime import OrganismRuntime
 from tests.checkpoints import as_legacy
 
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from symbiont_lab.experiments.registry import get_protocol
-from symbiont_lab.studies.world.genesis_viability import (
+from lab.experiments.registry import get_protocol
+from lab.studies.world.genesis_viability import (
     run_genesis_viability_characterization,
 )
 

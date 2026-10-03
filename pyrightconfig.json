@@ -1,13 +1,13 @@
 {
-  "include": ["src", "observatory"],
+  "include": ["symbiont/src", "environment/src", "modality/src", "embodiment/src", "lab/src"],
   "exclude": [
     "**/__pycache__",
     ".claude",
     ".venv",
     "backups",
-    "experiments",
+    "lab/experiments",
     "graphify-out",
-    "research",
+    "lab/research",
     "**/tests/**"
   ],
   "pythonVersion": "3.12",
@@ -16,10 +16,14 @@
   "reportMissingTypeStubs": "none",
   "executionEnvironments": [
     {
-      "root": "src"
+      "root": "symbiont/src"
     },
     {
-      "root": "observatory"
+      "root": "environment/src"
+    },
+    {
+      "root": "lab/src",
+      "extraPaths": ["symbiont/src", "environment/src", "modality/src", "embodiment/src"]
     }
   ]
 }

@@ -1,9 +1,9 @@
 import pytest
-from symbiont.core.cognition_bridge import CognitiveBridge, GraphError
 
 from symbiont.cognition.learning import ShadowPrediction
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.types import EdgeKind, NodeKind
+from symbiont.core.cognition.bridge import CognitiveBridge, GraphError
 from tests.unit.core.test_cognition_bridge import _genome, _simple_graph
 
 

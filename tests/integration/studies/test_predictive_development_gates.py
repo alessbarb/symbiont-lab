@@ -1,4 +1,4 @@
-from symbiont_lab.studies.predictive_development_gates import run_predictive_development_gate_study
+from lab.studies.predictive_development_gates import run_predictive_development_gate_study
 
 
 def test_predictive_development_gate_matrix_passes_without_evaluator_feedback():

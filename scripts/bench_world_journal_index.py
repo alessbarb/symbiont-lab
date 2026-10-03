@@ -6,7 +6,7 @@ from __future__ import annotations
 import argparse
 import time
 
-from symbiont_world.events import EventJournal, WorldEvent
+from environment.events import EventJournal, WorldEvent
 
 
 def _event(index: int, events_per_tick: int) -> WorldEvent:

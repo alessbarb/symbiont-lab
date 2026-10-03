@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from symbiont.core.physiology import LivingBodyState
-from symbiont.core.runtime import OrganismRuntime
+from symbiont.core.embodiment.physiology import LivingBodyState
+from symbiont.core.orchestration.runtime import OrganismRuntime
 
 
 def _old_symbiont_with_fresh_body(*, symbiont_tick: int = 10_000) -> OrganismRuntime:

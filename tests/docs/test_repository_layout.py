@@ -4,7 +4,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).parents[2]
 TESTS = REPO_ROOT / "tests"
-EXPERIMENTS = REPO_ROOT / "experiments"
+EXPERIMENTS = REPO_ROOT / "lab" / "experiments"
 REQUIRED_TEST_DIRS = {
     "unit",
     "integration",

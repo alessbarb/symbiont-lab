@@ -4,7 +4,7 @@ import math
 
 import pytest
 
-from symbiont_lab.physics3d.effects import (
+from lab.physics3d.effects import (
     physical_consequence,
     physical_state_from_payload,
     rotate_world_to_body,

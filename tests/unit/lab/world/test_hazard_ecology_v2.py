@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pytest
 
-from symbiont_lab.world.genesis_v1 import HAZARD_IDS, build_constitution, build_ground_truth
-from symbiont_lab.world.persistence import WorldStorage
-from symbiont_lab.world.population import PopulationGenesisRuntime
-from symbiont_world.genesis import WorldEnvironment
-from symbiont_world.topology import HexCoord, HexTopology
+from environment.genesis import WorldEnvironment
+from environment.topology import HexCoord, HexTopology
+from lab.world.genesis_v1 import HAZARD_IDS, build_constitution, build_ground_truth
+from lab.world.persistence import WorldStorage
+from lab.world.population import PopulationGenesisRuntime
 
 
 def test_cyclical_hazard_has_real_temporal_windows():
