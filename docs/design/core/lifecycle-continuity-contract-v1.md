@@ -62,6 +62,24 @@ treatment in `src/symbiont/host/continuity.py::REGISTER`.
 `lab/tests/unit/host/test_continuity_register.py` fails when a runtime attribute or
 checkpoint field is unclassified.
 
+### 3.1 BodySchema is retained knowledge, not current-body authority
+
+`body_schema` is a bounded learned representation (sensory-part, cognitive-region,
+dependency, and body-boundary evidence). The checkpoint does not currently tag
+each item with a body/episode provenance class. Therefore a preserved BodySchema
+after re-embodiment is a longitudinal prior that may be stale or inapplicable;
+it is not a verified description of the new Body. Current physical facts come
+from the new Body's sensors and physiology. Execution authority is separately
+withdrawn by the action-domain transition. A consumer must not use preserved
+BodySchema entries as actuator bindings or as proof of present anatomy.
+
+Evidence scope: `lab/tests/integration/test_reembodiment_continuity.py` verifies
+BodySchema preservation through the register lifecycle and verifies execution
+bindings are not valid after restore. It does not establish that every
+BodySchema consumer handles all retained evidence as a fallible prior, nor that
+retained BodySchema improves adaptation. Per-item body provenance remains an
+open design limitation, not a demonstrated semantic guarantee.
+
 ## 4. Lifecycle operations
 
 | Operation | Entry point | What it is | What it is not |
@@ -70,7 +88,7 @@ checkpoint field is unclassified.
 | Restart | `<Runtime>.from_checkpoint(payload)` on the same Body | The same organism with the state that was saved | An uninterrupted run (§5) |
 | Historical restore | `OrganismRuntime.from_checkpoint(payload)` | Reproduces the individual exactly as saved, including the absence of cognition in a cognition-less checkpoint | An upgrade |
 | Owner-facing restore | `restore_resident_with_canonical_cognition(payload, runtime_class=...)` | Historical restore plus the `canonical-cognition-adoption` transform when genome and graph are absent | A neutral restore: it can produce a different organism from the same checkpoint (§6) |
-| Canonical re-embodiment | `symbiont_lab.physics3d.reembodiment.prepare_fresh_embodiment_checkpoint` | The Symbiont moved into a fresh Body; knowledge carried, authority withdrawn | A reset of cognition |
+| Canonical re-embodiment | `symbiont.core.embodiment.transition.prepare_fresh_embodiment_checkpoint` | The Symbiont moved into a fresh Body; knowledge carried, authority withdrawn | A reset of cognition |
 | Reduced-seed transplant | `Individual.transplant_to` → `CleanEmbodimentSeed.begin_new_embodiment` | The clean-embodiment apparatus: identity, time, genotype and expression kept; embodiment-specific inference restarted from naive | Canonical re-embodiment (§7) |
 | Temporal decontamination | `symbiont_lab.physics3d.reembodiment.migrate_temporal_domains` | Corrects a contaminated clock coordinate and records it | A reconstruction of the physiology already produced under that clock |
 

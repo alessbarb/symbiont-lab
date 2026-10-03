@@ -179,11 +179,18 @@ def test_current_body_authority_is_withdrawn(case: _Case) -> None:
 def test_knowledge_survives_as_knowledge_without_authority(case: _Case) -> None:
     restored = case.restore()
 
+    # BodySchema is carried as historical inference, not promoted to fresh-body
+    # fact. Current actuation authority is checked independently below.
+    assert case.transformed["body_schema"] == case.previous["body_schema"]
     assert {node.node_id for node in restored.cognitive_bridge.graph.nodes} == (
         case.graph_nodes_in_a
     )
     assert [r.record_id for r in restored.experience_ledger.records] == case.experience_in_a
     assert _competence_ids(restored) >= case.competences_in_a
+    assert not any(
+        binding.status is BindingStatus.VALID
+        for binding in restored._action_domain.execution_bindings.items
+    )
 
 
 def test_experience_continues_in_body_b_without_erasing_body_a_knowledge(
