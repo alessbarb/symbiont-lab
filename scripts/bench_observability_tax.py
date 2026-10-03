@@ -74,8 +74,14 @@ def main() -> None:
     if args.ticks <= 0 or args.repeats <= 0:
         parser.error("--ticks and --repeats must be positive")
 
-    off = [_run(ticks=args.ticks, seed=args.seed, observed=False) for _ in range(args.repeats)]
-    on = [_run(ticks=args.ticks, seed=args.seed, observed=True) for _ in range(args.repeats)]
+    off = []
+    on = []
+    for repeat in range(args.repeats):
+        # Alternate order to reduce systematic warm-cache/thermal bias.
+        modes = (False, True) if repeat % 2 == 0 else (True, False)
+        for observed in modes:
+            sample = _run(ticks=args.ticks, seed=args.seed, observed=observed)
+            (on if observed else off).append(sample)
 
     off_ms = [float(row["ms_per_tick"]) for row in off]
     on_ms = [float(row["ms_per_tick"]) for row in on]
@@ -83,6 +89,10 @@ def main() -> None:
     on_median = statistics.median(on_ms)
     tax_ms = on_median - off_median
     tax_pct = (tax_ms / off_median * 100.0) if off_median else 0.0
+    paired_tax_ms = [
+        float(right["ms_per_tick"]) - float(left["ms_per_tick"])
+        for left, right in zip(off, on, strict=True)
+    ]
 
     report = {
         "seed": args.seed,
@@ -92,6 +102,8 @@ def main() -> None:
         "observer_on_ms_per_tick_median": on_median,
         "observability_tax_ms_per_tick": tax_ms,
         "observability_tax_percent": tax_pct,
+        "paired_tax_ms_per_tick": paired_tax_ms,
+        "paired_tax_ms_per_tick_median": statistics.median(paired_tax_ms),
         "observer_off_samples": off,
         "observer_on_samples": on,
         "note": (

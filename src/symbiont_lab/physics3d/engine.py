@@ -12,6 +12,7 @@ import threading
 import time
 from concurrent.futures import Future
 from contextlib import contextmanager
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
@@ -274,6 +275,7 @@ def run(
     ready_callback=None,
     startup_callback=None,
     checkpoint_observer=None,
+    tick_trace_observer=None,
     factorized_effects: bool = False,
     provenance_journal: Path | None = None,
     measurement_file: Path | None = None,
@@ -579,6 +581,21 @@ def run(
                 checkpoint_observer(
                     record.tick,
                     runtime.checkpoint(advance_lineage=False),
+                )
+            if tick_trace_observer is not None:
+                physical_state, physical_tick = runtime.physical_checkpoint()
+                tick_trace_observer(
+                    record.tick,
+                    {
+                        "record": asdict(record),
+                        "physical_state": physical_state,
+                        "physical_tick": physical_tick,
+                        "motor_intents": [
+                            asdict(item) for item in runtime.organism.last_motor_intents
+                        ],
+                        "actuations": [asdict(item) for item in runtime.organism.last_actuations],
+                        "observer_projection": runtime.passive_telemetry_state(),
+                    },
                 )
 
             # Drain presentation-only pose samples captured inside the physics
