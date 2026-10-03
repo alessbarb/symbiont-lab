@@ -36,9 +36,10 @@ installed alone outside the repository, organism identity 13/13):
   - the organism resolves which senses it requires in a pure function
     (`symbiont.core.orchestration.sense_requirements`), for a fresh creation
     and for a restore; the Lab does not interpret checkpoint controls;
-  - `lab.integration.organism` composes the concrete sources and creates,
-    restores and loads-or-creates the canonical organism. Every caller in
-    `lab/src`, `lab/tests` and `tests` goes through it;
+  - `lab.integration.organism` composes the concrete sources and provides
+    explicit first-boot creation and required restore for the canonical
+    organism. Every caller in `lab/src`, `lab/tests` and `tests` goes through
+    it;
   - `OrganismRuntime()` builds no provider and inspects no platform: on its own
     it is a minimal organism with no host source;
   - the concrete host channels live in `modality.host` with their own record
@@ -141,6 +142,55 @@ itself is not fixed.
 A 478-line mixin that forwards 42 private attributes of `CognitiveBridge` to
 its collaborators. It is internal API indirection, not an old data format: the
 organism itself uses it in 25 places, tests in 85. Left as is.
+
+## Consolidated longitudinal-integrity audit (2026-10-04)
+
+This is a status reconciliation, not a claim that all scientific capabilities
+are demonstrated. Statuses below distinguish implemented mechanisms from
+unverified semantics and evidence.
+
+| Issue | Current status | Remaining boundary |
+| --- | --- | --- |
+| SYM-01 continuation-condition integrity | **Implemented locally**; schema 12 verifies a separate condition hash and rejects missing contemporary controls | Hash is unkeyed integrity, not authentication; no publication claim yet |
+| SYM-02 silent rebirth on missing checkpoint | **Implemented locally**; required restore fails and first-boot creation is explicitly named | Audit every external launcher/operational call site before closure |
+| SYM-03 observer telemetry changes organism energy | **Regression fixed locally**; instrumentation-invariance test passes | Reconcile trajectory impact with approved Canonical Organism Profile v1; no owner-approved profile consequence recorded yet |
+| SYM-04 BodySchema historical knowledge vs current-body authority | **Partially addressed; open** | Preserved BodySchema is documented as a fallible prior, but a complete audit of its retained evidence and all consumers has not established that stale facts cannot influence current-body inference |
+| SYM-05 exact checkpoint schema policy | **Implemented/documented**; only schema 12 restores | Historical checkpoints are archival evidence, not live-restorable organisms |
+| SYM-06 continuity register semantic correctness | **Partially addressed; open** | Integration checks cover registered fields through restore/re-embodiment, not the semantic correctness of every classification and consumer |
+| SYM-07 epistemic ownership | **Design proposed; audit open** | Ownership matrix is not yet populated and reconciled against all live mechanisms |
+| SYM-08 broad `OrganismRuntime` | **Open architectural debt** | Defer extraction until stable ownership boundaries justify it |
+| SYM-09 budding semantics | **Contract clarified** as clonal budding | No recombination or Genome v2 reproductive inheritance is claimed |
+| SYM-10 integrated transgenerational epigenetics | **Open functional gap** | Somatic and germline marks are not an evidenced inheritance chain |
+| SYM-11 social learning | **Partial** | Existing communication/claims/evidence do not establish a canonical peer-claim-to-decision policy |
+| SYM-12 ancestry utility | **Mechanics only** | Causal learning benefit is not demonstrated |
+| SYM-13 generative cognition utility | **Mechanism present; utility unproven** | No causal/adaptive benefit is claimed |
+| SYM-14 restart semantics | **Documented intentional behavior** | Semantic continuity is not trajectory equivalence |
+| SYM-15 legacy anthropomorphic fallback | **Bounded and labelled; legacy remains** | No evidence yet that all relevant archival checkpoints can be retired |
+| SYM-16 stale migration descriptions | **Partially cleaned** | Continue targeted scan; do not imply migrations are active |
+| SYM-17 composite re-embodiment test | **Open** | Existing tests cover overlapping subsets, not the requested developed subject with all acquired mechanisms simultaneously |
+| SYM-18 capability/evidence conflation | **Design proposed; audit open** | Evidence-level vocabulary exists, but capabilities have not all been rated against it |
+
+### BodySchema consumer audit findings
+
+BodySchema's current representation has no per-item body/episode provenance.
+Its values include learned sensory/cognitive structure and agency-boundary
+evidence. Current consumers include the action-domain boundary update, passive
+runtime snapshots, and embodiment adaptation/continuity summaries. The
+re-embodiment code preserves it as a prior and withdraws execution bindings,
+but that alone does not prove that old evidence cannot seed or bias the next
+body's current boundary inference. SYM-04 therefore remains open pending a
+consumer-level invariant and regression test; do not promote the prior to
+current-body fact or execution authority.
+
+### Canonical-profile gate
+
+The telemetry correction changes energy trajectories relative to the former
+instrumentation-coupled behavior. Canonical Organism Profile v1 is approved and
+immutable after use; this audit has not established an approved configuration
+consequence for the correction. Do not edit v1 or claim the correction is
+published as canonical until the applicable owner/governance decision is
+recorded. The mechanism-level fix and its profile-level adoption are separate
+statuses.
 
 ## Other
 
