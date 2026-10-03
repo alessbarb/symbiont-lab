@@ -22,8 +22,7 @@ from symbiont.core import (
     append_advisories_to_log,
 )
 from symbiont.core.orchestration.canonical_birth import restore_resident_with_canonical_cognition
-from symbiont.genetics.genome import Genome, GenomeError, legacy_validation_version
-from symbiont.genetics.migration import GenomeMigrationCodec as GenomeCodec
+from symbiont.genetics.genome import Genome, GenomeCodec, GenomeError, legacy_validation_version
 from symbiont.host.checkpoint import load_checkpoint_file
 
 

@@ -47,7 +47,6 @@ from ...cognition.learning import ShadowPrediction
 from ...cognition.limits import KernelLimits
 from ...genetics.expression import ExpressionRegulator, GeneExpressionState
 from ...genetics.genome import Genome
-from ...genetics.migration import apply_legacy_heritable_payload
 from ...host.acclimation import HostAcclimation
 from ...host.adaptive import AdaptiveSenseModel, SamplingPlan
 from ...host.checkpoint import (
@@ -2749,17 +2748,10 @@ class OrganismRuntime:
         )
 
         raw_heritable = normalized.get("heritable_genome")
-        if genome is not None and raw_heritable not in (None, {}):
-            if not isinstance(raw_heritable, dict):
-                raise CheckpointError("invalid legacy HeritableGenome checkpoint")
-            try:
-                genome = apply_legacy_heritable_payload(
-                    genome,
-                    raw_heritable,
-                    kernel_limits=kernel_limits,
-                )
-            except ValueError as exc:
-                raise CheckpointError(f"invalid legacy HeritableGenome checkpoint: {exc}") from exc
+        if raw_heritable not in (None, {}):
+            raise CheckpointError(
+                "checkpoint carries a HeritableGenome payload; that format is no longer loaded"
+            )
         heritable_genome = None
 
         gene_expression_state = None

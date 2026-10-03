@@ -10,31 +10,69 @@ from symbiont.cognition.types import EdgeKind, NodeKind
 from symbiont.core.cognition.bridge import CognitiveBridge
 from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont.core.organism_profile import HISTORICAL_V0
-from symbiont.genetics.migration import GenomeMigrationCodec as GenomeCodec
+from symbiont.genetics.genome import GenomeCodec
 
 _GENOME = {
-    "schema_version": 1,
-    "genome_id": "genome_runtime_promotion",
-    "parent_ids": [],
-    "kernel_compatibility": ">=0.55,<0.81",
+    "schema_version": 2,
+    "genome_id": "genome_v2_runtime_promotion",
+    "kernel_compatibility": ">=0.80,<1.00",
     "development": {
-        "initial_concepts": 1,
         "soft_node_budget": 16,
         "soft_edge_budget": 64,
+        "sense_node_budget": 16,
+        "capacity_growth_sensitivity": 0.5,
         "consolidation_interval_ticks": 4,
     },
     "plasticity": {
-        "learning_rate": {"initial": 0.05, "min": 0.001, "max": 0.08},
-        "forgetting_rate": {"initial": 0.0005, "min": 0.0, "max": 0.005},
+        "learning_rate": {"baseline": 0.05, "min": 0.001, "max": 0.08, "adaptation_rate": 0.002},
         "eligibility_decay": 0.9,
+        "structural_plasticity": {
+            "baseline": 0.5,
+            "min": 0.05,
+            "max": 1.0,
+            "adaptation_rate": 0.01,
+        },
+    },
+    "regulation": {
+        "uncertainty_gain": 0.5,
+        "novelty_gain": 0.4,
+        "prediction_error_gain": 0.5,
+        "controllability_loss_gain": 0.5,
+        "embodiment_mismatch_gain": 0.7,
+        "regulation_smoothing": 0.1,
+        "regulation_decay": 0.02,
+    },
+    "sensorimotor": {
+        "spontaneous_activity_baseline": 0.1,
+        "uncertainty_exploration_gain": 0.5,
+        "prediction_error_exploration_gain": 0.5,
+        "exploration_habituation": 0.01,
+        "reacclimation_sensitivity": 0.7,
     },
     "structure": {
-        "grow_threshold": 0.18,
-        "prune_threshold": 0.01,
+        "growth_threshold": {
+            "baseline": 0.18,
+            "min": 0.0,
+            "max": 0.5800000000000001,
+            "adaptation_rate": 0.01,
+        },
+        "pruning_threshold": {
+            "baseline": 0.01,
+            "min": 0.0,
+            "max": 0.21000000000000002,
+            "adaptation_rate": 0.005,
+        },
         "minimum_support": 16,
         "tentative_lifetime_ticks": 128,
     },
-    "mutation_policy": {"continuous_sigma": 0.05, "max_fields_per_generation": 3},
+    "evolvability": {
+        "development_mutation_scale": 0.05,
+        "plasticity_mutation_scale": 0.05,
+        "regulation_mutation_scale": 0.05,
+        "sensorimotor_mutation_scale": 0.05,
+        "structure_mutation_scale": 0.05,
+        "recombination_linkage": 0.5,
+    },
 }
 
 

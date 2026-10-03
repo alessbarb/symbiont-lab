@@ -28,7 +28,6 @@ from .germline import (
     GermlineState,
     InheritancePackage,
 )
-from .migration import migrate_v1_genome, migrate_v1_payload
 from .schema import DEFAULT_GENOME_SCHEMA, GeneSpec, GeneType, GenomeSchema, MutationMode
 
 __all__ = [
@@ -59,8 +58,6 @@ __all__ = [
     "export_expression",
     "export_genome",
     "export_germline",
-    "migrate_v1_genome",
-    "migrate_v1_payload",
     "restore_expression",
     "restore_genome",
     "restore_germline",

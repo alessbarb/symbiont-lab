@@ -1,17 +1,15 @@
 from __future__ import annotations
 
-import hashlib
-import json
 import math
 from typing import Any
 
 from symbiont.genetics.genome import (
     Genome,
+    GenomeCodec,
     GenomeError,
     _genome_to_plain_dict,
     legacy_validation_version,
 )
-from symbiont.genetics.migration import GenomeMigrationCodec as GenomeMigrationCodec
 
 from .activation import MIN_NORMALIZER_SAMPLES, SensoryNormalizer
 from .graph import CognitiveGraph, GraphError, PlasticEdge, PlasticNode
@@ -125,37 +123,14 @@ def restore_genome_checkpoint(
     genome_fields = {
         key: value for key, value in payload.items() if key not in {"genome_hash", "genotype_hash"}
     }
-    # Checkpoint persistence is the explicit historical compatibility boundary;
-    # active cognition imports use the strict v2 codec.
-    codec = GenomeMigrationCodec()
-
-    # Verify historical v1 material before migration. The old genome hash was
-    # the SHA-256 of its canonical persisted genome dictionary.
-    if genome_fields.get("schema_version") == 1:
-        canonical_legacy = json.dumps(
-            genome_fields,
-            sort_keys=True,
-            separators=(",", ":"),
-        ).encode("utf-8")
-        if hashlib.sha256(canonical_legacy).hexdigest() != persisted_hash:
-            import logging
-
-            logging.getLogger(__name__).warning(
-                "legacy genome checkpoint hash mismatch -- payload may be corrupted or tampered"
-            )
-        genome = codec.load(genome_fields)
-    else:
-        genome = codec.load(genome_fields)
-        # Current-format genomes are verified strictly; only v1 material above
-        # is a tolerated historical boundary.
-        if genome.genome_hash != persisted_hash:
-            raise GenomeError(
-                "genome checkpoint hash mismatch -- payload may be corrupted or tampered"
-            )
-        if persisted_genotype_hash is not None and persisted_genotype_hash != genome.genotype_hash:
-            raise GenomeError(
-                "genotype checkpoint hash mismatch -- payload may be corrupted or tampered"
-            )
+    codec = GenomeCodec()
+    genome = codec.load(genome_fields)
+    if genome.genome_hash != persisted_hash:
+        raise GenomeError("genome checkpoint hash mismatch -- payload may be corrupted or tampered")
+    if persisted_genotype_hash is not None and persisted_genotype_hash != genome.genotype_hash:
+        raise GenomeError(
+            "genotype checkpoint hash mismatch -- payload may be corrupted or tampered"
+        )
     # The 0.55-0.60 genome was the canonical format before the 0.80 kernel.
     # Keep its immutable genome/hash while validating it against the last
     # kernel it explicitly targeted.  This is a migration for persisted
