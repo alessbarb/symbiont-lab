@@ -35,10 +35,30 @@ The result is bounded to the synthetic causal Body, four actuators, the listed
 seeds and the horizons fixed by rule. The protocol is
 `docs/design/experimentation/reembodiment-functional-transfer-v1.md`.
 
-## Development stage under r6
+## Development stage under r6 (2026-10-03): not runnable
 
-Not run yet. It runs through `agentctl run start` once the canonical organism
-profile (ADR-0062) is on `main`, and writes `horizons.json` here.
+Governed run `rft-v1-r6-development-20261003` at commit `cb2cda67`, scope
+`development`, protocol-generated input. Its output is `horizons.json`; its
+launcher receipt, without host-specific paths, is `development-receipt.json`.
+
+| Quantity | Value | Rule |
+| --- | --- | --- |
+| Median naive ticks to a first valid binding: target / partial / unrelated 1 / unrelated 2 | 87 / 73 / 73 / 93 | Body-difficulty check |
+| Spread between mappings | 0.25 | must be at most 0.15 |
+| Development ticks `D` | 800 | smallest multiple of 100 at which every development organism holds a valid binding in every source Body |
+| Measurement ticks `H` | 800 | equal to `D` |
+| Runnable | **no** | |
+
+By the frozen rule (§4.2.1, §11 step 1) the Body family is outside the 15 %
+difficulty spread, so **the study is not runnable and that is the recorded
+result**. No confirmation seed is run. The protocol's remedy is to reject the
+family and rebuild it, which is a new revision decided by the owner.
+
+Under r5 the four mappings were equally hard (91 ticks each) because, before an
+organism held any binding, nothing it did depended on which receptor an actuator
+drove. The canonical organism adapts its receptors from the first tick (sensory
+plasticity), so the mapping now changes how quickly a newborn finds its first
+binding.
 
 ## Superseded: development stage under r5 (2026-10-02)
 

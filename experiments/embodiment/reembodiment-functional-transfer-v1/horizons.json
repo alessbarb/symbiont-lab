@@ -1,0 +1,22 @@
+{
+  "body_difficulty": {
+    "median_ticks_to_first_valid_binding": {
+      "partial": 73.0,
+      "target": 87.0,
+      "unrelated_1": 73.0,
+      "unrelated_2": 93.0
+    },
+    "spread": 0.25,
+    "within_limit": false
+  },
+  "development_seeds": [
+    101,
+    131,
+    149
+  ],
+  "development_ticks": 800,
+  "measurement_ticks": 800,
+  "protocol": "embodiment.reembodiment-functional-transfer",
+  "runnable": false,
+  "stage": "development"
+}
