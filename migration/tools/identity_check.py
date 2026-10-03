@@ -29,13 +29,46 @@ import json, sys
 import symbiont
 from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont.host.checkpoint import checkpoint_state_hash, load_checkpoint_file
+from symbiont.core import organism_profile
 mode, path = sys.argv[1], sys.argv[2]
+if sys.argv[-1] == "composed":
+    # new tree: the Lab composes the organism's sense sources
+    from lab.integration.organism import (
+        create_canonical_organism as create,
+        load_or_create_canonical_organism as load_or_create,
+        restore_canonical_organism as restore,
+    )
+else:
+    # old tree: the organism built its own
+    create, load_or_create = OrganismRuntime, OrganismRuntime.load_or_create
+    restore = OrganismRuntime.from_checkpoint
+
+def options(stated):
+    return {
+        key: getattr(organism_profile, value) if key == "profile" else value
+        for key, value in stated.items()
+    }
+
+if mode == "matrix":
+    cases, overrides = json.loads(path)
+    hashes = {}
+    for name, stated in cases.items():
+        born = create(organism_id="identity-matrix", **options(stated))
+        hashes[name] = [born.state_hash(), born.checkpoint(advance_lineage=False)]
+        payload = born.checkpoint()
+        for other, override in overrides.items():
+            restored = restore(payload, **options(override))
+            hashes[f"{name} / {other}"] = [
+                restored.state_hash(), restored.checkpoint(advance_lineage=False)
+            ]
+    print(json.dumps(hashes))
+    sys.exit(0)
 if mode == "create":
-    organism = OrganismRuntime(min_samples=1, investigate_ticks=0)
+    organism = create(min_samples=1, investigate_ticks=0)
     organism.run(int(sys.argv[3]))
     organism.save(path)
 else:
-    organism = OrganismRuntime.load_or_create(path, min_samples=1, investigate_ticks=0)
+    organism = load_or_create(path, min_samples=1, investigate_ticks=0)
     if mode == "resave":
         organism.save(sys.argv[3])
 payload = load_checkpoint_file(path)
@@ -50,10 +83,34 @@ print(json.dumps({
 """
 
 
+# stdlib/discovery combinations, interoception on/sham/off, both profiles
+CASES = {
+    "canonical": {},
+    "historical-v0": {"profile": "HISTORICAL_V0"},
+    "v1": {"profile": "V1"},
+    "interoception": {"interoception_mode": "enabled", "discover_senses": True},
+    "sham": {"interoception_mode": "sham", "discover_senses": True},
+    "absent": {"interoception_enabled": False, "discover_senses": True},
+    "both": {"discover_senses": True, "bootstrap_semantic_senses": True},
+    "bootstrap": {"discover_senses": False, "bootstrap_semantic_senses": True},
+    "no-senses": {"discover_senses": False, "bootstrap_semantic_senses": False},
+}
+# what a restore may state differently from what the checkpoint recorded
+OVERRIDES = {
+    "recorded-controls": {},
+    "discovery-off": {"discover_senses": False},
+    "interoception-on": {"discover_senses": True, "interoception_mode": "enabled"},
+    "bootstrap": {"bootstrap_semantic_senses": True},
+    "interoception-off": {"interoception_enabled": False},
+    "profile": {"profile": "V1"},
+}
+
+
 def run(pythonpath: str, *args: str) -> dict:
     env = {**os.environ, "PYTHONPATH": pythonpath, "PYTHONDONTWRITEBYTECODE": "1"}
     out = subprocess.run(
-        [sys.executable, "-c", CHILD, *args], env=env, check=True, capture_output=True, text=True
+        [sys.executable, "-c", CHILD, *args, *(["composed"] if pythonpath == NEW else [])],
+        env=env, check=True, capture_output=True, text=True
     )
     return json.loads(out.stdout.strip().splitlines()[-1])
 
@@ -111,6 +168,17 @@ def main() -> int:
             f"schema {saved_new['schema_version']}",
         )
         check("serialized field set unchanged", saved_new["fields"] == saved_old["fields"])
+
+        # The old organism built its own sense sources; the new one is given
+        # them by the Lab. Same organism for every option set, born or restored.
+        matrix = json.dumps([CASES, OVERRIDES])
+        by_old, by_new = run(old, "matrix", matrix), run(NEW, "matrix", matrix)
+        differing = sorted(name for name in by_old if by_old[name] != by_new.get(name))
+        check(
+            f"composed by the Lab == self-built by the old organism ({len(by_old)} cases)",
+            not differing and len(by_old) == len(by_new),
+            ", ".join(differing[:5]),
+        )
     return 1 if failures else 0
 
 

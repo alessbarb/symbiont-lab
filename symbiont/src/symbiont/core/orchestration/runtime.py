@@ -3,7 +3,6 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-import platform
 import time
 import uuid
 from copy import deepcopy
@@ -69,8 +68,6 @@ from ...host.discovery import HostDiscovery
 from ...host.drift import DriftAwareBaseline, DriftObservation
 from ...host.lifecycle import HostLifecycle, LifecycleSnapshot
 from ...host.percepts import DEFAULT_PERCEPT_NAMES, Percept
-from ...host.providers.stdlib import StandardLibraryProvider
-from ...host.providers.stdlib_readings import StandardLibraryReadingProvider
 from ...host.readings import ReadingProvider
 from ...host.rhythms import RhythmModel
 from ...host.sources import HostSenseSources
@@ -251,7 +248,6 @@ FACTORIZED_PROBING_SHARE = 0.5
 
 
 # Host systems whose aggregate surfaces the organism can sense (ADR-0062, rule 8).
-_HOST_SENSE_SYSTEMS = frozenset({"Linux", "Darwin", "Windows"})
 
 
 class OrganismRuntime:
@@ -432,38 +428,13 @@ class OrganismRuntime:
         self._interoception_mode = interoception_mode
         self._interoception_enabled = interoception_mode != "absent"
 
-        host_system = platform.system()
-        if host_sense_sources is not None:
-            # Sources composed outside the organism. It attaches what it is given.
-            discovery_providers.extend(host_sense_sources.discovery_providers)
-            reading_providers.extend(host_sense_sources.reading_providers)
-            host_available = host_sense_sources.availability == "available"
-            host_telemetry = host_sense_sources.process_telemetry
-        else:
-            host_available = host_system in _HOST_SENSE_SYSTEMS
-            host_telemetry = None
-            if bootstrap_semantic_senses:
-                discovery_providers.append(StandardLibraryProvider())
-                reading_providers.append(StandardLibraryReadingProvider())
-
-            # The interoceptive surface is only offered alongside host-sense
-            # discovery, so gaining it never gives the research subject platform
-            # topology on its own. Linux exposes procfs/sysfs; macOS and Windows
-            # expose the portable aggregate surfaces.
-            if discover_senses and host_available:
-                from ...host.providers.process_telemetry import HostProcessTelemetry
-
-                if host_system == "Linux":
-                    from ...host.providers.linux_surfaces import LinuxSurfaceProvider
-
-                    host_provider: Any = LinuxSurfaceProvider()
-                else:
-                    from ...host.providers.portable_surfaces import PortableSurfaceProvider
-
-                    host_provider = PortableSurfaceProvider(system=host_system)
-                discovery_providers.append(host_provider)
-                reading_providers.append(host_provider)
-                host_telemetry = HostProcessTelemetry()
+        # Sense sources are composed outside the organism; it attaches what it
+        # is given. On its own it is a minimal organism with no host source.
+        if host_sense_sources is None:
+            host_sense_sources = HostSenseSources()
+        discovery_providers.extend(host_sense_sources.discovery_providers)
+        reading_providers.extend(host_sense_sources.reading_providers)
+        host_available = host_sense_sources.availability == "available"
 
         # Interoception is the organism's own. It is still only offered where
         # host senses are (recorded in migration/open-issues.md).
@@ -472,7 +443,9 @@ class OrganismRuntime:
             provider_type = (
                 ShamInteroceptionProvider if interoception_mode == "sham" else InteroceptionProvider
             )
-            self._interoception_provider = provider_type(host_telemetry=host_telemetry)
+            self._interoception_provider = provider_type(
+                host_telemetry=host_sense_sources.process_telemetry
+            )
             discovery_providers.append(self._interoception_provider)
             reading_providers.append(self._interoception_provider)
         self._reading_providers = tuple(reading_providers)
@@ -482,12 +455,8 @@ class OrganismRuntime:
             self._host_sense_source = "embodied"
         elif not discover_senses:
             self._host_sense_source = "not_requested"
-        elif host_sense_sources is not None:
-            self._host_sense_source = host_sense_sources.availability
-        elif host_system in _HOST_SENSE_SYSTEMS:
-            self._host_sense_source = "available"
         else:
-            self._host_sense_source = "unavailable"
+            self._host_sense_source = host_sense_sources.availability
         if host_lifecycle is not None:
             if not isinstance(host_lifecycle, HostLifecycle):
                 raise TypeError("host_lifecycle must be a HostLifecycle")

@@ -21,7 +21,6 @@ from lab.integration.organism import (
     restore_canonical_resident,
 )
 from symbiont.core.orchestration import sense_requirements as requirements_module
-from symbiont.core.orchestration.canonical_birth import restore_resident_with_canonical_cognition
 from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont.core.orchestration.sense_requirements import (
     SenseRequirements,
@@ -75,37 +74,73 @@ def _same(composed: OrganismRuntime, built_in: OrganismRuntime) -> None:
     assert composed.checkpoint(advance_lineage=False) == built_in.checkpoint(advance_lineage=False)
 
 
+def _expected_sources(requirements: SenseRequirements) -> list[str]:
+    """Provider classes, in order, that this platform's composition must attach."""
+    names = ["StandardLibraryProvider"] if requirements.bootstrap_semantic_senses else []
+    if requirements.discover_senses:
+        names.append(
+            "LinuxSurfaceProvider" if platform.system() == "Linux" else "PortableSurfaceProvider"
+        )
+        if requirements.interoception_mode != "absent":
+            names.append(
+                "ShamInteroceptionProvider"
+                if requirements.interoception_mode == "sham"
+                else "InteroceptionProvider"
+            )
+    return names
+
+
+def _attached(runtime: OrganismRuntime, expected: list[str]) -> None:
+    shape = _shape(runtime)
+    assert shape["discovery"] == expected
+    # the stdlib source discovers and reads through two classes
+    assert shape["readings"] == [
+        name.replace("StandardLibraryProvider", "StandardLibraryReadingProvider")
+        for name in expected
+    ]
+
+
+# Equality with the organism that used to build its own sources is checked
+# against the pre-migration tree by migration/tools/identity_check.py.
 @pytest.mark.parametrize("options", CASES)
-def test_fresh_creation_matches_the_constructor(options) -> None:
-    _same(
-        create_canonical_organism(organism_id="organism-under-test", **options),
-        OrganismRuntime(organism_id="organism-under-test", **options),
-    )
+def test_fresh_creation_attaches_what_the_organism_requires(options) -> None:
+    created = create_canonical_organism(organism_id="organism-under-test", **options)
+    expected = _expected_sources(resolve_sense_requirements(**options))
+    _attached(created, expected)
+
+
+@pytest.mark.parametrize("options", CASES)
+def test_the_organism_alone_attaches_no_host_source(options) -> None:
+    alone = OrganismRuntime(organism_id="organism-under-test", **options)
+    assert _shape(alone)["discovery"] == _shape(alone)["readings"] == []
+    assert alone._interoception_provider is None
+    assert alone._host_sense_source in {"unavailable", "not_requested"}
 
 
 @pytest.mark.parametrize("overrides", OVERRIDES)
 @pytest.mark.parametrize("options", CASES)
-def test_restore_matches_the_organism_restore(options, overrides) -> None:
-    payload = OrganismRuntime(organism_id="organism-under-test", **options).checkpoint()
-    _same(
-        restore_canonical_organism(payload, **overrides),
-        OrganismRuntime.from_checkpoint(payload, **overrides),
-    )
+def test_restore_attaches_what_the_checkpoint_and_overrides_require(options, overrides) -> None:
+    payload = create_canonical_organism(organism_id="organism-under-test", **options).checkpoint()
+    restored = restore_canonical_organism(payload, **overrides)
+    expected = _expected_sources(resolve_restore_sense_requirements(payload, **overrides))
+    _attached(restored, expected)
 
 
 @pytest.mark.parametrize("options", CASES)
 def test_restore_keeps_the_sources_the_organism_was_created_with(options) -> None:
     created = create_canonical_organism(organism_id="organism-under-test", **options)
-    restored = restore_canonical_organism(created.checkpoint())
+    restored = restore_canonical_organism(created.checkpoint(advance_lineage=False))
+    # lineage records the restore; everything else is the same organism
     assert _shape(restored) == _shape(created)
+    assert restored.state_hash() == created.state_hash()
 
 
 def test_load_or_create_creates_then_restores(tmp_path) -> None:
     path = tmp_path / "organism.json"
     created = load_or_create_canonical_organism(path, organism_id="organism-under-test")
-    _same(created, OrganismRuntime(organism_id="organism-under-test"))
+    _same(created, create_canonical_organism(organism_id="organism-under-test"))
     created.save(path)
-    _same(load_or_create_canonical_organism(path), OrganismRuntime.load_or_create(path))
+    assert _shape(load_or_create_canonical_organism(path)) == _shape(created)
 
 
 @pytest.mark.parametrize("system", ["Linux", "Darwin", "Windows", "Plan9"])
@@ -157,16 +192,15 @@ def test_the_lab_does_not_interpret_checkpoint_controls() -> None:
 
 @pytest.mark.parametrize("overrides", OVERRIDES)
 @pytest.mark.parametrize("options", CASES)
-def test_resident_restore_with_adopted_cognition_matches_the_organism_restore(
+def test_resident_restore_with_adopted_cognition_attaches_the_same_sources(
     options, overrides
 ) -> None:
     # a genome-less checkpoint, so the restore goes down the adoption branch
-    payload = OrganismRuntime(**options).checkpoint()
+    payload = create_canonical_organism(**options).checkpoint()
     assert payload["genome"] is None
-    _same(
-        restore_canonical_resident(payload, **overrides),
-        restore_resident_with_canonical_cognition(payload, **overrides),
-    )
+    resident = restore_canonical_resident(payload, **overrides)
+    assert resident.genome is not None
+    assert _shape(resident) == _shape(restore_canonical_organism(payload, **overrides))
 
 
 # The canonical organism senses macOS and Windows hosts too (ADR-0062, rule 8).
