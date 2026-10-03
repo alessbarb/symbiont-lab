@@ -6,6 +6,7 @@ import inspect
 
 import pytest
 
+from lab.integration.organism import create_canonical_organism
 from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont.host.continuity import (
     APPARATUS_FIELDS,
@@ -27,8 +28,12 @@ OPEN_GAPS: set[str] = set()
 
 
 def _runtime(layer: str, **kwargs: object) -> OrganismRuntime:
-    runtime = RUNTIMES[layer](
-        bootstrap_semantic_senses=True, discover_senses=False, min_samples=1, **kwargs
+    runtime = create_canonical_organism(
+        RUNTIMES[layer],
+        bootstrap_semantic_senses=True,
+        discover_senses=False,
+        min_samples=1,
+        **kwargs,
     )
     runtime.tick()
     return runtime

@@ -7,7 +7,6 @@ import platform
 
 import pytest
 
-from symbiont.core.orchestration.runtime import OrganismRuntime
 from symbiont.host.providers.portable_surfaces import PortableSurfaceProvider
 
 
@@ -37,19 +36,3 @@ def test_native_host_offers_system_surfaces_beyond_the_stdlib_ones() -> None:
     native = PortableSurfaceProvider().discover()
     stdlib_only = PortableSurfaceProvider(system="Other").discover()
     assert len(native) > len(stdlib_only)
-
-
-@pytest.mark.parametrize("system", ["Darwin", "Windows"])
-def test_canonical_organism_senses_macos_and_windows_hosts(monkeypatch, system) -> None:
-    monkeypatch.setattr(platform, "system", lambda: system)
-    runtime = OrganismRuntime()
-    assert runtime.effective_configuration()["host_sense_source"] == "available"
-    assert any(
-        isinstance(provider, PortableSurfaceProvider) for provider in runtime._reading_providers
-    )
-
-
-def test_unknown_host_system_is_declared_unavailable(monkeypatch) -> None:
-    monkeypatch.setattr(platform, "system", lambda: "Plan9")
-    runtime = OrganismRuntime()
-    assert runtime.effective_configuration()["host_sense_source"] == "unavailable"

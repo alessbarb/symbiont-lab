@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import ast
 import inspect
+import platform
 
 import pytest
 
@@ -28,6 +29,7 @@ from symbiont.core.orchestration.sense_requirements import (
     resolve_sense_requirements,
 )
 from symbiont.core.organism_profile import HISTORICAL_V0, V1
+from symbiont.host.providers.portable_surfaces import PortableSurfaceProvider
 
 # stdlib/discovery combinations, interoception on/sham/off, both profiles
 CASES = [
@@ -165,3 +167,20 @@ def test_resident_restore_with_adopted_cognition_matches_the_organism_restore(
         restore_canonical_resident(payload, **overrides),
         restore_resident_with_canonical_cognition(payload, **overrides),
     )
+
+
+# The canonical organism senses macOS and Windows hosts too (ADR-0062, rule 8).
+@pytest.mark.parametrize("system", ["Darwin", "Windows"])
+def test_canonical_organism_senses_macos_and_windows_hosts(monkeypatch, system) -> None:
+    monkeypatch.setattr(platform, "system", lambda: system)
+    runtime = create_canonical_organism()
+    assert runtime.effective_configuration()["host_sense_source"] == "available"
+    assert any(
+        isinstance(provider, PortableSurfaceProvider) for provider in runtime._reading_providers
+    )
+
+
+def test_unknown_host_system_is_declared_unavailable(monkeypatch) -> None:
+    monkeypatch.setattr(platform, "system", lambda: "Plan9")
+    runtime = create_canonical_organism()
+    assert runtime.effective_configuration()["host_sense_source"] == "unavailable"
